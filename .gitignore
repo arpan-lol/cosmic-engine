@@ -1,0 +1,7 @@
+node_modules
+dist
+.env
+todo-and-shit-to-remember.txt
+volumes
+.api
+logs
