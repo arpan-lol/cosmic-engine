@@ -1,12 +1,27 @@
 {
-  "name": "cosmic-engine-google",
+  "name": "cosmic-engine",
   "version": "1.0.0",
-  "description": "Our submission for the genai exchange'25 hackathon",
-  "main": "index.js",
+  "description": "Cosmic Engine! - Development orchestrator for frontend and backend",
+  "private": true,
   "scripts": {
-    "start": "node dist/index.js",
-    "dev": "npx tsx src/index.ts",
-    "build": "tsc",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:frontend": "cd frontend && npm run start",
+    "start:backend": "cd backend && npm run start",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:backend": "echo \"No linting configured for backend yet\"",
+    "install:frontend": "cd frontend && npm install",
+    "install:backend": "cd backend && npm install",
+    "install:all": "npm install && npm run install:frontend && npm run install:backend",
+    "clean": "rimraf node_modules frontend/node_modules backend/node_modules frontend/.next backend/dist",
+    "clean:frontend": "cd frontend && rimraf node_modules .next",
+    "clean:backend": "cd backend && rimraf node_modules dist",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -19,16 +34,15 @@
     "url": "https://github.com/arpan-lol/cosmic-engine/issues"
   },
   "homepage": "https://github.com/arpan-lol/cosmic-engine#readme",
-  "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.2",
-    "express": "^5.1.0"
-  },
   "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.3",
-    "@types/node": "^24.1.0",
-    "tsx": "^4.20.3",
-    "typescript": "^5.8.3"
+    "concurrently": "^8.2.2",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.8.3",
+    "@types/node": "^24.1.0"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   }
 }
