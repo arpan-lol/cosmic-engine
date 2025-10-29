@@ -21,23 +21,41 @@ router.get('/google', (req, res) => {
 
 router.get('/google/callback', async (req, res) => {
   const code = req.query.code as string;
-  if (!code) return res.status(400).send('Missing code');
+  if (!code) {
+    console.error('[auth] Missing authorization code');
+    return res.status(400).send('Missing code');
+  }
 
   try {
+    console.log('[auth] Exchanging code for tokens...');
     const { tokens } = await googleClient.getToken(code);
     const idToken = tokens.id_token;
     const refreshToken = tokens.refresh_token;
 
-    if (!idToken) throw new Error('Missing ID token');
+    if (!idToken) {
+      console.error('[auth] Missing ID token in response');
+      throw new Error('Missing ID token');
+    }
 
+    console.log('[auth] Verifying ID token...');
     const ticket = await googleClient.verifyIdToken({
       idToken,
       audience: GOOGLE_CLIENT_ID,
     });
 
     const payload = ticket.getPayload();
-    if (!payload || !payload.email) throw new Error('Invalid ID token');
+    if (!payload || !payload.email) {
+      console.error('[auth] Invalid payload from ID token');
+      throw new Error('Invalid ID token');
+    }
 
+    console.log('[auth] Google payload:', {
+      email: payload.email,
+      name: payload.name,
+      picture: payload.picture,
+      sub: payload.sub
+    });
+    console.log('[auth] Upserting user:', payload.email);
     const user = await prisma.user.upsert({
       where: { googleId: payload.sub },
       update: {
@@ -55,10 +73,14 @@ router.get('/google/callback', async (req, res) => {
       },
     });
 
+    console.log('[auth] Generating JWT for user ID:', user.id);
     const customJwt = signJwt(user);
-    res.redirect(`${FRONTEND_REDIRECT}?jwt=${customJwt}`);
+    const redirectUrl = `${FRONTEND_REDIRECT}?jwt=${customJwt}`;
+    console.log('[auth] Redirecting to:', redirectUrl);
+    res.redirect(redirectUrl);
   } catch (err) {
     console.error('[auth] Callback error:', err);
+    console.error('[auth] Error stack:', err instanceof Error ? err.stack : 'No stack trace');
     res.status(500).send('Authentication failed');
   }
 });

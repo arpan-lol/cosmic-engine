@@ -5,3 +5,5 @@ todo-and-shit-to-remember.txt
 volumes
 .api
 logs
+google-creds.json
+src/prisma/migrations

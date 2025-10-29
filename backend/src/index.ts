@@ -6,7 +6,7 @@ import { globalErrorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes';
 
 const app = express();
-const PORT = process.env.PORT || '3003';
+const PORT = process.env.PORT || '3006';
 
 if (process.env.NODE_ENV === 'development') {
   app.use(cors());
