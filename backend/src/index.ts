@@ -4,6 +4,7 @@ import cors from 'cors';
 import healthcheckRouter from './routes/health.routes.js'
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes';
+import chatRoutes from './routes/chat.routes';
 
 const app = express();
 const PORT = process.env.PORT || '3006';
@@ -18,6 +19,7 @@ console.log(process.cwd())
 app.use(express.json());
 app.use('/api/v1/healthcheck', healthcheckRouter);
 app.use('/auth', authRoutes);
+app.use('/chat', chatRoutes);
 
 app.use(globalErrorHandler);
 
