@@ -1,0 +1,17 @@
+[project]
+name = "rag-parsing"
+version = "0.1.0"
+description = "a"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "markitdown[docx,outlook,pdf,pptx,xls,xlsx]>=0.1.2",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "pypdf2>=3.0.0",
+    "langgraph>=0.6.4",
+    "langchain-text-splitters>=0.3.9",
+    "mistralai>=1.9.3",
+]
