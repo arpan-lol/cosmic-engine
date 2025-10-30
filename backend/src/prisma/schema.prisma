@@ -42,8 +42,8 @@ model Message {
 
 model Attachment {
   id        String   @id @default(uuid())
-  messageId String
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String?
+  message   Message?  @relation(fields: [messageId], references: [id], onDelete: Cascade)
   type      String   // 'image' | 'pdf' | 'document' | 'url'
   url       String
   filename  String

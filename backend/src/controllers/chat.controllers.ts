@@ -7,7 +7,10 @@ import {
   SendMessageRequest,
   SendMessageResponse,
   SessionDetails,
+  UploadFileResponse,
 } from '../types/chat.types';
+import path from 'path';
+import { UPLOAD_DIR } from '../config/upload';
 
 class ChatController {
   static async createSession(req: AuthRequest, res: Response): Promise<Response> {
@@ -260,8 +263,58 @@ class ChatController {
     const userId = req.user?.userId;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    // TODO: implement file upload
-    return res.status(501).json({ error: 'File upload not yet implemented' });
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const file = req.file;
+
+    try {
+      // Determine file type based on mimetype
+      let fileType = 'document';
+      if (file.mimetype.startsWith('image/')) {
+        fileType = 'image';
+      } else if (file.mimetype === 'application/pdf') {
+        fileType = 'pdf';
+      } else if (
+        file.mimetype.includes('word') ||
+        file.mimetype.includes('document')
+      ) {
+        fileType = 'document';
+      } else if (file.mimetype.includes('spreadsheet') || file.mimetype.includes('excel')) {
+        fileType = 'spreadsheet';
+      } else if (file.mimetype.includes('presentation') || file.mimetype.includes('powerpoint')) {
+        fileType = 'presentation';
+      }
+
+      const attachment = await prisma.attachment.create({
+        data: {
+          type: fileType,
+          url: path.join('uploads', file.filename),
+          filename: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+          metadata: {
+            uploadedBy: userId,
+            uploadedAt: new Date().toISOString(),
+            storedFilename: file.filename,
+          },
+        },
+      });
+
+      const response: UploadFileResponse = {
+        attachmentId: attachment.id,
+        filename: attachment.filename,
+        type: attachment.type,
+        url: attachment.url,
+      };
+
+      console.log(`[chat] File uploaded: ${attachment.filename} (${attachment.id})`);
+      return res.status(201).json(response);
+    } catch (error) {
+      console.error('[chat] Error uploading file:', error);
+      return res.status(500).json({ error: 'Failed to upload file' });
+    }
   }
 }
 

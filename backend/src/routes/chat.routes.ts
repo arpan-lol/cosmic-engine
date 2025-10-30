@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticateJWT } from '../middleware/auth';
 import { ChatController } from '../controllers/chat.controllers';
+import { upload } from '../config/upload';
 
 const router = Router();
 
@@ -12,6 +13,6 @@ router.get('/sessions/:id', ChatController.getSessionById);
 router.delete('/sessions/:id', ChatController.deleteSession);
 router.post('/sessions/:id/messages', ChatController.sendMessage);
 router.get('/sessions/:id/stream', ChatController.streamResponse);
-router.post('/upload', ChatController.uploadFile);
+router.post('/upload', upload.single('file'), ChatController.uploadFile);
 
 export default router;
