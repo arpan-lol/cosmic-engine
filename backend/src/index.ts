@@ -5,6 +5,7 @@ import healthcheckRouter from './routes/health.routes.js'
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes';
 import chatRoutes from './routes/chat.routes';
+import { startFileProcessorWorker } from './workers/file-processor.worker';
 
 const app = express();
 const PORT = process.env.PORT || '3006';
@@ -22,6 +23,9 @@ app.use('/auth', authRoutes);
 app.use('/chat', chatRoutes);
 
 app.use(globalErrorHandler);
+
+// Start background workers
+startFileProcessorWorker();
 
 app.listen(PORT, () => {
   console.log(`[server] Listening on http://localhost:${PORT}`);

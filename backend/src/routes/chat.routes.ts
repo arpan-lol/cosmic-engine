@@ -14,5 +14,6 @@ router.delete('/sessions/:id', ChatController.deleteSession);
 router.post('/sessions/:id/messages', ChatController.sendMessage);
 router.get('/sessions/:id/stream', ChatController.streamResponse);
 router.post('/upload', upload.single('file'), ChatController.uploadFile);
+router.get('/attachments/:attachmentId/status', ChatController.getAttachmentStatus);
 
 export default router;

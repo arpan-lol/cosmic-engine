@@ -11,6 +11,7 @@ import {
 } from '../types/chat.types';
 import path from 'path';
 import { UPLOAD_DIR } from '../config/upload';
+import { jobQueue } from '../queue';
 
 class ChatController {
   static async createSession(req: AuthRequest, res: Response): Promise<Response> {
@@ -298,8 +299,17 @@ class ChatController {
             uploadedBy: userId,
             uploadedAt: new Date().toISOString(),
             storedFilename: file.filename,
+            processed: false,
           },
         },
+      });
+
+      // queue the file for processing
+      const jobId = jobQueue.add('process-file', {
+        attachmentId: attachment.id,
+        userId,
+      }).catch((err: Error) => {
+        console.error(`[chat] Failed to queue file processing: ${err.message}`);
       });
 
       const response: UploadFileResponse = {
@@ -314,6 +324,46 @@ class ChatController {
     } catch (error) {
       console.error('[chat] Error uploading file:', error);
       return res.status(500).json({ error: 'Failed to upload file' });
+    }
+  }
+
+  /**
+   * Get attachment processing status
+   */
+  static async getAttachmentStatus(req: AuthRequest, res: Response) {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    try {
+      const { attachmentId } = req.params;
+
+      const attachment = await prisma.attachment.findUnique({
+        where: { id: attachmentId },
+      });
+
+      if (!attachment) {
+        return res.status(404).json({ error: 'Attachment not found' });
+      }
+
+      const metadata = attachment.metadata as any;
+      const processed = metadata?.processed || false;
+      const error = metadata?.error;
+      const chunkCount = metadata?.chunkCount;
+
+      return res.status(200).json({
+        attachmentId: attachment.id,
+        filename: attachment.filename,
+        processed,
+        error,
+        chunkCount,
+        processedAt: metadata?.processedAt,
+        failedAt: metadata?.failedAt,
+      });
+    } catch (error) {
+      console.error('[chat] Error getting attachment status:', error);
+      return res.status(500).json({ error: 'Failed to get attachment status' });
     }
   }
 }
