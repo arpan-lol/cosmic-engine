@@ -12,6 +12,7 @@ import {
 import path from 'path';
 import { UPLOAD_DIR } from '../config/upload';
 import { jobQueue } from '../queue';
+import { sseService } from '../services/sse.service';
 
 class ChatController {
   static async createSession(req: AuthRequest, res: Response): Promise<Response> {
@@ -364,6 +365,32 @@ class ChatController {
     } catch (error) {
       console.error('[chat] Error getting attachment status:', error);
       return res.status(500).json({ error: 'Failed to get attachment status' });
+    }
+  }
+
+  static async streamAttachmentStatus(req: AuthRequest, res: Response) {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { attachmentId } = req.params;
+
+    try {
+      const attachment = await prisma.attachment.findUnique({
+        where: { id: attachmentId },
+      });
+
+      if (!attachment) {
+        return res.status(404).json({ error: 'Attachment not found' });
+      }
+
+      sseService.addClient(attachmentId, res);
+
+      console.log(`[chat] SSE stream started for attachment: ${attachmentId}`);
+    } catch (error) {
+      console.error('[chat] Error starting SSE stream:', error);
+      return res.status(500).json({ error: 'Failed to start stream' });
     }
   }
 }

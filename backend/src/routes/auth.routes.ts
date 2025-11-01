@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import prisma from '../prisma/client';
-import { googleClient, GOOGLE_CLIENT_ID } from '../utils/googleClient';
-import { signJwt, verifyJwt, decodeJwt } from '../utils/jwt';
+import { googleClient, GOOGLE_CLIENT_ID } from '../utils/googleClient.util';
+import { signJwt, verifyJwt, decodeJwt } from '../utils/jwt.util';
 import { authenticateJWT } from '../middleware/auth'
 
 import { Response } from 'express';
