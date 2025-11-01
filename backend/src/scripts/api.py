@@ -2,7 +2,10 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, HttpUrl
 from typing import Optional, List, Dict, Any
 import time
+import os
+from pathlib import Path
 from utils import process_url_with_markitdown, split_content_into_chunks
+from markitdown import MarkItDown
 
 app = FastAPI(
     title="RAG Parsing API",
@@ -10,12 +13,22 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# Initialize MarkItDown
+md = MarkItDown()
+
 
 class URLRequest(BaseModel):
     url: HttpUrl
 
     class Config:
         json_schema_extra = {"example": {"url": "https://example.com/document.pdf"}}
+
+
+class FilePathRequest(BaseModel):
+    file_path: str
+
+    class Config:
+        json_schema_extra = {"example": {"file_path": "/path/to/uploads/document.pdf"}}
 
 
 class ProcessingResponse(BaseModel):
@@ -59,10 +72,13 @@ async def root():
     """Root endpoint with API information."""
     return {
         "message": "RAG Parsing API",
-        "description": "Send POST requests to /process-url with a URL to convert documents to markdown",
+        "description": "Process URLs or local files and convert documents to markdown",
         "endpoints": {
             "POST /process-url": "Process a URL and convert to markdown",
+            "POST /process-file": "Process a local file and convert to markdown",
             "GET /health": "Health check endpoint",
+            "GET /cache-stats": "View cache statistics",
+            "DELETE /cache": "Clear all cached content",
         },
     }
 
@@ -191,6 +207,93 @@ async def process_url_endpoint(request: URLRequest):
             content_length=None,
             markdown_content=None,
             error_message=f"Unexpected error: {str(e)}",
+            cached=False,
+            processing_strategy=None,
+            chunks=None,
+        )
+
+
+@app.post("/process-file", response_model=ProcessingResponse)
+async def process_file_endpoint(request: FilePathRequest):
+    """
+    Process a local file and convert it to markdown.
+
+    - **file_path**: Absolute path to the file on the filesystem
+
+    Returns the markdown content.
+    Files larger than 100MB are rejected.
+    """
+    file_path = request.file_path
+    start_time = time.time()
+
+    try:
+        # Validate file exists
+        if not os.path.exists(file_path):
+            return ProcessingResponse(
+                success=False,
+                url=file_path,
+                processing_time=time.time() - start_time,
+                content_length=None,
+                markdown_content=None,
+                error_message=f"File not found: {file_path}",
+                cached=False,
+                processing_strategy=None,
+                chunks=None,
+            )
+
+        # Check file size
+        file_size = os.path.getsize(file_path)
+        MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+        if file_size > MAX_FILE_SIZE:
+            return ProcessingResponse(
+                success=False,
+                url=file_path,
+                processing_time=time.time() - start_time,
+                content_length=None,
+                markdown_content=None,
+                error_message=f"File too large: {file_size / (1024*1024):.2f}MB exceeds 100MB limit",
+                cached=False,
+                processing_strategy=None,
+                chunks=None,
+            )
+
+        # Process file with MarkItDown
+        print(f"🔄 Processing file: {file_path}")
+        result = md.convert(file_path)
+        markdown_content = result.text_content
+        
+        processing_time = time.time() - start_time
+        content_length = len(markdown_content)
+
+        # Determine if it's a PDF for chunking
+        is_pdf = file_path.lower().endswith('.pdf')
+        chunks = split_content_into_chunks(markdown_content, is_pdf=is_pdf)
+
+        print(f"✅ Successfully processed: {content_length:,} characters, {len(chunks)} chunks")
+
+        return ProcessingResponse(
+            success=True,
+            url=file_path,
+            processing_time=processing_time,
+            content_length=content_length,
+            markdown_content=markdown_content,
+            error_message=None,
+            cached=False,
+            processing_strategy="local_file",
+            chunks=chunks,
+        )
+
+    except Exception as e:
+        processing_time = time.time() - start_time
+        print(f"❌ Error processing file: {e}")
+        
+        return ProcessingResponse(
+            success=False,
+            url=file_path,
+            processing_time=processing_time,
+            content_length=None,
+            markdown_content=None,
+            error_message=f"Error processing file: {str(e)}",
             cached=False,
             processing_strategy=None,
             chunks=None,
