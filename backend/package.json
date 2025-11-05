@@ -21,7 +21,9 @@
   },
   "homepage": "https://github.com/arpan-lol/cosmic-engine#readme",
   "dependencies": {
+    "@google/genai": "^1.28.0",
     "@prisma/client": "^6.17.0",
+    "@zilliz/milvus2-sdk-node": "^2.6.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",

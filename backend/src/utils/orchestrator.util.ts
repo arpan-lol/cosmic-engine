@@ -61,7 +61,9 @@ async function processFile(attachmentId: string, userId: number): Promise<void> 
       message: `Generating embeddings for ${chunks.length} chunks...`,
       progress: 75,
     });
-    const embeddings = await EmbeddingService.generateEmbeddings(chunks);
+
+    const embeddings = Promise.all(chunks.map(chunk=>{EmbeddingService.generateEmbedding(chunk.content)}))
+    // const embeddings = await EmbeddingService.generateEmbeddings(chunks);
 
     console.log('[Orchestrator] Step 4: Storing vectors...');
     sseService.sendToAttachment(attachmentId, {
