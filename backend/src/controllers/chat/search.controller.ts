@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../types/express';
 import prisma from '../../prisma/client';
-import { RetrievalService } from '../../services/llm/retrieval.service';
+import { CollectionService, SearchService } from '../../services/file-processing/milvus';
 
 export class SearchController {
   /**
@@ -29,7 +29,7 @@ export class SearchController {
       }
 
       // Get session stats
-      const stats = await RetrievalService.getSessionStats(sessionId);
+      const stats = await CollectionService.getStats(sessionId);
 
       if (!stats.collectionExists || stats.totalVectors === 0) {
         return res.status(200).json({
@@ -43,14 +43,14 @@ export class SearchController {
       }
 
       // Perform semantic search
-      const results = await RetrievalService.searchWithMetadata(
+      const results = await SearchService.search(
         sessionId,
         query.trim(),
         topK
       );
 
       return res.status(200).json({
-        results: results.map((r) => ({
+        results: results.map((r: { content: string; metadata: any; score: number }) => ({
           content: r.content,
           score: r.score,
           metadata: {

@@ -3,17 +3,17 @@ import prisma from '../prisma/client';
 import { IngestionService } from '../services/file-processing/ingestion.service';
 import { ChunkingService } from '../services/file-processing/chunking.service';
 import { EmbeddingService } from '../services/file-processing/embedding.service';
-import { VectorStoreService } from '../services/file-processing/vector-store.service';
+import { CollectionService, StorageService } from '../services/file-processing/milvus';
 import { sseService } from '../services/sse.service';
 
 interface OrchestrationJob {
   attachmentId: string;
   userId: number;
+  sessionId: string; 
 }
 
-
-async function processFile(attachmentId: string, userId: number): Promise<void> {
-  console.log(`[Orchestrator] Starting pipeline for attachment: ${attachmentId}`);
+async function processFile(attachmentId: string, userId: number, sessionId: string): Promise<void> {
+  console.log(`[Orchestrator] Starting pipeline for attachment: ${attachmentId} in session: ${sessionId}`);
 
   try {
     const attachment = await prisma.attachment.findUnique({
@@ -33,6 +33,17 @@ async function processFile(attachmentId: string, userId: number): Promise<void> 
       progress: 0,
     });
 
+    // Step 0: Initialize collection for each session
+    console.log('[Orchestrator] Step 0: Initializing vector store...');
+    sseService.sendToAttachment(attachmentId, {
+      status: 'processing',
+      step: 'initialization',
+      message: 'Initializing vector store...',
+      progress: 10,
+    });
+    await CollectionService.initializeCollection(sessionId);
+
+    // Step 1: Ingestion
     console.log('[Orchestrator] Step 1: Converting to markdown...');
     sseService.sendToAttachment(attachmentId, {
       status: 'processing',
@@ -42,38 +53,45 @@ async function processFile(attachmentId: string, userId: number): Promise<void> 
     });
     const markdown = await IngestionService.convertToMarkdown(attachment.url);
 
+    // Step 2: Chunking
     console.log('[Orchestrator] Step 2: Chunking content...');
     sseService.sendToAttachment(attachmentId, {
       status: 'processing',
       step: 'chunking',
       message: `Splitting into chunks (${markdown.length} characters)...`,
-      progress: 50,
+      progress: 40,
     });
     const chunks = await ChunkingService.chunkContent(markdown, {
       chunkSize: 1000,
       overlap: 200,
     });
 
+    console.log(`[Orchestrator] Created ${chunks.length} chunks`);
+
+    // Step 3: Generate embeddings
     console.log('[Orchestrator] Step 3: Generating embeddings...');
     sseService.sendToAttachment(attachmentId, {
       status: 'processing',
       step: 'embedding',
       message: `Generating embeddings for ${chunks.length} chunks...`,
-      progress: 75,
+      progress: 60,
     });
 
-    const embeddings = Promise.all(chunks.map(chunk=>{EmbeddingService.generateEmbedding(chunk.content)}))
-    // const embeddings = await EmbeddingService.generateEmbeddings(chunks);
+    const embeddings = await EmbeddingService.generateEmbeddings(chunks);
+    console.log(`[Orchestrator] Generated ${embeddings.length} embeddings`);
 
+    // Step 4: Store vectors in Milvus
     console.log('[Orchestrator] Step 4: Storing vectors...');
     sseService.sendToAttachment(attachmentId, {
       status: 'processing',
       step: 'storage',
       message: 'Storing vectors in database...',
-      progress: 90,
+      progress: 80,
     });
-    await VectorStoreService.storeVectors(attachmentId, embeddings);
+    
+    await StorageService.storeVectors(sessionId, attachmentId, embeddings);
 
+    // Step 5: Update attachment metadata
     await prisma.attachment.update({
       where: { id: attachmentId },
       data: {
@@ -82,7 +100,9 @@ async function processFile(attachmentId: string, userId: number): Promise<void> 
           processed: true,
           processedAt: new Date().toISOString(),
           chunkCount: chunks.length,
+          embeddingCount: embeddings.length,
           markdownLength: markdown.length,
+          sessionId,
         },
       },
     });
@@ -92,9 +112,10 @@ async function processFile(attachmentId: string, userId: number): Promise<void> 
     sseService.sendToAttachment(attachmentId, {
       status: 'completed',
       step: 'finished',
-      message: `Successfully processed! (${chunks.length} chunks)`,
+      message: `Successfully processed! (${chunks.length} chunks, ${embeddings.length} embeddings)`,
       progress: 100,
       chunkCount: chunks.length,
+      embeddingCount: embeddings.length,
     });
 
     setTimeout(() => {
@@ -138,9 +159,9 @@ export function Orchestrator() {
   console.log('[Orchestrator] Registering file processor...');
 
   jobQueue.registerHandler('process-file', async (data: OrchestrationJob) => {
-    const { attachmentId, userId } = data;
-    console.log(`[Orchestrator] Processing file job: attachmentId=${attachmentId}, userId=${userId}`);
-    await processFile(attachmentId, userId);
+    const { attachmentId, userId, sessionId } = data;
+    console.log(`[Orchestrator] Processing file job: attachmentId=${attachmentId}, userId=${userId}, sessionId=${sessionId}`);
+    await processFile(attachmentId, userId, sessionId);
     console.log(`[Orchestrator] ✅ File job completed: ${attachmentId}`);
   });
 
