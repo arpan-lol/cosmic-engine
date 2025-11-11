@@ -29,7 +29,7 @@ export class SearchController {
       }
 
       // Get session stats
-      const stats = await CollectionService.getStats(sessionId);
+      const stats = await CollectionService.getCollectionStats(sessionId);
 
       if (!stats.collectionExists || stats.totalVectors === 0) {
         return res.status(200).json({

@@ -5,6 +5,7 @@ import {
   SendMessageRequest,
   SendMessageResponse,
 } from '../../types/chat.types';
+import { GenerationService } from '../../services/llm/generation.service';
 
 export class MessageController {
   /**
@@ -79,9 +80,14 @@ export class MessageController {
     const { id: sessionId } = req.params;
 
     try {
-      // verify session belongs to user
       const session = await prisma.chatSession.findUnique({
         where: { id: sessionId, userId },
+        include: {
+          messages: {
+            orderBy: { createdAt: 'asc' },
+            take: 20,
+          },
+        },
       });
 
       if (!session) {
@@ -92,29 +98,53 @@ export class MessageController {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+      res.setHeader('X-Accel-Buffering', 'no');
 
       res.write(`data: ${JSON.stringify({ type: 'connected' })}\n\n`);
 
-      // TODO: Implement actual LLM streaming logic
-      const mockResponse = 'This is a mock LLM response. Actual LLM integration coming soon.';
-
-      const assistantMessage = await prisma.message.create({
-        data: {
-          sessionId,
-          role: 'assistant',
-          content: mockResponse,
-        },
-      });
-
-      for (const char of mockResponse) {
-        res.write(`data: ${JSON.stringify({ type: 'token', content: char })}\n\n`);
-        await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate streaming delay
+      const lastMessage = session.messages[session.messages.length - 1];
+      if (!lastMessage || lastMessage.role !== 'user') {
+        res.write(`data: ${JSON.stringify({ type: 'error', error: 'No user message found' })}\n\n`);
+        res.end();
+        return;
       }
 
-      res.write(
-        `data: ${JSON.stringify({ type: 'done', messageId: assistantMessage.id })}\n\n`
-      );
+      const conversationHistory = session.messages.slice(0, -1).map((msg) => ({
+        role: msg.role as 'user' | 'assistant' | 'system',
+        content: msg.content,
+      }));
+
+      let fullResponse = '';
+
+      try {
+        const stream = GenerationService.streamResponse(
+          sessionId,
+          lastMessage.content,
+          conversationHistory,
+          true
+        );
+
+        for await (const chunk of stream) {
+          fullResponse += chunk;
+          res.write(`data: ${JSON.stringify({ type: 'token', content: chunk })}\n\n`);
+        }
+
+        const assistantMessage = await prisma.message.create({
+          data: {
+            sessionId,
+            role: 'assistant',
+            content: fullResponse,
+            tokens: fullResponse.length,
+          },
+        });
+
+        res.write(
+          `data: ${JSON.stringify({ type: 'done', messageId: assistantMessage.id })}\n\n`
+        );
+      } catch (streamError) {
+        console.error('[chat] Error in LLM streaming:', streamError);
+        res.write(`data: ${JSON.stringify({ type: 'error', error: 'Failed to generate response' })}\n\n`);
+      }
 
       res.end();
     } catch (error) {
