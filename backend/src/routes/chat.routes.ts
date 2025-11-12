@@ -13,9 +13,8 @@ router.get('/sessions', ChatController.getSessions);
 router.get('/sessions/:id', ChatController.getSessionById);
 router.delete('/sessions/:id', ChatController.deleteSession);
 
-// Messaging
-router.post('/sessions/:id/messages', ChatController.sendMessage);
-router.get('/sessions/:id/stream', ChatController.streamResponse);
+// Messaging (unified endpoint - creates message and streams response)
+router.post('/sessions/:id/message', ChatController.message);
 
 // File uploads and processing
 router.post('/upload', upload.single('file'), ChatController.uploadFile);

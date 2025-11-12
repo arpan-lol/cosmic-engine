@@ -11,8 +11,7 @@ export const ChatController = {
   deleteSession: SessionController.deleteSession,
 
   // Message methods
-  sendMessage: MessageController.sendMessage,
-  streamResponse: MessageController.streamResponse,
+  message: MessageController.message,
 
   // Attachment methods
   uploadFile: AttachmentController.uploadFile,

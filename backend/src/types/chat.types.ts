@@ -11,6 +11,7 @@ export interface CreateSessionResponse {
 export interface SendMessageRequest {
   content: string;
   attachmentIds?: string[];
+  documentIds?: string[];
 }
 
 export interface SendMessageResponse {
