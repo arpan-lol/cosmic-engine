@@ -43,13 +43,6 @@ export const globalErrorHandler: ErrorRequestHandler = (
     return;
   }
 
-  if (req.url.includes('/hackrx/run') || req.url.includes('/transcribe')) {
-    res.status(200).json({ 
-      answers: ["Failed to process document. Please try again."] 
-    });
-    return;
-  }
-
   res.status(500).json({ 
     error: "An error occurred while processing your request." 
   });

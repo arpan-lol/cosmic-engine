@@ -1,11 +1,15 @@
 import express from 'express';
 import './config/env.js';
+import { validateEnvironment } from './config/env';
 import cors from 'cors';
 import healthcheckRouter from './routes/health.routes.js'
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes';
 import chatRoutes from './routes/chat.routes';
 import { Orchestrator } from './utils/orchestrator.util';
+import { HealthCheck } from './utils/healthcheck.util';
+
+validateEnvironment();
 
 const app = express();
 const PORT = process.env.PORT || '3006';
@@ -26,6 +30,8 @@ app.use(globalErrorHandler);
 
 Orchestrator();
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`[server] Listening on http://localhost:${PORT}`);
+  
+  await HealthCheck.checkAll();
 });
