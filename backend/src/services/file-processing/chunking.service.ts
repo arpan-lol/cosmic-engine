@@ -15,27 +15,122 @@ interface PagePosition {
 }
 
 export class ChunkingService {
+  static async *chunkContentStream(
+    markdown: string,
+    options: ChunkOptions = {}
+  ): AsyncGenerator<Chunk> {
+    const { chunkSize = 4000, overlap = 200 } = options;
+
+    if (chunkSize <= overlap) {
+      throw new Error('chunkSize must be greater than chunkOverlap');
+    }
+
+    const separators = ['\n\n', '\n', '. ', ' '];
+    let buffer = '';
+    let chunkIndex = 0;
+    let globalPosition = 0;
+    let currentPageNumber: number | null = null;
+
+    const SEGMENT_SIZE = 100000;
+    
+    for (let i = 0; i < markdown.length; i += SEGMENT_SIZE) {
+      const segment = markdown.slice(i, Math.min(i + SEGMENT_SIZE, markdown.length));
+      buffer += segment;
+
+      while (buffer.length >= chunkSize || (i + SEGMENT_SIZE >= markdown.length && buffer.length > 0)) {
+        const endIndex = Math.min(chunkSize, buffer.length);
+        let chunkText = buffer.slice(0, endIndex);
+
+        const pageMatch = chunkText.match(/<!-- Slide number: (\d+) -->|^# Sheet (\d+)/m);
+        if (pageMatch) {
+          currentPageNumber = parseInt(pageMatch[1] || pageMatch[2], 10);
+        }
+
+        if (endIndex === chunkSize && buffer.length > chunkSize) {
+          let bestSplit = chunkText.length;
+          for (const sep of separators) {
+            const lastIndex = chunkText.lastIndexOf(sep);
+            if (lastIndex > chunkSize * 0.5) {
+              bestSplit = lastIndex + sep.length;
+              break;
+            }
+          }
+          chunkText = chunkText.slice(0, bestSplit);
+        }
+
+        const trimmedChunk = chunkText.trim();
+        if (trimmedChunk.length > 0) {
+          yield {
+            content: trimmedChunk,
+            index: chunkIndex++,
+            metadata: {
+              startChar: globalPosition,
+              endChar: globalPosition + trimmedChunk.length,
+              length: trimmedChunk.length,
+              pageNumber: currentPageNumber,
+            },
+          };
+        }
+
+        const actualLength = chunkText.length;
+        buffer = buffer.slice(Math.max(actualLength - overlap, 1));
+        globalPosition += actualLength - overlap;
+
+        if (buffer.length < chunkSize && i + SEGMENT_SIZE < markdown.length) {
+          break;
+        }
+      }
+    }
+
+    if (buffer.trim().length > 0) {
+      yield {
+        content: buffer.trim(),
+        index: chunkIndex,
+        metadata: {
+          startChar: globalPosition,
+          endChar: globalPosition + buffer.length,
+          length: buffer.length,
+          pageNumber: currentPageNumber,
+        },
+      };
+    }
+  }
+
+  static async chunkContent(
+    markdown: string,
+    options: ChunkOptions = {}
+  ): Promise<Chunk[]> {
+    const chunks: Chunk[] = [];
+    for await (const chunk of this.chunkContentStream(markdown, options)) {
+      chunks.push(chunk);
+    }
+    return chunks;
+  }
+
   private static extractPageNumbers(content: string): PagePosition[] {
     const pagePositions: PagePosition[] = [];
-
-    const slideRegex = /<!-- Slide number: (\d+) -->/g;
-    let match;
-    while ((match = slideRegex.exec(content)) !== null) {
-      pagePositions.push({
-        position: match.index,
-        pageNumber: parseInt(match[1], 10),
-      });
-    }
-    if (pagePositions.length > 0) {
-      return pagePositions;
-    }
-
-    const sheetRegex = /^# Sheet (\d+)/gm;
-    while ((match = sheetRegex.exec(content)) !== null) {
-      pagePositions.push({
-        position: match.index,
-        pageNumber: parseInt(match[1], 10),
-      });
+    
+    const lines = content.split('\n');
+    let currentPos = 0;
+    
+    for (const line of lines) {
+      const slideMatch = line.match(/<!-- Slide number: (\d+) -->/);
+      if (slideMatch) {
+        pagePositions.push({
+          position: currentPos,
+          pageNumber: parseInt(slideMatch[1], 10),
+        });
+      }
+      
+      const sheetMatch = line.match(/^# Sheet (\d+)/);
+      if (sheetMatch && pagePositions.length === 0) {
+        pagePositions.push({
+          position: currentPos,
+          pageNumber: parseInt(sheetMatch[1], 10),
+        });
+      }
+      
+      currentPos += line.length + 1;
     }
 
     return pagePositions;
@@ -115,49 +210,6 @@ export class ChunkingService {
       }
     }
     
-    return chunks;
-  }
-
-  static async chunkContent(
-    markdown: string,
-    options: ChunkOptions = {}
-  ): Promise<Chunk[]> {
-    const { chunkSize = 4000, overlap = 200 } = options;
-
-    console.log(
-      `[Chunking] Splitting content (${markdown.length} chars) with size=${chunkSize}, overlap=${overlap}`
-    );
-
-    if (!markdown || markdown.trim().length === 0) {
-      return [];
-    }
-
-    // Extract page positions from content
-    const pagePositions = this.extractPageNumbers(markdown);
-
-    // Split the content
-    const rawChunks = this.splitText(markdown, chunkSize, overlap);
-
-    // Create final chunks with page numbers
-    const chunks: Chunk[] = rawChunks.map((rawChunk, index) => {
-      const pageNumber = this.determineChunkPageNumber(
-        rawChunk.startIndex,
-        pagePositions
-      );
-
-      return {
-        content: rawChunk.content,
-        index,
-        metadata: {
-          startChar: rawChunk.startIndex,
-          endChar: rawChunk.startIndex + rawChunk.content.length,
-          length: rawChunk.content.length,
-          pageNumber,
-        },
-      };
-    });
-
-    console.log(`[Chunking] Created ${chunks.length} chunks`);
     return chunks;
   }
 }

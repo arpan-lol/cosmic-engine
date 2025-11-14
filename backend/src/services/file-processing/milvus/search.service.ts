@@ -10,14 +10,13 @@ export class SearchService {
     attachmentId?: string
   ): Promise<Array<{ content: string; metadata: any; score: number }>> {
     try {
-      const hasCollection = await CollectionService.hasCollection(sessionId);
+      const collectionName = CollectionService.generateCName(sessionId);
+      const hasCollection = await CollectionService.hasCollection(collectionName);
       
       if (!hasCollection) {
         console.log(`[Milvus] No collection found for session: ${sessionId}`);
         return [];
       }
-
-      const collectionName = CollectionService.generateCName(sessionId);
       const client = getMilvusClient();
       
       const queryVector = await EmbeddingService.generateQueryEmbedding(queryText);

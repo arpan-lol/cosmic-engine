@@ -15,6 +15,32 @@ const ai = new GoogleGenAI({
 const EMBEDDING_MODEL = 'text-embedding-004';
 
 export class EmbeddingService {
+  static async *generateEmbeddingsStream(
+    chunkStream: AsyncGenerator<Chunk>
+  ): AsyncGenerator<Embedding> {
+    const BATCH_SIZE = 10;
+    let batch: Chunk[] = [];
+
+    for await (const chunk of chunkStream) {
+      batch.push(chunk);
+
+      if (batch.length >= BATCH_SIZE) {
+        const embeddings = await this.generateEmbeddings(batch);
+        for (const embedding of embeddings) {
+          yield embedding;
+        }
+        batch = [];
+      }
+    }
+
+    if (batch.length > 0) {
+      const embeddings = await this.generateEmbeddings(batch);
+      for (const embedding of embeddings) {
+        yield embedding;
+      }
+    }
+  }
+
   static async generateEmbeddings(chunks: Chunk[]): Promise<Embedding[]> {
     if (chunks.length === 0) {
       return [];

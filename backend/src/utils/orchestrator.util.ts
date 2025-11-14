@@ -54,43 +54,41 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     });
     const markdown = await IngestionService.convertToMarkdown(attachment.url);
 
-    // Step 2: Chunking
-    console.log('[Orchestrator] Step 2: Chunking content...');
+    // Step 2-4: Stream-based processing (chunking, embedding, storage)
+    console.log('[Orchestrator] Steps 2-4: Stream processing chunks...');
     sseService.sendToAttachment(attachmentId, {
       status: 'processing',
-      step: 'chunking',
-      message: `Splitting into chunks (${markdown.length} characters)...`,
+      step: 'streaming',
+      message: `Processing ${markdown.length} characters in streaming mode...`,
       progress: 40,
     });
-    const chunks = await ChunkingService.chunkContent(markdown, {
+
+    const chunkStream = ChunkingService.chunkContentStream(markdown, {
       chunkSize: 1000,
       overlap: 200,
     });
 
-    console.log(`[Orchestrator] Created ${chunks.length} chunks`);
+    const embeddingStream = EmbeddingService.generateEmbeddingsStream(chunkStream);
+    const storageStream = StorageService.storeVectorsStream(sessionId, attachmentId, embeddingStream);
 
-    // Step 3: Generate embeddings
-    console.log('[Orchestrator] Step 3: Generating embeddings...');
-    sseService.sendToAttachment(attachmentId, {
-      status: 'processing',
-      step: 'embedding',
-      message: `Generating embeddings for ${chunks.length} chunks...`,
-      progress: 60,
-    });
-
-    const embeddings = await EmbeddingService.generateEmbeddings(chunks);
-    console.log(`[Orchestrator] Generated ${embeddings.length} embeddings`);
-
-    // Step 4: Store vectors in Milvus
-    console.log('[Orchestrator] Step 4: Storing vectors...');
-    sseService.sendToAttachment(attachmentId, {
-      status: 'processing',
-      step: 'storage',
-      message: 'Storing vectors in database...',
-      progress: 80,
-    });
+    let totalChunks = 0;
+    let lastProgress = 40;
     
-    await StorageService.storeVectors(sessionId, attachmentId, embeddings);
+    for await (const storedCount of storageStream) {
+      totalChunks = storedCount;
+      const newProgress = Math.min(40 + Math.floor((storedCount / 100) * 40), 80);
+      if (newProgress > lastProgress) {
+        lastProgress = newProgress;
+        sseService.sendToAttachment(attachmentId, {
+          status: 'processing',
+          step: 'streaming',
+          message: `Processed ${storedCount} chunks...`,
+          progress: newProgress,
+        });
+      }
+    }
+
+    console.log(`[Orchestrator] Stream processing completed: ${totalChunks} chunks`);
 
     // Step 5: Update attachment metadata
     await prisma.attachment.update({
@@ -100,8 +98,8 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
           ...(attachment.metadata as object),
           processed: true,
           processedAt: new Date().toISOString(),
-          chunkCount: chunks.length,
-          embeddingCount: embeddings.length,
+          chunkCount: totalChunks,
+          embeddingCount: totalChunks,
           markdownLength: markdown.length,
           sessionId,
         },
@@ -113,10 +111,10 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     sseService.sendToAttachment(attachmentId, {
       status: 'completed',
       step: 'finished',
-      message: `Successfully processed! (${chunks.length} chunks, ${embeddings.length} embeddings)`,
+      message: `Successfully processed! (${totalChunks} chunks)`,
       progress: 100,
-      chunkCount: chunks.length,
-      embeddingCount: embeddings.length,
+      chunkCount: totalChunks,
+      embeddingCount: totalChunks,
     });
 
     setTimeout(() => {
