@@ -16,7 +16,34 @@ export class CollectionService {
     });
 
     if (hasCollection.value) {
-      console.log(`Collection ${collectionName} already exists`);
+      console.log(`Collection ${collectionName} already exists, ensuring index and load state...`);
+      
+      try {
+        await client.loadCollection({
+          collection_name: collectionName,
+        });
+        console.log(`Collection ${collectionName} loaded successfully`);
+      } catch (error: any) {
+        if (error.message?.includes('IndexNotExist')) {
+          console.log(`Index missing for ${collectionName}, recreating index...`);
+          await client.createIndex({
+            collection_name: collectionName,
+            field_name: 'vector',
+            index_type: 'HNSW',
+            metric_type: 'COSINE',
+            params: {
+              M: 32,
+              efConstruction: 300
+            }
+          });
+          await client.loadCollection({
+            collection_name: collectionName,
+          });
+          console.log(`Index recreated and collection loaded for ${collectionName}`);
+        } else {
+          console.log(`Collection ${collectionName} already loaded or error:`, error.message);
+        }
+      }
       return;
     }
 
@@ -65,7 +92,7 @@ export class CollectionService {
       metric_type: 'COSINE',
       params: {
         M: 32,
-        eofConstruction: 300
+        efConstruction: 300
       }
     });
 

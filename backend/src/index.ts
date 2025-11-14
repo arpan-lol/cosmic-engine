@@ -15,8 +15,11 @@ const app = express();
 const PORT = process.env.PORT || '3006';
 
 if (process.env.NODE_ENV === 'development') {
-  app.use(cors());
-  console.log('CORS enabled');
+  app.use(cors({
+    origin: 'http://localhost:3000',
+    credentials: true,
+  }));
+  console.log('CORS enabled with credentials');
 }
 
 console.log(process.cwd())

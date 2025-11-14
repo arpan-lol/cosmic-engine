@@ -1,7 +1,7 @@
 {
   "name": "cosmic-engine",
   "version": "1.0.0",
-  "description": "Cosmic Engine! - Development orchestrator for frontend and backend",
+  "description": "Cosmic Engine is An AI agent that can ingest, traverse and play around with any kind of media. URLS, Pdfs, ppts, images, docs, tables, etc. Build as a custom made RAG model, It is able to fetch and traverse files for quick answers. Unlike traditional LLMs it can manipulate large files of any type, and retrieve information - or build on it recursively.",
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
@@ -28,7 +28,7 @@
     "type": "git",
     "url": "git+https://github.com/arpan-lol/cosmic-engine.git"
   },
-  "author": "Ashish K. Chowdhary, Arpan Taneja, Aditya",
+  "author": "Arpan Taneja",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/arpan-lol/cosmic-engine/issues"

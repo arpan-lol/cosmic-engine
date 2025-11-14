@@ -41,7 +41,8 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       message: 'Initializing vector store...',
       progress: 10,
     });
-    await CollectionService.initializeCollection(sessionId);
+    const collectionName = CollectionService.generateCName(sessionId);
+    await CollectionService.initializeCollection(collectionName);
 
     // Step 1: Ingestion
     console.log('[Orchestrator] Step 1: Converting to markdown...');
