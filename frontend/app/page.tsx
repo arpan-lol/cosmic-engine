@@ -1,12 +1,22 @@
-export default function Home() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Cosmic Engine</h1>
-        <p className="text-lg text-gray-600 dark:text-gray-400">
-          ram ram 🙏
-        </p>
-      </div>
-    </div>
-  );
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/hooks/use-auth'
+
+export default function HomePage() {
+  const router = useRouter()
+  const { data: user, isLoading } = useAuth()
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (user) {
+        router.push('/dashboard')
+      } else {
+        router.push('/auth/login')
+      }
+    }
+  }, [user, isLoading, router])
+
+  return null
 }

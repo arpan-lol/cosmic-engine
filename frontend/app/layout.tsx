@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'Cosmic Engine',
-  description: 'Streamline your workflow with Cosmic Engine',
+  description: 'AI agent that can ingest, traverse and play around with any kind of media',
 }
 
 export default function RootLayout({
