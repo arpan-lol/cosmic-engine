@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import * as React from 'react'
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 
 import { NavMain } from '@/components/nav-main'
 import { NavUser } from '@/components/nav-user'
@@ -71,9 +72,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <a href="/dashboard" className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold">
-                  CE
-                </div>
+                <Image src="/logo.png" alt="Cosmic Engine" width={32} height={32} className="rounded" />
                 <span className="text-base font-semibold">Cosmic Engine</span>
               </a>
             </SidebarMenuButton>
