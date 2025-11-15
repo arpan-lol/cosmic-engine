@@ -1,0 +1,36 @@
+import { cookies } from 'next/headers';
+
+const JWT_COOKIE_NAME = 'jwt';
+
+export interface CookieOptions {
+  httpOnly?: boolean;
+  secure?: boolean;
+  sameSite?: 'lax' | 'strict' | 'none';
+  maxAge?: number;
+  path?: string;
+}
+
+const defaultOptions: CookieOptions = {
+  httpOnly: true,
+  secure: false,
+  sameSite: 'lax',
+  path: '/',
+  maxAge: 12 * 60 * 60,
+};
+
+export async function setJwtCookie(token: string, options: CookieOptions = {}) {
+  const cookieStore = await cookies();
+  const finalOptions = { ...defaultOptions, ...options };
+  
+  cookieStore.set(JWT_COOKIE_NAME, token, finalOptions);
+}
+
+export async function getJwtCookie(): Promise<string | undefined> {
+  const cookieStore = await cookies();
+  return cookieStore.get(JWT_COOKIE_NAME)?.value;
+}
+
+export async function deleteJwtCookie() {
+  const cookieStore = await cookies();
+  cookieStore.delete(JWT_COOKIE_NAME);
+}

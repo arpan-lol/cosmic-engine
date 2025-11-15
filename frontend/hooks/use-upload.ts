@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import apiClient from '@/lib/api-client';
+import { api } from '@/lib/api';
 import type { AttachmentStatus } from '@/lib/types';
 
 interface StreamStatus {
@@ -28,13 +28,13 @@ export const useUploadFile = () => {
       formData.append('file', file);
       formData.append('sessionId', sessionId);
 
-      const response = await apiClient.post('/chat/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      const response = await api.request('/chat/upload', {
+        method: 'POST',
+        body: formData,
+        headers: {},
       });
 
-      return response.data;
+      return await response.json();
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
@@ -48,10 +48,10 @@ export const useAttachmentStatus = (attachmentId: string | null) => {
   return useQuery<AttachmentStatus>({
     queryKey: ['attachments', attachmentId, 'status'],
     queryFn: async () => {
-      const response = await apiClient.get(
+      const response = await api.get(
         `/chat/attachments/${attachmentId}/status`
       );
-      return response.data;
+      return await response.json();
     },
     enabled: !!attachmentId,
     refetchInterval: (query) => {
@@ -72,45 +72,65 @@ export const useAttachmentStream = (attachmentId: string | null) => {
       return;
     }
 
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
-    const token = localStorage.getItem('jwt_token');
-    
-    console.log('[SSE] Connecting to stream for attachment:', attachmentId);
-    console.log('[SSE] Token available:', !!token);
-    
-    const url = new URL(`${API_BASE_URL}/chat/attachments/${attachmentId}/stream`);
-    if (token) {
-      url.searchParams.set('token', token);
-    }
-    
-    console.log('[SSE] URL:', url.toString());
-    
-    const eventSource = new EventSource(url.toString(), { withCredentials: true });
-
-    setIsConnected(true);
-
-    eventSource.onmessage = (event) => {
+    const connectToStream = async () => {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      
+      let token: string | null = null;
       try {
-        const data: StreamStatus = JSON.parse(event.data);
-        setStreamStatus(data);
-
-        if (data.status === 'completed' || data.status === 'error') {
-          eventSource.close();
-          setIsConnected(false);
+        const tokenResponse = await fetch('/api/auth/token');
+        if (tokenResponse.ok) {
+          const tokenData = await tokenResponse.json();
+          token = tokenData.token;
         }
       } catch (error) {
-        console.error('Error parsing SSE data:', error);
+        console.error('[SSE] Failed to get token:', error);
       }
+      
+      console.log('[SSE] Connecting to stream for attachment:', attachmentId);
+      console.log('[SSE] Token available:', !!token);
+      
+      const url = new URL(`${API_BASE_URL}/chat/attachments/${attachmentId}/stream`);
+      if (token) {
+        url.searchParams.set('token', token);
+      }
+      
+      console.log('[SSE] URL:', url.toString());
+      
+      const eventSource = new EventSource(url.toString(), { withCredentials: true });
+
+      setIsConnected(true);
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data: StreamStatus = JSON.parse(event.data);
+          setStreamStatus(data);
+
+          if (data.status === 'completed' || data.status === 'error') {
+            eventSource.close();
+            setIsConnected(false);
+          }
+        } catch (error) {
+          console.error('Error parsing SSE data:', error);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('SSE error:', error);
+        eventSource.close();
+        setIsConnected(false);
+      };
+
+      return eventSource;
     };
 
-    eventSource.onerror = (error) => {
-      console.error('SSE error:', error);
-      eventSource.close();
-      setIsConnected(false);
-    };
+    let eventSourcePromise = connectToStream();
 
     return () => {
-      eventSource.close();
+      eventSourcePromise.then((eventSource) => {
+        if (eventSource) {
+          eventSource.close();
+        }
+      });
       setIsConnected(false);
     };
   }, [attachmentId]);
@@ -122,8 +142,9 @@ export const useSessionAttachments = (sessionId: string | null) => {
   return useQuery({
     queryKey: ['sessions', sessionId, 'attachments'],
     queryFn: async () => {
-      const response = await apiClient.get(`/chat/sessions/${sessionId}/attachments`);
-      return response.data.attachments;
+      const response = await api.get(`/chat/sessions/${sessionId}/attachments`);
+      const data = await response.json();
+      return data.attachments;
     },
     enabled: !!sessionId,
     refetchInterval: (query) => {

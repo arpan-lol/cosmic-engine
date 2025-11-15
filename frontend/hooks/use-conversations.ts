@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import apiClient from '@/lib/api-client';
+import { api } from '@/lib/api';
 import type { Conversation } from '@/lib/types';
 
 export const useConversations = () => {
   return useQuery<Conversation[]>({
     queryKey: ['conversations'],
     queryFn: async () => {
-      const response = await apiClient.get('/chat/sessions');
-      return response.data.sessions;
+      const response = await api.get('/chat/sessions');
+      const data = await response.json();
+      return data.sessions;
     },
   });
 };
@@ -16,8 +17,8 @@ export const useConversation = (sessionId: string | null) => {
   return useQuery<Conversation>({
     queryKey: ['conversations', sessionId],
     queryFn: async () => {
-      const response = await apiClient.get(`/chat/sessions/${sessionId}`);
-      return response.data;
+      const response = await api.get(`/chat/sessions/${sessionId}`);
+      return await response.json();
     },
     enabled: !!sessionId,
   });
@@ -28,8 +29,8 @@ export const useCreateConversation = () => {
 
   return useMutation({
     mutationFn: async (title?: string) => {
-      const response = await apiClient.post('/chat/sessions', { title });
-      return response.data;
+      const response = await api.post('/chat/sessions', { title });
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
@@ -42,7 +43,7 @@ export const useDeleteConversation = () => {
 
   return useMutation({
     mutationFn: async (sessionId: string) => {
-      await apiClient.delete(`/chat/sessions/${sessionId}`);
+      await api.delete(`/chat/sessions/${sessionId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });

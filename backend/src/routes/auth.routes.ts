@@ -75,17 +75,10 @@ router.get('/google/callback', async (req, res) => {
     console.log('[auth] Generating JWT for user ID:', user.id);
     const customJwt = signJwt(user);
 
-    // Set JWT as an HTTP-only cookie (frontend should read from cookie or use Authorization header)
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax' as const,
-      maxAge: 12 * 60 * 60 * 1000, // 12 hours
-    };
-    res.cookie('jwt', customJwt, cookieOptions);
-
-    console.log('[auth] Redirecting to frontend (JWT set in cookie)');
-    res.redirect(FRONTEND_REDIRECT);
+    console.log('[auth] Redirecting to frontend with JWT in query param');
+    const redirectUrl = new URL(FRONTEND_REDIRECT);
+    redirectUrl.searchParams.set('jwt', customJwt);
+    res.redirect(redirectUrl.toString());
   } catch (err) {
     console.error('[auth] Callback error:', err);
     console.error('[auth] Error stack:', err instanceof Error ? err.stack : 'No stack trace');

@@ -17,6 +17,7 @@ const OPTIONAL_ENV_VARS = [
   { name: 'PYTHON_SERVICE_URL', default: 'http://localhost:8000' },
   { name: 'PORT', default: '3006' },
   { name: 'NODE_ENV', default: 'development' },
+  { name: 'FRONTEND_REDIRECT', default: 'http://localhost:3000/auth/callback' },
 ] as const;
 
 export function validateEnvironment(): void {

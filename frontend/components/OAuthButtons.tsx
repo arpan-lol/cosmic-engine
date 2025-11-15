@@ -11,7 +11,7 @@ export const OAuthButtons = () => {
       <Button
         type="button"
         variant="outline"
-        className="w-full"
+        className="w-full  cursor-pointer"
         onClick={initiateGoogleAuth}
       >
         <svg

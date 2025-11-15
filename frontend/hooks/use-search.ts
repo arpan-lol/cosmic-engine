@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import apiClient from '@/lib/api-client';
+import { api } from '@/lib/api';
 import type { SearchResponse } from '@/lib/types';
 
 export const useSemanticSearch = (
@@ -10,11 +10,11 @@ export const useSemanticSearch = (
   return useQuery<SearchResponse>({
     queryKey: ['search', sessionId, query, topK],
     queryFn: async () => {
-      const response = await apiClient.post(`/chat/sessions/${sessionId}/search`, {
+      const response = await api.post(`/chat/sessions/${sessionId}/search`, {
         query,
         topK,
       });
-      return response.data;
+      return await response.json();
     },
     enabled: !!sessionId && !!query,
   });

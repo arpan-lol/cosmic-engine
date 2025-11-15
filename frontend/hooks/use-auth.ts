@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import apiClient from '@/lib/api-client';
+import { api } from '@/lib/api';
 import type { User } from '@/lib/types';
 
 export const useAuth = () => {
   return useQuery<User>({
     queryKey: ['auth', 'me'],
     queryFn: async () => {
-      const response = await apiClient.get('/auth/me');
-      return response.data.user;
+      const response = await api.get('/auth/me');
+      const data = await response.json();
+      return data.user;
     },
     retry: false,
     staleTime: 5 * 60 * 1000,
@@ -19,13 +20,10 @@ export const useLogout = () => {
 
   return useMutation({
     mutationFn: async () => {
-      await apiClient.post('/auth/logout');
+      await api.post('/auth/logout');
     },
-    onSuccess: () => {
-      localStorage.removeItem('jwt_token');
-      if (typeof document !== 'undefined') {
-        document.cookie = 'jwt_token=; Max-Age=0; path=/';
-      }
+    onSuccess: async () => {
+      await fetch('/api/auth/token', { method: 'DELETE' });
       queryClient.clear();
       window.location.href = '/auth/login';
     },
