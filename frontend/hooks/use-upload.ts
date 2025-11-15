@@ -1,6 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import apiClient from '@/lib/api-client';
 import type { AttachmentStatus } from '@/lib/types';
+
+interface StreamStatus {
+  status: 'processing' | 'completed' | 'error';
+  step?: string;
+  message?: string;
+  progress?: number;
+  chunkCount?: number;
+  embeddingCount?: number;
+  error?: string;
+}
 
 export const useUploadFile = () => {
   const queryClient = useQueryClient();
@@ -48,4 +59,52 @@ export const useAttachmentStatus = (attachmentId: string | null) => {
       return data && !data.processed && !data.error ? 2000 : false;
     },
   });
+};
+
+export const useAttachmentStream = (attachmentId: string | null) => {
+  const [streamStatus, setStreamStatus] = useState<StreamStatus | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+
+  useEffect(() => {
+    if (!attachmentId) {
+      setStreamStatus(null);
+      setIsConnected(false);
+      return;
+    }
+
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
+    const eventSource = new EventSource(
+      `${API_BASE_URL}/chat/attachments/${attachmentId}/stream`,
+      { withCredentials: true }
+    );
+
+    setIsConnected(true);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data: StreamStatus = JSON.parse(event.data);
+        setStreamStatus(data);
+
+        if (data.status === 'completed' || data.status === 'error') {
+          eventSource.close();
+          setIsConnected(false);
+        }
+      } catch (error) {
+        console.error('Error parsing SSE data:', error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('SSE error:', error);
+      eventSource.close();
+      setIsConnected(false);
+    };
+
+    return () => {
+      eventSource.close();
+      setIsConnected(false);
+    };
+  }, [attachmentId]);
+
+  return { streamStatus, isConnected };
 };

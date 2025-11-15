@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { useUploadFile, useAttachmentStatus } from '@/hooks/use-upload';
+import { useUploadFile, useAttachmentStatus, useAttachmentStream } from '@/hooks/use-upload';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,6 +20,7 @@ export default function FileUploadButton({
   const [uploadedAttachmentId, setUploadedAttachmentId] = useState<string | null>(null);
   const uploadFile = useUploadFile();
   const { data: attachmentStatus } = useAttachmentStatus(uploadedAttachmentId);
+  const { streamStatus, isConnected } = useAttachmentStream(uploadedAttachmentId);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -77,7 +78,33 @@ export default function FileUploadButton({
         </Card>
       )}
 
-      {attachmentStatus && !attachmentStatus.processed && !attachmentStatus.error && (
+      {isConnected && streamStatus && streamStatus.status === 'processing' && (
+        <Card>
+          <CardContent className="p-3">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <div className="text-sm font-medium">
+                    {streamStatus.message || 'Processing...'}
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {streamStatus.progress || 0}%
+                </div>
+              </div>
+              <Progress value={streamStatus.progress || 0} className="h-2" />
+              {streamStatus.step && (
+                <div className="text-xs text-muted-foreground">
+                  Step: {streamStatus.step}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!isConnected && attachmentStatus && !attachmentStatus.processed && !attachmentStatus.error && (
         <Card>
           <CardContent className="p-3">
             <div className="flex items-center gap-2">
@@ -90,26 +117,27 @@ export default function FileUploadButton({
         </Card>
       )}
 
-      {attachmentStatus?.processed && (
+      {(streamStatus?.status === 'completed' || attachmentStatus?.processed) && (
         <Card>
           <CardContent className="p-3">
             <div className="flex items-center gap-2 text-green-600">
               <CheckCircle className="h-4 w-4" />
               <div className="text-sm">
-                {attachmentStatus.filename} processed ({attachmentStatus.chunkCount} chunks)
+                {attachmentStatus?.filename || 'File'} processed (
+                {streamStatus?.chunkCount || attachmentStatus?.chunkCount || 0} chunks)
               </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {attachmentStatus?.error && (
+      {(streamStatus?.status === 'error' || attachmentStatus?.error) && (
         <Card>
           <CardContent className="p-3">
             <div className="flex items-center gap-2 text-red-600">
               <XCircle className="h-4 w-4" />
               <div className="text-sm">
-                Error: {attachmentStatus.error}
+                Processing failed: {streamStatus?.error || attachmentStatus?.error}
               </div>
             </div>
           </CardContent>
