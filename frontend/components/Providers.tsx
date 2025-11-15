@@ -1,18 +1,33 @@
-'use client'
+'use client';
 
-import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
-import { FC, ReactNode } from 'react'
+import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
+import { FC, ReactNode, useState } from 'react';
+import { ThemeProvider } from 'next-themes';
 
 interface LayoutProps {
-  children: ReactNode
+  children: ReactNode;
 }
-
-const queryClient = new QueryClient()
 
 const Providers: FC<LayoutProps> = ({ children }) => {
-  return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  )
-}
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 60 * 1000,
+            refetchOnWindowFocus: false,
+          },
+        },
+      })
+  );
 
-export default Providers
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+        {children}
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+};
+
+export default Providers;
