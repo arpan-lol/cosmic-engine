@@ -1,7 +1,7 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { useUploadFile, useAttachmentStatus, useAttachmentStream } from '@/hooks/use-upload';
+import { useRef, useState, useEffect } from 'react';
+import { useUploadFile, useAttachmentStatus, useAttachmentStream, useSessionAttachments } from '@/hooks/use-upload';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,6 +21,19 @@ export default function FileUploadButton({
   const uploadFile = useUploadFile();
   const { data: attachmentStatus } = useAttachmentStatus(uploadedAttachmentId);
   const { streamStatus, isConnected } = useAttachmentStream(uploadedAttachmentId);
+  const { data: sessionAttachments } = useSessionAttachments(sessionId);
+
+  // Auto-select the most recent processing attachment on mount
+  useEffect(() => {
+    if (!uploadedAttachmentId && sessionAttachments?.length) {
+      const processingAttachment = sessionAttachments.find(
+        (att: any) => !att.processed && !att.error
+      );
+      if (processingAttachment) {
+        setUploadedAttachmentId(processingAttachment.id);
+      }
+    }
+  }, [sessionAttachments, uploadedAttachmentId]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

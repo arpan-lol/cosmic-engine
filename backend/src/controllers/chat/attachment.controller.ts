@@ -92,6 +92,61 @@ export class AttachmentController {
   }
 
   /**
+   * Get all attachments for a session
+   */
+  static async getSessionAttachments(req: AuthRequest, res: Response): Promise<Response> {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { sessionId } = req.params;
+
+    try {
+      // Verify session belongs to user
+      const session = await prisma.session.findUnique({
+        where: { id: sessionId, userId },
+      });
+
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      // Get all attachments for this session
+      const attachments = await prisma.attachment.findMany({
+        where: {
+          metadata: {
+            path: ['sessionId'],
+            equals: sessionId,
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      // Format response with processing status
+      const attachmentsWithStatus = attachments.map((att) => ({
+        id: att.id,
+        filename: att.filename,
+        type: att.type,
+        url: att.url,
+        mimeType: att.mimeType,
+        size: att.size,
+        createdAt: att.createdAt,
+        processed: (att.metadata as any)?.processed || false,
+        error: (att.metadata as any)?.error,
+        chunkCount: (att.metadata as any)?.chunkCount,
+      }));
+
+      return res.status(200).json({ attachments: attachmentsWithStatus });
+    } catch (error) {
+      console.error('[chat] Error fetching session attachments:', error);
+      return res.status(500).json({ error: 'Failed to fetch attachments' });
+    }
+  }
+
+  /**
    * Get attachment processing status
    */
   static async getAttachmentStatus(req: AuthRequest, res: Response) {

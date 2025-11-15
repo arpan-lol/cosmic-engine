@@ -73,12 +73,17 @@ export const useAttachmentStream = (attachmentId: string | null) => {
     }
 
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
-    const token = localStorage.getItem('jwt');
+    const token = localStorage.getItem('jwt_token');
+    
+    console.log('[SSE] Connecting to stream for attachment:', attachmentId);
+    console.log('[SSE] Token available:', !!token);
     
     const url = new URL(`${API_BASE_URL}/chat/attachments/${attachmentId}/stream`);
     if (token) {
       url.searchParams.set('token', token);
     }
+    
+    console.log('[SSE] URL:', url.toString());
     
     const eventSource = new EventSource(url.toString(), { withCredentials: true });
 
@@ -111,4 +116,21 @@ export const useAttachmentStream = (attachmentId: string | null) => {
   }, [attachmentId]);
 
   return { streamStatus, isConnected };
+};
+
+export const useSessionAttachments = (sessionId: string | null) => {
+  return useQuery({
+    queryKey: ['sessions', sessionId, 'attachments'],
+    queryFn: async () => {
+      const response = await apiClient.get(`/chat/sessions/${sessionId}/attachments`);
+      return response.data.attachments;
+    },
+    enabled: !!sessionId,
+    refetchInterval: (query) => {
+      const data = query.state.data as any[];
+      // Keep refetching if any attachment is still processing
+      const hasProcessing = data?.some((att: any) => !att.processed && !att.error);
+      return hasProcessing ? 3000 : false;
+    },
+  });
 };

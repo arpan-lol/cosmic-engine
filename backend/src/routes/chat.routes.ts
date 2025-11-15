@@ -18,6 +18,7 @@ router.post('/sessions/:id/message', ChatController.message);
 
 // File uploads and processing
 router.post('/upload', upload.single('file'), ChatController.uploadFile);
+router.get('/sessions/:sessionId/attachments', ChatController.getSessionAttachments);
 router.get('/attachments/:attachmentId/status', ChatController.getAttachmentStatus);
 router.get('/attachments/:attachmentId/stream', ChatController.streamAttachmentStatus);
 

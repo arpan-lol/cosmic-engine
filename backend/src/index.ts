@@ -2,6 +2,7 @@ import express from 'express';
 import './config/env.js';
 import { validateEnvironment } from './config/env';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import healthcheckRouter from './routes/health.routes.js'
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes';
@@ -25,6 +26,7 @@ if (process.env.NODE_ENV === 'development') {
 console.log(process.cwd())
 
 app.use(express.json());
+app.use(cookieParser());
 app.use('/api/v1/healthcheck', healthcheckRouter);
 app.use('/auth', authRoutes);
 app.use('/chat', chatRoutes);
