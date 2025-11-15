@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { SSEMessage } from '@/lib/types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export const useStreamMessage = () => {
   const [isStreaming, setIsStreaming] = useState(false);
@@ -25,15 +25,30 @@ export const useStreamMessage = () => {
       setError(null);
 
       try {
-        const token = localStorage.getItem('jwt_token');
+        let token: string | null = null;
+        try {
+          const tokenResponse = await fetch('/api/auth/token');
+          if (tokenResponse.ok) {
+            const tokenData = await tokenResponse.json();
+            token = tokenData.token;
+          }
+        } catch (error) {
+          console.error('Failed to get token:', error);
+        }
+
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const response = await fetch(
           `${API_BASE_URL}/chat/sessions/${sessionId}/message`,
           {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
+            headers,
             body: JSON.stringify({
               content,
               attachmentIds: options?.attachmentIds,

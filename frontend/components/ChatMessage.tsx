@@ -2,9 +2,10 @@
 
 import { Message } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { User, Bot, Paperclip } from 'lucide-react';
+import { Paperclip } from 'lucide-react';
+import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -12,32 +13,34 @@ import 'highlight.js/styles/github-dark.css';
 
 interface ChatMessageProps {
   message: Message;
+  userAvatar?: string;
+  userName?: string;
 }
 
-export default function ChatMessage({ message }: ChatMessageProps) {
+export default function ChatMessage({ message, userAvatar, userName }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
 
   return (
     <div
       className={cn(
-        'flex gap-3 mb-4',
-        isUser ? 'justify-end' : 'justify-start',
+        'flex gap-3 mb-4 items-start',
+        isUser && 'justify-end',
+        !isUser && !isSystem && 'justify-start',
         isSystem && 'justify-center'
       )}
     >
       {!isUser && !isSystem && (
-        <Avatar className="h-8 w-8">
-          <AvatarFallback>
-            <Bot className="h-4 w-4" />
-          </AvatarFallback>
-        </Avatar>
+        <div className="h-8 w-8 flex-shrink-0">
+          <Image src="/logo.png" alt="AI" width={28} height={28} className="h-8 w-8" />
+        </div>
       )}
 
       <Card
         className={cn(
-          'max-w-[80%]',
+          'max-w-[80%] border-0 shadow-none',
           isUser && 'bg-primary text-primary-foreground',
+          !isUser && !isSystem && 'bg-sidebar',
           isSystem && 'bg-muted max-w-[60%]'
         )}
       >
@@ -132,17 +135,30 @@ export default function ChatMessage({ message }: ChatMessageProps) {
               'text-xs mt-2',
               isUser ? 'text-primary-foreground/60' : 'text-muted-foreground'
             )}
+            title={new Date(message.createdAt).toLocaleString('en-US', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: true
+            })}
           >
-            {new Date(message.createdAt).toLocaleTimeString()}
+            {new Date(message.createdAt).toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true
+            })}
           </div>
         </CardContent>
       </Card>
 
       {isUser && (
-        <Avatar className="h-8 w-8">
-          <AvatarFallback>
-            <User className="h-4 w-4" />
-          </AvatarFallback>
+        <Avatar className="h-8 w-8 flex-shrink-0">
+          <AvatarImage src={userAvatar} alt={userName || 'User'} />
+          <AvatarFallback>{userName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
         </Avatar>
       )}
     </div>

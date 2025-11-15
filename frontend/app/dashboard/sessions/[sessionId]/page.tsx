@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useConversation } from '@/hooks/use-conversations';
 import { useStreamMessage } from '@/hooks/use-stream-message';
+import { useAuth } from '@/hooks/use-auth';
 import { useQueryClient } from '@tanstack/react-query';
 import ChatMessage from '@/components/ChatMessage';
 import ChatInput from '@/components/ChatInput';
@@ -23,8 +24,11 @@ export default function ChatSessionPage() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [uploadedAttachments, setUploadedAttachments] = useState<string[]>([]);
 
+  const { data: authUser } = useAuth();
   const { data: conversation, isLoading } = useConversation(sessionId);
   const { sendMessage, isStreaming, streamedContent, error, reset } = useStreamMessage();
+
+  console.log('User avatar data:', { picture: authUser?.picture, name: authUser?.name });
 
   const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
 
@@ -36,10 +40,7 @@ export default function ChatSessionPage() {
 
   useEffect(() => {
     if (scrollAreaRef.current) {
-      const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollElement) {
-        scrollElement.scrollTop = scrollElement.scrollHeight;
-      }
+      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
   }, [optimisticMessages, streamedContent]);
 
@@ -117,8 +118,8 @@ export default function ChatSessionPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      <Card className="m-4 mb-0 border-b rounded-b-none p-0">
+    <div className="flex flex-col h-full">
+      <Card className="border-b rounded-b-none p-0 bg-background sticky top-0 z-10">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/sessions')}>
@@ -134,55 +135,57 @@ export default function ChatSessionPage() {
         </CardHeader>
       </Card>
 
-      <Card className="m-4 mt-0 flex-1 flex flex-col rounded-t-none">
-        <CardContent className="flex-1 flex flex-col p-0">
-          <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
-            {displayMessages.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                Start a conversation by sending a message
-              </div>
-            ) : (
-              <div>
-                {displayMessages.map((message) => (
-                  <ChatMessage key={message.id} message={message} />
-                ))}
-              </div>
-            )}
-          </ScrollArea>
+      <div className="flex-1 overflow-y-auto" ref={scrollAreaRef}>
+        <div className="p-4">
+          {displayMessages.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              Start a conversation by sending a message
+            </div>
+          ) : (
+            <div>
+              {displayMessages.map((message) => (
+                <ChatMessage 
+                  key={message.id} 
+                  message={message} 
+                  userAvatar={authUser?.picture}
+                  userName={authUser?.name}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
-          <Separator />
+      <Card className="mt-0 rounded-t-none border-t sticky bottom-0 bg-background">
+        <CardContent className="p-4 space-y-3">{error && (
+            <Card className="border-destructive">
+              <CardContent className="p-3 text-sm text-destructive">
+                Error: {error}
+              </CardContent>
+            </Card>
+          )}
 
-          <div className="p-4 space-y-3">
-            {error && (
-              <Card className="border-destructive">
-                <CardContent className="p-3 text-sm text-destructive">
-                  Error: {error}
-                </CardContent>
-              </Card>
-            )}
+          <FileUploadButton sessionId={sessionId} onUploadComplete={handleUploadComplete} />
 
-            <FileUploadButton sessionId={sessionId} onUploadComplete={handleUploadComplete} />
+          {uploadedAttachments.length > 0 && (
+            <Card>
+              <CardContent className="p-3">
+                <div className="text-sm text-muted-foreground">
+                  {uploadedAttachments.length} file{uploadedAttachments.length !== 1 ? 's' : ''} ready to attach
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-            {uploadedAttachments.length > 0 && (
-              <Card>
-                <CardContent className="p-3">
-                  <div className="text-sm text-muted-foreground">
-                    {uploadedAttachments.length} file{uploadedAttachments.length !== 1 ? 's' : ''} ready to attach
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <ChatInput
-              onSend={handleSendMessage}
-              disabled={isStreaming}
-              placeholder={
-                isStreaming
-                  ? 'Waiting for response...'
-                  : 'Type your message... (Enter to send, Shift+Enter for new line)'
-              }
-            />
-          </div>
+          <ChatInput
+            onSend={handleSendMessage}
+            disabled={isStreaming}
+            placeholder={
+              isStreaming
+                ? 'Waiting for response...'
+                : 'Type your message... (Enter to send, Shift+Enter for new line)'
+            }
+          />
         </CardContent>
       </Card>
     </div>

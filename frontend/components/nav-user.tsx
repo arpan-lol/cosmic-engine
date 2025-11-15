@@ -1,6 +1,7 @@
 'use client'
 
 import { MoreVertical } from 'lucide-react'
+import Image from 'next/image'
 
 import {
   DropdownMenu,
@@ -16,8 +17,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
-import { UserIcon } from 'lucide-react'
 import { useLogout } from '@/hooks/use-auth'
 
 export function NavUser({
@@ -45,9 +46,10 @@ export function NavUser({
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="h-9 w-9 rounded-lg flex items-center justify-center bg-primary text-primary-foreground">
-                <UserIcon />
-              </div>
+              <Avatar className="h-9 w-9">
+                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+              </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium text-foreground">{user.name}</span>
                 <span className="text-muted-foreground truncate text-xs">
@@ -65,9 +67,10 @@ export function NavUser({
           >
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                <div className="h-9 w-9 rounded-lg flex items-center justify-center bg-primary text-primary-foreground">
-                  <UserIcon />
-                </div>
+                <Avatar className="h-9 w-9">
+                  <AvatarImage src={user.avatar} alt={user.name} />
+                  <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium text-foreground">{user.name}</span>
                   <span className="text-muted-foreground truncate text-xs">

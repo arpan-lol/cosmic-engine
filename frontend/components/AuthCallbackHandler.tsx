@@ -1,19 +1,14 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 export default function AuthCallbackHandler() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const jwt = searchParams.get('jwt');
-    if (jwt) {
-      localStorage.setItem('jwt_token', jwt);
-      router.push('/dashboard');
-    }
-  }, [searchParams, router]);
+    router.push('/dashboard');
+  }, [router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center">
