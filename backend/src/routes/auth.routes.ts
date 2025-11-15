@@ -3,6 +3,7 @@ import prisma from '../prisma/client';
 import { googleClient, GOOGLE_CLIENT_ID } from '../utils/googleClient.util';
 import { signJwt, verifyJwt, decodeJwt } from '../utils/jwt.util';
 import { authenticateJWT } from '../middleware/auth'
+import { encrypt, decrypt } from '../utils/encryption.util';
 
 import { Response } from 'express';
 import { AuthRequest } from '../types/express';
@@ -49,35 +50,42 @@ router.get('/google/callback', async (req, res) => {
       throw new Error('Invalid ID token');
     }
 
-    console.log('[auth] Google payload:', {
-      email: payload.email,
-      name: payload.name,
-      picture: payload.picture,
-      sub: payload.sub
-    });
     console.log('[auth] Upserting user:', payload.email);
+    
+    // Encrypt the Google refresh token before storing
+    const encryptedRefreshToken = refreshToken ? encrypt(refreshToken) : '';
+    
     const user = await prisma.user.upsert({
       where: { googleId: payload.sub },
       update: {
         email: payload.email,
         name: payload.name || '',
         picture: payload.picture || '',
-        refreshToken: refreshToken ?? undefined,
+        refreshToken: encryptedRefreshToken || undefined,
       },
       create: {
         googleId: payload.sub,
         email: payload.email,
         name: payload.name || '',
         picture: payload.picture || '',
-        refreshToken: refreshToken ?? '',
+        refreshToken: encryptedRefreshToken,
       },
     });
 
     console.log('[auth] Generating JWT for user ID:', user.id);
     const customJwt = signJwt(user);
-    const redirectUrl = `${FRONTEND_REDIRECT}?jwt=${customJwt}`;
-    console.log('[auth] Redirecting to:', redirectUrl);
-    res.redirect(redirectUrl);
+
+    // Set JWT as an HTTP-only cookie (frontend should read from cookie or use Authorization header)
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+      maxAge: 12 * 60 * 60 * 1000, // 12 hours
+    };
+    res.cookie('jwt', customJwt, cookieOptions);
+
+    console.log('[auth] Redirecting to frontend (JWT set in cookie)');
+    res.redirect(FRONTEND_REDIRECT);
   } catch (err) {
     console.error('[auth] Callback error:', err);
     console.error('[auth] Error stack:', err instanceof Error ? err.stack : 'No stack trace');
@@ -86,41 +94,45 @@ router.get('/google/callback', async (req, res) => {
 });
 
 router.post('/refresh', async (req, res) => {
-  const oldToken = req.body.token;
+  const authHeader = req.headers.authorization as string | undefined;
+  let oldToken: string | undefined;
+  if (authHeader?.startsWith('Bearer ')) {
+    oldToken = authHeader.split(' ')[1];
+  }
+  if (!oldToken && req.cookies?.jwt) oldToken = req.cookies.jwt;
   if (!oldToken) return res.status(400).json({ error: 'Missing token' });
 
   let payload: any;
   try {
+    // If token is still valid, return it as-is
     payload = verifyJwt(oldToken);
-    return res.status(200).json({ token: oldToken }); // still valid
+    return res.status(200).json({ token: oldToken });
   } catch (err: any) {
     if (err.name !== 'TokenExpiredError') {
       return res.status(401).json({ error: 'Invalid token' });
     }
     payload = decodeJwt(oldToken);
-    if (!payload || !payload.userId) {
-      return res.status(401).json({ error: 'Cannot refresh token' });
-    }
+  }
+
+  if (!payload?.userId) {
+    return res.status(401).json({ error: 'Cannot refresh token' });
   }
 
   try {
     const user = await prisma.user.findUnique({ where: { id: payload.userId } });
-    if (!user || !user.refreshToken) {
-      return res.status(401).json({ error: 'No refresh token found' });
+    if (!user?.refreshToken) {
+      return res.status(401).json({ error: 'No refresh token stored' });
     }
 
-    googleClient.setCredentials({ refresh_token: user.refreshToken });
-    const { credentials } = await googleClient.refreshAccessToken();
-    const newIdToken = credentials.id_token;
-    if (!newIdToken) throw new Error('No ID token returned from refresh');
-
-    const ticket = await googleClient.verifyIdToken({
-      idToken: newIdToken,
-      audience: GOOGLE_CLIENT_ID,
-    });
-
-    const newPayload = ticket.getPayload();
-    if (!newPayload || !newPayload.email) throw new Error('Invalid ID token');
+    const decryptedRefreshToken = decrypt(user.refreshToken);
+    
+    googleClient.setCredentials({ refresh_token: decryptedRefreshToken });
+    try {
+      await googleClient.refreshAccessToken();
+    } catch (googleErr) {
+      console.error('[refresh] Google refresh token invalid or revoked:', googleErr);
+      return res.status(401).json({ error: 'Google refresh token invalid or revoked' });
+    }
 
     const newJwt = signJwt(user);
     res.status(200).json({ token: newJwt });
@@ -129,6 +141,7 @@ router.post('/refresh', async (req, res) => {
     res.status(500).json({ error: 'Failed to refresh token' });
   }
 });
+
 
 
 router.post('/logout', authenticateJWT, async (req: AuthRequest, res: Response) => {

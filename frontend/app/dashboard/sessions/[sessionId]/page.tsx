@@ -118,7 +118,7 @@ export default function ChatSessionPage() {
 
   return (
     <div className="flex flex-col h-screen">
-      <Card className="m-4 mb-0 border-b rounded-b-none">
+      <Card className="m-4 mb-0 border-b rounded-b-none p-0">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/sessions')}>
