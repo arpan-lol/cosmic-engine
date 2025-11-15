@@ -6,9 +6,9 @@ export default function SessionsPage() {
   return (
     <div className="container max-w-4xl mx-auto p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">Chat Sessions</h1>
+        <h1 className="text-3xl font-bold">Conversations</h1>
         <p className="text-muted-foreground">
-          Manage your chat sessions and start new conversations
+          Manage your files and start new conversations
         </p>
       </div>
       <SessionList />

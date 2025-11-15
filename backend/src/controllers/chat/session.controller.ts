@@ -16,7 +16,7 @@ export class SessionController {
     const { title }: CreateSessionRequest = req.body;
 
     try {
-      const session = await prisma.chatSession.create({
+      const session = await prisma.session.create({
         data: {
           userId,
           title: title || 'New Chat',
@@ -41,11 +41,11 @@ export class SessionController {
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     try {
-      const sessions = await prisma.chatSession.findMany({
+      const sessions = await prisma.session.findMany({
         where: { userId },
         orderBy: { updatedAt: 'desc' },
         include: {
-          messages: {
+          chats: {
             take: 1,
             orderBy: { createdAt: 'desc' },
           },
@@ -66,10 +66,10 @@ export class SessionController {
     const { id } = req.params;
 
     try {
-      const session = await prisma.chatSession.findUnique({
+      const session = await prisma.session.findUnique({
         where: { id, userId },
         include: {
-          messages: {
+          chats: {
             orderBy: { createdAt: 'asc' },
             include: {
               attachments: true,
@@ -87,7 +87,7 @@ export class SessionController {
         title: session.title || undefined,
         createdAt: session.createdAt,
         updatedAt: session.updatedAt,
-        messages: session.messages.map((msg) => ({
+        messages: session.chats.map((msg) => ({
           id: msg.id,
           role: msg.role as 'user' | 'assistant' | 'system',
           content: msg.content,
@@ -119,7 +119,7 @@ export class SessionController {
     const { id } = req.params;
 
     try {
-      const session = await prisma.chatSession.findUnique({
+      const session = await prisma.session.findUnique({
         where: { id, userId },
       });
 
@@ -127,8 +127,8 @@ export class SessionController {
         return res.status(404).json({ error: 'Session not found' });
       }
 
-      // Delete session from database (cascades to messages and attachments)
-      await prisma.chatSession.delete({
+      // Delete session from database (cascades to chats and attachments)
+      await prisma.session.delete({
         where: { id },
       });
 

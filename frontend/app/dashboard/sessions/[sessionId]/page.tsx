@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useSession } from '@/hooks/use-sessions';
+import { useConversation } from '@/hooks/use-conversations';
 import { useStreamMessage } from '@/hooks/use-stream-message';
 import { useQueryClient } from '@tanstack/react-query';
 import ChatMessage from '@/components/ChatMessage';
@@ -23,16 +23,16 @@ export default function ChatSessionPage() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [uploadedAttachments, setUploadedAttachments] = useState<string[]>([]);
 
-  const { data: session, isLoading } = useSession(sessionId);
+  const { data: conversation, isLoading } = useConversation(sessionId);
   const { sendMessage, isStreaming, streamedContent, error, reset } = useStreamMessage();
 
   const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
 
   useEffect(() => {
-    if (session?.messages) {
-      setOptimisticMessages(session.messages);
+    if (conversation?.messages) {
+      setOptimisticMessages(conversation.messages);
     }
-  }, [session?.messages]);
+  }, [conversation?.messages]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -67,8 +67,8 @@ export default function ChatSessionPage() {
     await sendMessage(sessionId, content, {
       attachmentIds: uploadedAttachments.length > 0 ? uploadedAttachments : undefined,
       onComplete: () => {
-        queryClient.invalidateQueries({ queryKey: ['sessions', sessionId] });
-        queryClient.invalidateQueries({ queryKey: ['sessions'] });
+        queryClient.invalidateQueries({ queryKey: ['conversations', sessionId] });
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
         reset();
         setUploadedAttachments([]);
       },
@@ -90,14 +90,14 @@ export default function ChatSessionPage() {
     );
   }
 
-  if (!session) {
+  if (!conversation) {
     return (
       <div className="flex items-center justify-center h-screen">
         <Card>
           <CardContent className="p-6">
-            <p className="text-muted-foreground">Session not found</p>
+            <p className="text-muted-foreground">Conversation not found</p>
             <Button onClick={() => router.push('/dashboard/sessions')} className="mt-4">
-              Back to Sessions
+              Back to Conversations
             </Button>
           </CardContent>
         </Card>
@@ -125,9 +125,9 @@ export default function ChatSessionPage() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <CardTitle>{session.title || 'Untitled Session'}</CardTitle>
+              <CardTitle>{conversation.title || 'Untitled Conversation'}</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Created {new Date(session.createdAt).toLocaleDateString()}
+                Created {new Date(conversation.createdAt).toLocaleDateString()}
               </p>
             </div>
           </div>

@@ -8,42 +8,42 @@ datasource db {
 }
 
 model User {
-  id           Int           @id @default(autoincrement())
-  googleId     String        @unique
-  email        String        @unique
+  id           Int       @id @default(autoincrement())
+  googleId     String    @unique
+  email        String    @unique
   name         String
   picture      String?
   refreshToken String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  chatSessions ChatSession[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sessions     Session[]
 }
 
-model ChatSession {
+model Session {
   id        String    @id @default(uuid())
   userId    Int
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String?
-  messages  Message[]
+  chats     Chat[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
 
-model Message {
-  id          String       @id @default(uuid())
+model Chat {
+  id          String      @id @default(uuid())
   sessionId   String
-  session     ChatSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  role        String       // 'user' | 'assistant' | 'system'
-  content     String       @db.Text
+  session     Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role        String      // 'user' | 'assistant' | 'system'
+  content     String      @db.Text
   attachments Attachment[]
   tokens      Int?
-  createdAt   DateTime     @default(now())
+  createdAt   DateTime    @default(now())
 }
 
 model Attachment {
   id        String   @id @default(uuid())
-  messageId String?
-  message   Message?  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  chatId    String?
+  chat      Chat?    @relation(fields: [chatId], references: [id], onDelete: Cascade)
   type      String   // 'image' | 'pdf' | 'document' | 'url'
   url       String
   filename  String

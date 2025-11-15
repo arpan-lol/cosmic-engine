@@ -24,10 +24,10 @@ export class MessageController {
     }
 
     try {
-      const session = await prisma.chatSession.findUnique({
+      const session = await prisma.session.findUnique({
         where: { id: sessionId, userId },
         include: {
-          messages: {
+          chats: {
             orderBy: { createdAt: 'asc' },
             take: 20,
           },
@@ -39,7 +39,7 @@ export class MessageController {
         return;
       }
 
-      const userMessage = await prisma.message.create({
+      const userMessage = await prisma.chat.create({
         data: {
           sessionId,
           role: 'user',
@@ -53,7 +53,7 @@ export class MessageController {
       });
 
       // Update session timestamp
-      await prisma.chatSession.update({
+      await prisma.session.update({
         where: { id: sessionId },
         data: { updatedAt: new Date() },
       });
@@ -71,7 +71,7 @@ export class MessageController {
         })}\n\n`
       );
 
-      const conversationHistory = session.messages.map((msg) => ({
+      const conversationHistory = session.chats.map((msg) => ({
         role: msg.role as 'user' | 'assistant' | 'system',
         content: msg.content,
       }));
@@ -94,7 +94,7 @@ export class MessageController {
         }
 
         // Save assistant response
-        const assistantMessage = await prisma.message.create({
+        const assistantMessage = await prisma.chat.create({
           data: {
             sessionId,
             role: 'assistant',

@@ -38,7 +38,7 @@ export const useUploadFile = () => {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ['sessions', variables.sessionId],
+        queryKey: ['conversations', variables.sessionId],
       });
     },
   });
@@ -73,10 +73,14 @@ export const useAttachmentStream = (attachmentId: string | null) => {
     }
 
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
-    const eventSource = new EventSource(
-      `${API_BASE_URL}/chat/attachments/${attachmentId}/stream`,
-      { withCredentials: true }
-    );
+    const token = localStorage.getItem('jwt');
+    
+    const url = new URL(`${API_BASE_URL}/chat/attachments/${attachmentId}/stream`);
+    if (token) {
+      url.searchParams.set('token', token);
+    }
+    
+    const eventSource = new EventSource(url.toString(), { withCredentials: true });
 
     setIsConnected(true);
 

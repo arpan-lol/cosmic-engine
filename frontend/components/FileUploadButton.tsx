@@ -78,7 +78,8 @@ export default function FileUploadButton({
         </Card>
       )}
 
-      {isConnected && streamStatus && streamStatus.status === 'processing' && (
+      {((isConnected && streamStatus && streamStatus.status === 'processing') || 
+        (!isConnected && attachmentStatus && !attachmentStatus.processed && !attachmentStatus.error)) && (
         <Card>
           <CardContent className="p-3">
             <div className="space-y-2">
@@ -86,32 +87,19 @@ export default function FileUploadButton({
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <div className="text-sm font-medium">
-                    {streamStatus.message || 'Processing...'}
+                    {streamStatus?.message || `Processing ${attachmentStatus?.filename || 'file'}...`}
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {streamStatus.progress || 0}%
+                  {streamStatus?.progress || 0}%
                 </div>
               </div>
-              <Progress value={streamStatus.progress || 0} className="h-2" />
-              {streamStatus.step && (
+              <Progress value={streamStatus?.progress || 0} className="h-2" />
+              {streamStatus?.step && (
                 <div className="text-xs text-muted-foreground">
                   Step: {streamStatus.step}
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {!isConnected && attachmentStatus && !attachmentStatus.processed && !attachmentStatus.error && (
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <div className="text-sm">
-                Processing {attachmentStatus.filename}...
-              </div>
             </div>
           </CardContent>
         </Card>

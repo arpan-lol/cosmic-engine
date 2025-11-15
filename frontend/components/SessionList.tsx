@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSessions, useCreateSession, useDeleteSession } from '@/hooks/use-sessions';
+import { useConversations, useCreateConversation, useDeleteConversation } from '@/hooks/use-conversations';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,48 +11,48 @@ import { Trash2, Plus, MessageSquare } from 'lucide-react';
 
 export default function SessionList() {
   const router = useRouter();
-  const [newSessionTitle, setNewSessionTitle] = useState('');
-  const { data: sessions, isLoading } = useSessions();
-  const createSession = useCreateSession();
-  const deleteSession = useDeleteSession();
+  const [newConversationTitle, setNewConversationTitle] = useState('');
+  const { data: conversations, isLoading } = useConversations();
+  const createConversation = useCreateConversation();
+  const deleteConversation = useDeleteConversation();
 
-  const handleCreateSession = async () => {
-    const result = await createSession.mutateAsync(newSessionTitle || undefined);
-    setNewSessionTitle('');
+  const handleCreateConversation = async () => {
+    const result = await createConversation.mutateAsync(newConversationTitle || undefined);
+    setNewConversationTitle('');
     router.push(`/dashboard/sessions/${result.sessionId}`);
   };
 
-  const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
+  const handleDeleteConversation = async (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm('Are you sure you want to delete this session?')) {
-      await deleteSession.mutateAsync(sessionId);
+    if (confirm('Are you sure you want to delete this conversation?')) {
+      await deleteConversation.mutateAsync(sessionId);
     }
   };
 
-  const handleSelectSession = (sessionId: string) => {
+  const handleSelectConversation = (sessionId: string) => {
     router.push(`/dashboard/sessions/${sessionId}`);
   };
 
   if (isLoading) {
-    return <div className="flex items-center justify-center p-8">Loading sessions...</div>;
+    return <div className="flex items-center justify-center p-8">Loading conversations...</div>;
   }
 
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>New Session</CardTitle>
-          <CardDescription>Start a new chat session</CardDescription>
+          <CardTitle>New Conversation</CardTitle>
+          <CardDescription>Start a new conversation</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2">
             <Input
-              placeholder="Session title (optional)"
-              value={newSessionTitle}
-              onChange={(e) => setNewSessionTitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleCreateSession()}
+              placeholder="Conversation title (optional)"
+              value={newConversationTitle}
+              onChange={(e) => setNewConversationTitle(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreateConversation()}
             />
-            <Button onClick={handleCreateSession} disabled={createSession.isPending}>
+            <Button onClick={handleCreateConversation} disabled={createConversation.isPending}>
               <Plus className="h-4 w-4 mr-2" />
               Create
             </Button>
@@ -62,19 +62,19 @@ export default function SessionList() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Your Sessions</CardTitle>
+          <CardTitle>Your Conversations</CardTitle>
           <CardDescription>
-            {sessions?.length || 0} session{sessions?.length !== 1 ? 's' : ''}
+            {conversations?.length || 0} conversation{conversations?.length !== 1 ? 's' : ''}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-[600px]">
             <div className="space-y-2">
-              {sessions?.map((session) => (
+              {conversations?.map((conversation) => (
                 <Card
-                  key={session.id}
+                  key={conversation.id}
                   className="cursor-pointer hover:bg-accent transition-colors"
-                  onClick={() => handleSelectSession(session.id)}
+                  onClick={() => handleSelectConversation(conversation.id)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -82,15 +82,15 @@ export default function SessionList() {
                         <MessageSquare className="h-5 w-5 text-muted-foreground" />
                         <div className="flex-1 min-w-0">
                           <h3 className="font-medium truncate">
-                            {session.title || 'Untitled Session'}
+                            {conversation.title || 'Untitled Conversation'}
                           </h3>
                           <p className="text-sm text-muted-foreground">
-                            {new Date(session.createdAt).toLocaleDateString()} at{' '}
-                            {new Date(session.createdAt).toLocaleTimeString()}
+                            {new Date(conversation.createdAt).toLocaleDateString()} at{' '}
+                            {new Date(conversation.createdAt).toLocaleTimeString()}
                           </p>
-                          {session.messages && session.messages.length > 0 && (
+                          {conversation.messages && conversation.messages.length > 0 && (
                             <p className="text-sm text-muted-foreground truncate mt-1">
-                              {session.messages[0].content}
+                              {conversation.messages[0].content}
                             </p>
                           )}
                         </div>
@@ -98,8 +98,8 @@ export default function SessionList() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={(e) => handleDeleteSession(session.id, e)}
-                        disabled={deleteSession.isPending}
+                        onClick={(e) => handleDeleteConversation(conversation.id, e)}
+                        disabled={deleteConversation.isPending}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -107,9 +107,9 @@ export default function SessionList() {
                   </CardContent>
                 </Card>
               ))}
-              {sessions?.length === 0 && (
+              {conversations?.length === 0 && (
                 <div className="text-center p-8 text-muted-foreground">
-                  No sessions yet. Create one to get started!
+                  No conversations yet. Create one to get started!
                 </div>
               )}
             </div>

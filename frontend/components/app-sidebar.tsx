@@ -25,7 +25,7 @@ import { useAuth } from '@/hooks/use-auth'
 const data = {
   navMain: [
     {
-      title: 'Sessions',
+      title: 'Conversations',
       url: '/dashboard/sessions',
       icon: List,
     },

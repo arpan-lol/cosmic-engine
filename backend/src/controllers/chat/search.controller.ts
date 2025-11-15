@@ -20,7 +20,7 @@ export class SearchController {
 
     try {
       // Verify session belongs to user
-      const session = await prisma.chatSession.findUnique({
+      const session = await prisma.session.findUnique({
         where: { id: sessionId, userId },
       });
 

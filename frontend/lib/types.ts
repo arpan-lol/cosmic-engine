@@ -5,7 +5,7 @@ export interface User {
   picture?: string;
 }
 
-export interface ChatSession {
+export interface Conversation {
   id: string;
   userId: number;
   title?: string;
