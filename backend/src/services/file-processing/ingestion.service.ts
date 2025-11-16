@@ -16,7 +16,7 @@ interface PyResponse {
 }
 
 export class IngestionService {
-  private static readonly PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'http://localhost:8000';
+  private static readonly PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'python-md:3001';
 
   static async convertToMarkdown(filePath: string): Promise<string> {
     try {

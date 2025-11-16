@@ -1,6 +1,6 @@
 import { MilvusClient } from '@zilliz/milvus2-sdk-node';
 
-const MILVUS_ADDRESS = process.env.MILVUS_ADDRESS || 'localhost:19530';
+const MILVUS_ADDRESS = process.env.MILVUS_ADDRESS || 'milvus:19530';
 
 let milvusClient: MilvusClient | null = null;
 

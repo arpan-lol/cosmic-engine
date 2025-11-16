@@ -13,8 +13,8 @@ const REQUIRED_ENV_VARS = [
 ] as const;
 
 const OPTIONAL_ENV_VARS = [
-  { name: 'MILVUS_ADDRESS', default: 'localhost:19530' },
-  { name: 'PYTHON_SERVICE_URL', default: 'http://localhost:8000' },
+  { name: 'MILVUS_ADDRESS', default: 'milvus:19530' },
+  { name: 'PYTHON_SERVICE_URL', default: 'python-md:3001' },
   { name: 'PORT', default: '3006' },
   { name: 'NODE_ENV', default: 'development' },
   { name: 'FRONTEND_REDIRECT', default: 'http://localhost:3000/auth/callback' },

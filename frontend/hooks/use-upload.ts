@@ -73,7 +73,7 @@ export const useAttachmentStream = (attachmentId: string | null) => {
     }
 
     const connectToStream = async () => {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
       
       let token: string | null = null;
       try {

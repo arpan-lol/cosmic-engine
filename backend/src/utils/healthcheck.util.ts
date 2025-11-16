@@ -1,7 +1,7 @@
 import prisma from '../prisma/client';
 import { getMilvusClient } from '../services/file-processing/milvus/client';
 
-const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'http://localhost:8000';
+const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'python-md:3001';
 
 export class HealthCheck {
   static async checkDatabase(): Promise<{ status: 'healthy' | 'unhealthy'; message: string }> {
