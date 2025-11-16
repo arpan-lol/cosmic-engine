@@ -65,6 +65,8 @@ export default function ChatSessionPage() {
 
     setOptimisticMessages((prev) => [...prev, tempAssistantMessage]);
 
+    const messageIndex = optimisticMessages.length + 1;
+
     await sendMessage(sessionId, content, {
       attachmentIds: uploadedAttachments.length > 0 ? uploadedAttachments : undefined,
       onComplete: () => {
@@ -107,6 +109,8 @@ export default function ChatSessionPage() {
   }
 
   const displayMessages = [...optimisticMessages];
+  const isLoadingResponse = isStreaming && !streamedContent;
+  
   if (isStreaming && streamedContent) {
     const lastMessage = displayMessages[displayMessages.length - 1];
     if (lastMessage && lastMessage.role === 'assistant') {
@@ -127,8 +131,24 @@ export default function ChatSessionPage() {
             </Button>
             <div>
               <CardTitle>{conversation.title || 'Untitled Conversation'}</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Created {new Date(conversation.createdAt).toLocaleDateString()}
+              <p 
+                className="text-sm text-muted-foreground"
+                title={new Date(conversation.createdAt).toLocaleString('en-US', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: true
+                })}
+              >
+                Created {new Date(conversation.createdAt).toLocaleDateString()} at {new Date(conversation.createdAt).toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })}
               </p>
             </div>
           </div>
@@ -143,12 +163,13 @@ export default function ChatSessionPage() {
             </div>
           ) : (
             <div>
-              {displayMessages.map((message) => (
+              {displayMessages.map((message, index) => (
                 <ChatMessage 
                   key={message.id} 
                   message={message} 
                   userAvatar={authUser?.picture}
                   userName={authUser?.name}
+                  isLoading={isLoadingResponse && index === displayMessages.length - 1 && message.role === 'assistant'}
                 />
               ))}
             </div>

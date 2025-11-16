@@ -18,6 +18,7 @@ export default function FileUploadButton({
 }: FileUploadButtonProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedAttachmentId, setUploadedAttachmentId] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const uploadFile = useUploadFile();
   const { data: attachmentStatus } = useAttachmentStatus(uploadedAttachmentId);
   const { streamStatus, isConnected } = useAttachmentStream(uploadedAttachmentId);
@@ -39,6 +40,8 @@ export default function FileUploadButton({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setIsUploading(true);
+
     try {
       const result = await uploadFile.mutateAsync({ file, sessionId });
       setUploadedAttachmentId(result.attachmentId);
@@ -47,6 +50,8 @@ export default function FileUploadButton({
       }
     } catch (error) {
       console.error('Upload failed:', error);
+    } finally {
+      setIsUploading(false);
     }
 
     if (fileInputRef.current) {
@@ -70,9 +75,9 @@ export default function FileUploadButton({
       <Button
         variant="outline"
         onClick={handleButtonClick}
-        disabled={uploadFile.isPending}
+        disabled={uploadFile.isPending || isUploading}
       >
-        {uploadFile.isPending ? (
+        {uploadFile.isPending || isUploading ? (
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
         ) : (
           <Paperclip className="h-4 w-4 mr-2" />
@@ -80,12 +85,18 @@ export default function FileUploadButton({
         Upload File
       </Button>
 
-      {uploadFile.isPending && (
+      {isUploading && (
         <Card>
           <CardContent className="p-3">
             <div className="space-y-2">
-              <div className="text-sm font-medium">Uploading...</div>
-              <Progress value={50} className="h-2" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <div className="text-sm font-medium">Uploading...</div>
+                </div>
+                <div className="text-xs text-muted-foreground">0%</div>
+              </div>
+              <Progress value={0} className="h-2" />
             </div>
           </CardContent>
         </Card>

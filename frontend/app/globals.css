@@ -103,7 +103,7 @@
   --icon-bg-warm: #ffd061;
   --icon-bg-vibrant: #ffd061;
   --button-primary-hover: #e6ba4f;
-  --button-secondary-hover: oklch(0.881 0.021 57.73);
+  --button-secondary-hover: #e6ba4f;
   --accent-rose: oklch(0.918 0.025 14.57);
   --warm-brown: #ffd061;
   

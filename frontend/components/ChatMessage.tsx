@@ -4,7 +4,7 @@ import { Message } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { Paperclip } from 'lucide-react';
+import { Paperclip, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -15,9 +15,10 @@ interface ChatMessageProps {
   message: Message;
   userAvatar?: string;
   userName?: string;
+  isLoading?: boolean;
 }
 
-export default function ChatMessage({ message, userAvatar, userName }: ChatMessageProps) {
+export default function ChatMessage({ message, userAvatar, userName, isLoading }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
 
@@ -45,7 +46,12 @@ export default function ChatMessage({ message, userAvatar, userName }: ChatMessa
         )}
       >
         <CardContent className="p-3">
-          {isUser || isSystem ? (
+          {isLoading && !isUser && !isSystem ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Thinking...</span>
+            </div>
+          ) : isUser || isSystem ? (
             <div className="whitespace-pre-wrap break-words">{message.content}</div>
           ) : (
             <div className="prose prose-sm dark:prose-invert max-w-none">

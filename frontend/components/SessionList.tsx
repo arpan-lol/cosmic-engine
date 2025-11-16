@@ -68,7 +68,7 @@ export default function SessionList() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-[600px]">
+          <ScrollArea className="">
             <div className="space-y-2">
               {conversations?.map((conversation) => (
                 <Card
@@ -84,9 +84,25 @@ export default function SessionList() {
                           <h3 className="font-medium truncate">
                             {conversation.title || 'Untitled Conversation'}
                           </h3>
-                          <p className="text-sm text-muted-foreground">
+                          <p 
+                            className="text-sm text-muted-foreground"
+                            title={new Date(conversation.createdAt).toLocaleString('en-US', {
+                              weekday: 'long',
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              second: '2-digit',
+                              hour12: true
+                            })}
+                          >
                             {new Date(conversation.createdAt).toLocaleDateString()} at{' '}
-                            {new Date(conversation.createdAt).toLocaleTimeString()}
+                            {new Date(conversation.createdAt).toLocaleTimeString('en-US', {
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true
+                            })}
                           </p>
                           {conversation.messages && conversation.messages.length > 0 && (
                             <p className="text-sm text-muted-foreground truncate mt-1">
