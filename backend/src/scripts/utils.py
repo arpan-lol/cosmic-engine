@@ -11,11 +11,20 @@ from typing import Optional, Dict, Any, List
 import PyPDF2
 import re
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+import google.generativeai as genai
 
 load_dotenv(override=True)
 
-# Initialize MarkItDown
-md = MarkItDown()
+# Initialize Gemini for image descriptions
+gemini_api_key = os.getenv("GOOGLE_GENAI_API_KEY")
+if gemini_api_key:
+    genai.configure(api_key=gemini_api_key)
+    gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+    md = MarkItDown(llm_client=gemini_model, llm_model="gemini-1.5-flash")
+    print("✅ MarkItDown initialized with Gemini for image descriptions")
+else:
+    md = MarkItDown()
+    print("⚠️ MarkItDown initialized without LLM (no GOOGLE_GENAI_API_KEY found)")
 
 # Cache directory
 CACHE_DIR = Path("url_cache")

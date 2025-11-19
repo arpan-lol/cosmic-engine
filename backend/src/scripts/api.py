@@ -6,6 +6,10 @@ import os
 from pathlib import Path
 from utils import process_url_with_markitdown, split_content_into_chunks
 from markitdown import MarkItDown
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
 
 app = FastAPI(
     title="RAG Parsing API",
@@ -13,8 +17,15 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Initialize MarkItDown
-md = MarkItDown()
+gemini_api_key = os.getenv("GOOGLE_GENAI_API_KEY")
+if gemini_api_key:
+    genai.configure(api_key=gemini_api_key)
+    gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+    md = MarkItDown(llm_client=gemini_model, llm_model="gemini-1.5-flash")
+    print("✅ MarkItDown initialized with Gemini for image descriptions")
+else:
+    md = MarkItDown()
+    print("⚠️ MarkItDown initialized without LLM (no GOOGLE_GENAI_API_KEY found)")
 
 
 class URLRequest(BaseModel):
