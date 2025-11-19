@@ -66,7 +66,7 @@ export class GenerationService {
       let contextChunks: string[] = [];
 
       if (useRAG) {
-        contextChunks = await RetrievalService.getRelevantContext(sessionId, query, 5, documentIds);
+        contextChunks = await RetrievalService.getRelevantContext(sessionId, query, 10, documentIds);
       }
 
       const prompt = buildPrompt(query, contextChunks, conversationHistory);

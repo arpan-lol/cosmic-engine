@@ -150,7 +150,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       sseService.closeAttachment(attachmentId);
     }, 1000);
 
-    throw error; // Re-throw for job queue retry mechanism
+    throw error;
   }
 }
 
