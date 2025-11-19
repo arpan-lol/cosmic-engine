@@ -22,8 +22,7 @@ export class RetrievalService {
         allResults.push(...resultsArray.flat())
 
         // Sort by score and take top K overall
-        allResults.sort((a, b) => b.score - a.score);
-        const topResults = allResults.slice(0, topK);
+        const topResults = allResults.sort((a, b) => b.score - a.score);
         
         console.log(`[Retrieval] Retrieved ${topResults.length} context chunks from ${documentIds.length} documents`);
         return topResults.map((r) => r.content);

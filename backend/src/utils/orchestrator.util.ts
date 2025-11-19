@@ -90,7 +90,17 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
 
     console.log(`[Orchestrator] Stream processing completed: ${totalChunks} chunks`);
 
-    // Step 5: Update attachment metadata
+    // Step 5: Build index and load collection
+    console.log('[Orchestrator] Step 5: Building index and loading collection...');
+    sseService.sendToAttachment(attachmentId, {
+      status: 'processing',
+      step: 'indexing',
+      message: 'Building search index...',
+      progress: 85,
+    });
+    await CollectionService.buildIndexAndLoad(collectionName);
+
+    // Step 6: Update attachment metadata
     await prisma.attachment.update({
       where: { id: attachmentId },
       data: {
