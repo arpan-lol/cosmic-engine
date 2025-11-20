@@ -6,9 +6,11 @@ import { useConversation } from '@/hooks/use-conversations';
 import { useStreamMessage } from '@/hooks/use-stream-message';
 import { useAuth } from '@/hooks/use-auth';
 import { useQueryClient } from '@tanstack/react-query';
+import { useSessionAttachments } from '@/hooks/use-upload';
 import ChatMessage from '@/components/ChatMessage';
 import ChatInput from '@/components/ChatInput';
 import FileUploadButton from '@/components/FileUploadButton';
+import AttachmentSelector from '@/components/AttachmentSelector';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -23,9 +25,11 @@ export default function ChatSessionPage() {
   const queryClient = useQueryClient();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [uploadedAttachments, setUploadedAttachments] = useState<string[]>([]);
+  const [selectedContextIds, setSelectedContextIds] = useState<string[]>([]);
 
   const { data: authUser } = useAuth();
   const { data: conversation, isLoading } = useConversation(sessionId);
+  const { data: sessionAttachments, isLoading: isLoadingAttachments } = useSessionAttachments(sessionId);
   const { sendMessage, isStreaming, streamedContent, error, reset } = useStreamMessage();
 
   console.log('User avatar data:', { picture: authUser?.picture, name: authUser?.name });
@@ -73,7 +77,7 @@ export default function ChatSessionPage() {
     const messageIndex = optimisticMessages.length + 1;
 
     await sendMessage(sessionId, content, {
-      attachmentIds: uploadedAttachments.length > 0 ? uploadedAttachments : undefined,
+      attachmentIds: selectedContextIds.length > 0 ? selectedContextIds : (uploadedAttachments.length > 0 ? uploadedAttachments : undefined),
       onComplete: () => {
         queryClient.invalidateQueries({ queryKey: ['conversations', sessionId] });
         queryClient.invalidateQueries({ queryKey: ['conversations'] });
@@ -116,6 +120,11 @@ export default function ChatSessionPage() {
   const displayMessages = [...optimisticMessages];
   const isLoadingResponse = isStreaming && !streamedContent;
   
+  // Check if any attachments are currently being processed
+  const hasProcessingAttachments = sessionAttachments?.some(
+    (att: any) => !att.metadata?.processed && !att.metadata?.error
+  ) || false;
+  
   if (isStreaming && streamedContent) {
     const lastMessage = displayMessages[displayMessages.length - 1];
     if (lastMessage && lastMessage.role === 'assistant') {
@@ -130,32 +139,41 @@ export default function ChatSessionPage() {
     <div className="flex flex-col h-full">
       <Card className="border-b rounded-b-none p-0 bg-background sticky top-0 z-10">
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/sessions')}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <CardTitle>{conversation.title || 'Untitled Conversation'}</CardTitle>
-              <p 
-                className="text-sm text-muted-foreground"
-                title={new Date(conversation.createdAt).toLocaleString('en-US', {
-                  weekday: 'long',
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  hour12: true
-                })}
-              >
-                Created {new Date(conversation.createdAt).toLocaleDateString()} at {new Date(conversation.createdAt).toLocaleTimeString('en-US', {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true
-                })}
-              </p>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/sessions')}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <CardTitle>{conversation.title || 'Untitled Conversation'}</CardTitle>
+                <p 
+                  className="text-sm text-muted-foreground"
+                  title={new Date(conversation.createdAt).toLocaleString('en-US', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                  })}
+                >
+                  Created {new Date(conversation.createdAt).toLocaleDateString()} at {new Date(conversation.createdAt).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                  })}
+                </p>
+              </div>
             </div>
+            <AttachmentSelector
+              sessionId={sessionId}
+              attachments={sessionAttachments || []}
+              selectedIds={selectedContextIds}
+              onSelectionChange={setSelectedContextIds}
+              isLoading={isLoadingAttachments}
+            />
           </div>
         </CardHeader>
       </Card>
@@ -205,10 +223,14 @@ export default function ChatSessionPage() {
 
           <ChatInput
             onSend={handleSendMessage}
-            disabled={isStreaming}
+            disabled={isStreaming || isLoadingAttachments || hasProcessingAttachments}
             placeholder={
               isStreaming
                 ? 'Waiting for response...'
+                : isLoadingAttachments
+                ? 'Loading attachments...'
+                : hasProcessingAttachments
+                ? 'Processing documents...'
                 : 'Type your message... (Enter to send, Shift+Enter for new line)'
             }
           />

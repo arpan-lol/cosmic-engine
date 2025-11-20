@@ -26,12 +26,8 @@ export class RetrievalService {
         return topResults.map((r) => r.content);
       }
       
-      // Default behavior: search across entire session
-      const results = await SearchService.search(sessionId, query, topK);
-      const context = results.map((r) => r.content);
-      
-      console.log(`[Retrieval] Retrieved ${context.length} context chunks for session ${sessionId}`);
-      return context;
+      console.log(`[Retrieval] No attachments specified, returning empty context`);
+      return [];
     } catch (error) {
       console.error(`[Retrieval] Error getting context for session ${sessionId}:`, error);
       return [];
