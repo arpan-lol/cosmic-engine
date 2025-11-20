@@ -5,26 +5,24 @@ export class RetrievalService {
     sessionId: string,
     query: string,
     topK: number = 10,
-    documentIds?: string[]
+    attachmentIds?: string[]
   ): Promise<string[]> {
     try {
-      // If documentIds are provided, search each document and combine results
-      if (documentIds && documentIds.length > 0) {
+      // If attachmentIds are provided, search within those specific attachments and combine results
+      if (attachmentIds && attachmentIds.length > 0) {
         const allResults: Array<{ content: string; metadata: any; score: number }> = [];
         
-        // for (const docId of documentIds) {
-        //   const docResults = await SearchService.search(sessionId, query, topK, docId);
-        //   allResults.push(...docResults);
-        // }
-
-        const promises = documentIds.map(documentId=>SearchService.search(sessionId, query, topK, documentId))
-        const resultsArray = await Promise.all(promises)
-        allResults.push(...resultsArray.flat())
+        // Search each attachment in parallel
+        const promises = attachmentIds.map(attachmentId => 
+          SearchService.search(sessionId, query, topK, attachmentId)
+        );
+        const resultsArray = await Promise.all(promises);
+        allResults.push(...resultsArray.flat());
 
         // Sort by score and take top K overall
-        const topResults = allResults.sort((a, b) => b.score - a.score);
+        const topResults = allResults.sort((a, b) => b.score - a.score).slice(0, topK);
         
-        console.log(`[Retrieval] Retrieved ${topResults.length} context chunks from ${documentIds.length} documents`);
+        console.log(`[Retrieval] Retrieved ${topResults.length} context chunks from ${attachmentIds.length} attachments`);
         return topResults.map((r) => r.content);
       }
       

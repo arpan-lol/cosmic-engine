@@ -45,12 +45,17 @@ export default function ChatSessionPage() {
   }, [optimisticMessages, streamedContent]);
 
   const handleSendMessage = async (content: string) => {
+    const attachments = uploadedAttachments.length > 0 
+      ? conversation?.attachments?.filter((att: any) => uploadedAttachments.includes(att.id)) || []
+      : undefined;
+
     const tempUserMessage: Message = {
       id: `temp-${Date.now()}`,
       sessionId,
       role: 'user',
       content,
       createdAt: new Date().toISOString(),
+      attachments,
     };
 
     setOptimisticMessages((prev) => [...prev, tempUserMessage]);

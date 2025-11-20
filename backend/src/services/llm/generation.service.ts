@@ -60,13 +60,13 @@ export class GenerationService {
     query: string,
     conversationHistory: ChatMessage[] = [],
     useRAG: boolean = true,
-    documentIds?: string[]
+    attachmentIds?: string[]
   ): AsyncGenerator<string> {
     try {
       let contextChunks: string[] = [];
 
       if (useRAG) {
-        contextChunks = await RetrievalService.getRelevantContext(sessionId, query, 10, documentIds);
+        contextChunks = await RetrievalService.getRelevantContext(sessionId, query, 10, attachmentIds);
       }
 
       const prompt = buildPrompt(query, contextChunks, conversationHistory);
@@ -184,13 +184,13 @@ export class GenerationService {
     query: string,
     conversationHistory: ChatMessage[] = [],
     useRAG: boolean = true,
-    documentIds?: string[]
+    attachmentIds?: string[]
   ): Promise<string> {
     try {
       let contextChunks: string[] = [];
 
       if (useRAG) {
-        contextChunks = await RetrievalService.getRelevantContext(sessionId, query, 5, documentIds);
+        contextChunks = await RetrievalService.getRelevantContext(sessionId, query, 5, attachmentIds);
       }
 
       const prompt = buildPrompt(query, contextChunks, conversationHistory);

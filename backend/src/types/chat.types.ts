@@ -10,8 +10,7 @@ export interface CreateSessionResponse {
 
 export interface SendMessageRequest {
   content: string;
-  attachmentIds?: string[];
-  documentIds?: string[];
+  attachmentIds?: string[]; 
 }
 
 export interface SendMessageResponse {

@@ -42,17 +42,19 @@ export default function ChatMessage({ message, userAvatar, userName, isLoading }
           'max-w-[80%] border-0 shadow-none',
           isUser && 'bg-primary text-primary-foreground',
           !isUser && !isSystem && 'bg-sidebar',
-          isSystem && 'bg-muted max-w-[60%]'
+          isSystem && 'bg-muted/50 border border-border max-w-[70%]'
         )}
       >
-        <CardContent className="p-3">
+        <CardContent className={cn('p-3', isSystem && 'py-2')}>
           {isLoading && !isUser && !isSystem ? (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-sm">Thinking...</span>
             </div>
-          ) : isUser || isSystem ? (
+          ) : isUser ? (
             <div className="whitespace-pre-wrap break-words">{message.content}</div>
+          ) : isSystem ? (
+            <div className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{message.content}</div>
           ) : (
             <div className="prose prose-sm dark:prose-invert max-w-none">
               <ReactMarkdown
@@ -136,12 +138,13 @@ export default function ChatMessage({ message, userAvatar, userName, isLoading }
             </div>
           )}
 
-          <div
-            className={cn(
-              'text-xs mt-2',
-              isUser ? 'text-primary-foreground/60' : 'text-muted-foreground'
-            )}
-            title={new Date(message.createdAt).toLocaleString('en-US', {
+          {!isSystem && (
+            <div
+              className={cn(
+                'text-xs mt-2',
+                isUser ? 'text-primary-foreground/60' : 'text-muted-foreground'
+              )}
+              title={new Date(message.createdAt).toLocaleString('en-US', {
               weekday: 'long',
               day: 'numeric',
               month: 'long',
@@ -158,6 +161,7 @@ export default function ChatMessage({ message, userAvatar, userName, isLoading }
               hour12: true
             })}
           </div>
+          )}
         </CardContent>
       </Card>
 

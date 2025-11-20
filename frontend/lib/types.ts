@@ -12,6 +12,7 @@ export interface Conversation {
   createdAt: string;
   updatedAt: string;
   messages?: Message[];
+  attachments?: Attachment[];
 }
 
 export interface Message {
