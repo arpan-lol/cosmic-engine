@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Paperclip, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface FileUploadButtonProps {
   sessionId: string;
@@ -19,6 +20,7 @@ export default function FileUploadButton({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedAttachmentId, setUploadedAttachmentId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [hasShownToast, setHasShownToast] = useState(false);
   const uploadFile = useUploadFile();
   const { data: attachmentStatus } = useAttachmentStatus(uploadedAttachmentId);
   const { streamStatus, isConnected } = useAttachmentStream(uploadedAttachmentId);
@@ -35,6 +37,26 @@ export default function FileUploadButton({
       }
     }
   }, [sessionAttachments, uploadedAttachmentId]);
+
+  // Show toast when processing completes
+  useEffect(() => {
+    const isCompleted = streamStatus?.status === 'completed' || attachmentStatus?.processed;
+    if (isCompleted && !hasShownToast) {
+      const filename = attachmentStatus?.filename || 'File';
+      const chunkCount = streamStatus?.chunkCount || attachmentStatus?.chunkCount || 0;
+      toast.success(`${filename} processed (${chunkCount} chunks)`, {
+        duration: 5000,
+      });
+      setHasShownToast(true);
+    }
+  }, [streamStatus?.status, attachmentStatus?.processed, hasShownToast, attachmentStatus?.filename, streamStatus?.chunkCount, attachmentStatus?.chunkCount]);
+
+  // Reset toast flag when new upload starts
+  useEffect(() => {
+    if (isUploading) {
+      setHasShownToast(false);
+    }
+  }, [isUploading]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -124,20 +146,6 @@ export default function FileUploadButton({
                   Step: {streamStatus.step}
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {(streamStatus?.status === 'completed' || attachmentStatus?.processed) && (
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 text-green-600">
-              <CheckCircle className="h-4 w-4" />
-              <div className="text-sm">
-                {attachmentStatus?.filename || 'File'} processed (
-                {streamStatus?.chunkCount || attachmentStatus?.chunkCount || 0} chunks)
-              </div>
             </div>
           </CardContent>
         </Card>
