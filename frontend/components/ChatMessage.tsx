@@ -9,6 +9,7 @@ import { Paperclip, Loader2, FileText } from 'lucide-react';
 import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github-dark.css';
 
@@ -50,6 +51,11 @@ function parseCitations(text: string): (string | Citation)[] {
     });
 
     lastIndex = match.index + match[0].length;
+    
+    // Skip trailing period or punctuation immediately after citation
+    if (lastIndex < text.length && /[.,;:!?]/.test(text[lastIndex])) {
+      lastIndex++;
+    }
   }
 
   if (lastIndex < text.length) {
@@ -70,7 +76,7 @@ export default function ChatMessage({ message, userAvatar, userName, isLoading, 
       if (typeof part === 'string') {
         return <ReactMarkdown
           key={index}
-          remarkPlugins={[remarkGfm]}
+          remarkPlugins={[remarkGfm, remarkBreaks]}
           rehypePlugins={[rehypeHighlight]}
           components={{
             code: ({ node, inline, className, children, ...props }: any) => (
@@ -116,18 +122,18 @@ export default function ChatMessage({ message, userAvatar, userName, isLoading, 
           {part}
         </ReactMarkdown>;
       } else {
+        const pageLabel = part.page ? `Page ${part.page}` : part.excerptNumber ? `Page ${part.excerptNumber}` : part.filename;
         return (
           <Button
             key={index}
             variant="outline"
             size="sm"
             className="inline-flex items-center gap-1 mx-1 h-6 text-xs"
-            onClick={() => onCitationClick?.(part.filename, part.page)}
+            onClick={() => onCitationClick?.(part.filename, part.page || part.excerptNumber)}
+            title={part.filename}
           >
             <FileText className="h-3 w-3" />
-            {part.filename}
-            {part.page && ` | Page ${part.page}`}
-            {part.excerptNumber && ` | Excerpt ${part.excerptNumber}`}
+            {pageLabel}
           </Button>
         );
       }

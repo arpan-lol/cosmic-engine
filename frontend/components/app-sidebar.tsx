@@ -6,6 +6,7 @@ import {
   Settings,
   MessageSquare,
   Plus,
+  PanelLeftClose,
 } from 'lucide-react'
 import * as React from 'react'
 import { useEffect, useState } from 'react'
@@ -25,6 +26,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import { useAuth } from '@/hooks/use-auth'
 import { useConversations, useCreateConversation } from '@/hooks/use-conversations'
@@ -54,6 +56,7 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { toggleSidebar } = useSidebar()
   const { data: authUser } = useAuth()
   const { data: conversations, isLoading } = useConversations()
   const createConversation = useCreateConversation()
@@ -84,15 +87,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >
+            <div className="flex items-center justify-between w-full px-1.5">
               <a href="/dashboard" className="flex items-center gap-2">
                 <Image src="/logo.png" alt="Cosmic Engine" width={32} height={32} className="rounded" />
                 <span className="text-base font-semibold">Cosmic Engine</span>
               </a>
-            </SidebarMenuButton>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={toggleSidebar}
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </Button>
+            </div>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>

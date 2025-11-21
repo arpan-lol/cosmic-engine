@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import type { Message } from '@/lib/types';
 
@@ -26,7 +27,13 @@ export default function ChatSessionPage() {
   const queryClient = useQueryClient();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [uploadedAttachments, setUploadedAttachments] = useState<string[]>([]);
-  const [selectedContextIds, setSelectedContextIds] = useState<string[]>([]);
+  const [selectedContextIds, setSelectedContextIds] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(`session-${sessionId}-selected-files`);
+      return stored ? JSON.parse(stored) : [];
+    }
+    return [];
+  });
   const [selectedPDF, setSelectedPDF] = useState<{ filename: string; url: string; targetPage?: number } | undefined>();
 
   const { data: authUser } = useAuth();
@@ -49,6 +56,30 @@ export default function ChatSessionPage() {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
   }, [optimisticMessages, streamedContent]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`session-${sessionId}-selected-files`, JSON.stringify(selectedContextIds));
+    }
+  }, [selectedContextIds, sessionId]);
+
+  // Auto-select newly uploaded attachments
+  useEffect(() => {
+    if (sessionAttachments && sessionAttachments.length > 0) {
+      const processedAttachmentIds = sessionAttachments
+        .filter((att: any) => att.metadata?.processed)
+        .map((att: any) => att.id);
+      
+      // Find newly uploaded files that aren't already selected
+      const newAttachments = uploadedAttachments.filter(id => 
+        processedAttachmentIds.includes(id) && !selectedContextIds.includes(id)
+      );
+      
+      if (newAttachments.length > 0) {
+        setSelectedContextIds(prev => [...prev, ...newAttachments]);
+      }
+    }
+  }, [sessionAttachments, uploadedAttachments, selectedContextIds]);
 
   const handleSendMessage = async (content: string) => {
     const attachments = uploadedAttachments.length > 0 
@@ -100,7 +131,7 @@ export default function ChatSessionPage() {
 
   const handleCitationClick = (filename: string, page?: number) => {
     const attachment = sessionAttachments?.find((att: any) => att.filename === filename);
-    if (attachment) {
+    if (attachment && attachment.filename.toLowerCase().endsWith('.pdf')) {
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
       const fileToUse = attachment.storedFilename || attachment.filename;
       setSelectedPDF({
@@ -112,6 +143,9 @@ export default function ChatSessionPage() {
   };
 
   const handleDocumentClick = (attachment: any) => {
+    if (!attachment.filename.toLowerCase().endsWith('.pdf')) {
+      return;
+    }
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
     const fileToUse = attachment.storedFilename || attachment.filename;
     setSelectedPDF({
@@ -162,13 +196,14 @@ export default function ChatSessionPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden gap-4 p-4">
+    <div className="flex h-screen overflow-hidden">
       {/* Chat Section */}
       <div className="flex flex-col flex-1 min-w-0 h-full">
         <Card className="border-b rounded-b-none p-0 bg-background flex-shrink-0">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <SidebarTrigger className="-ml-1" />
                 <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/sessions')}>
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
@@ -199,7 +234,7 @@ export default function ChatSessionPage() {
                 sessionId={sessionId}
                 attachments={sessionAttachments || []}
                 selectedIds={selectedContextIds}
-                onSelectionChange={setSelectedContextIds}
+                onSelectionChange={(ids) => setSelectedContextIds(ids)}
                 isLoading={isLoadingAttachments}
               />
             </div>
@@ -277,7 +312,7 @@ export default function ChatSessionPage() {
       </div>
 
       {/* File Panel Section */}
-      <div className="w-[600px] flex-shrink-0 h-full overflow-hidden">
+      <div className="w-[500px] flex-shrink-0 h-full overflow-hidden">
         <FilePanel
           attachments={sessionAttachments || []}
           selectedFile={selectedPDF}
