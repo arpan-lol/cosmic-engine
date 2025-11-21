@@ -3,8 +3,9 @@
 import { Message } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Paperclip, Loader2 } from 'lucide-react';
+import { Paperclip, Loader2, FileText } from 'lucide-react';
 import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -16,11 +17,122 @@ interface ChatMessageProps {
   userAvatar?: string;
   userName?: string;
   isLoading?: boolean;
+  onCitationClick?: (filename: string, page?: number) => void;
 }
 
-export default function ChatMessage({ message, userAvatar, userName, isLoading }: ChatMessageProps) {
+interface Citation {
+  text: string;
+  filename: string;
+  page?: number;
+  excerptNumber?: number;
+}
+
+function parseCitations(text: string): (string | Citation)[] {
+  const citationRegex = /\[SOURCE:\s*([^\|]+?)\s*\|\s*(?:Page\s*(\d+)|Excerpt\s*(\d+))\]/gi;
+  const parts: (string | Citation)[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = citationRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+
+    const filename = match[1].trim();
+    const page = match[2] ? parseInt(match[2], 10) : undefined;
+    const excerptNumber = match[3] ? parseInt(match[3], 10) : undefined;
+
+    parts.push({
+      text: match[0],
+      filename,
+      page,
+      excerptNumber,
+    });
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts;
+}
+
+export default function ChatMessage({ message, userAvatar, userName, isLoading, onCitationClick }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
+
+  const renderContentWithCitations = (content: string) => {
+    const parts = parseCitations(content);
+    
+    return parts.map((part, index) => {
+      if (typeof part === 'string') {
+        return <ReactMarkdown
+          key={index}
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeHighlight]}
+          components={{
+            code: ({ node, inline, className, children, ...props }: any) => (
+              inline ? (
+                <code className="bg-muted px-1 py-0.5 rounded text-sm" {...props}>
+                  {children}
+                </code>
+              ) : (
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              )
+            ),
+            pre: ({ children, ...props }: any) => (
+              <pre className="bg-muted p-4 rounded-lg overflow-x-auto" {...props}>
+                {children}
+              </pre>
+            ),
+            a: ({ children, ...props }: any) => (
+              <a className="text-primary hover:underline" target="_blank" rel="noopener noreferrer" {...props}>
+                {children}
+              </a>
+            ),
+            table: ({ children, ...props }: any) => (
+              <div className="overflow-x-auto">
+                <table className="border-collapse border border-border" {...props}>
+                  {children}
+                </table>
+              </div>
+            ),
+            th: ({ children, ...props }: any) => (
+              <th className="border border-border px-4 py-2 bg-muted" {...props}>
+                {children}
+              </th>
+            ),
+            td: ({ children, ...props }: any) => (
+              <td className="border border-border px-4 py-2" {...props}>
+                {children}
+              </td>
+            ),
+          }}
+        >
+          {part}
+        </ReactMarkdown>;
+      } else {
+        return (
+          <Button
+            key={index}
+            variant="outline"
+            size="sm"
+            className="inline-flex items-center gap-1 mx-1 h-6 text-xs"
+            onClick={() => onCitationClick?.(part.filename, part.page)}
+          >
+            <FileText className="h-3 w-3" />
+            {part.filename}
+            {part.page && ` | Page ${part.page}`}
+            {part.excerptNumber && ` | Excerpt ${part.excerptNumber}`}
+          </Button>
+        );
+      }
+    });
+  };
 
   return (
     <div
@@ -57,52 +169,7 @@ export default function ChatMessage({ message, userAvatar, userName, isLoading }
             <div className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{message.content}</div>
           ) : (
             <div className="prose prose-sm dark:prose-invert max-w-none">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeHighlight]}
-                components={{
-                  code: ({ node, inline, className, children, ...props }: any) => (
-                    inline ? (
-                      <code className="bg-muted px-1 py-0.5 rounded text-sm" {...props}>
-                        {children}
-                      </code>
-                    ) : (
-                      <code className={className} {...props}>
-                        {children}
-                      </code>
-                    )
-                  ),
-                  pre: ({ children, ...props }: any) => (
-                    <pre className="bg-muted p-4 rounded-lg overflow-x-auto" {...props}>
-                      {children}
-                    </pre>
-                  ),
-                  a: ({ children, ...props }: any) => (
-                    <a className="text-primary hover:underline" target="_blank" rel="noopener noreferrer" {...props}>
-                      {children}
-                    </a>
-                  ),
-                  table: ({ children, ...props }: any) => (
-                    <div className="overflow-x-auto">
-                      <table className="border-collapse border border-border" {...props}>
-                        {children}
-                      </table>
-                    </div>
-                  ),
-                  th: ({ children, ...props }: any) => (
-                    <th className="border border-border px-4 py-2 bg-muted" {...props}>
-                      {children}
-                    </th>
-                  ),
-                  td: ({ children, ...props }: any) => (
-                    <td className="border border-border px-4 py-2" {...props}>
-                      {children}
-                    </td>
-                  ),
-                }}
-              >
-                {message.content}
-              </ReactMarkdown>
+              {renderContentWithCitations(message.content)}
             </div>
           )}
 

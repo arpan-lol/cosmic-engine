@@ -11,6 +11,7 @@ import ChatMessage from '@/components/ChatMessage';
 import ChatInput from '@/components/ChatInput';
 import FileUploadButton from '@/components/FileUploadButton';
 import AttachmentSelector from '@/components/AttachmentSelector';
+import FilePanel from '@/components/FilePanel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -26,6 +27,7 @@ export default function ChatSessionPage() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [uploadedAttachments, setUploadedAttachments] = useState<string[]>([]);
   const [selectedContextIds, setSelectedContextIds] = useState<string[]>([]);
+  const [selectedPDF, setSelectedPDF] = useState<{ filename: string; url: string; targetPage?: number } | undefined>();
 
   const { data: authUser } = useAuth();
   const { data: conversation, isLoading } = useConversation(sessionId);
@@ -92,6 +94,30 @@ export default function ChatSessionPage() {
 
   const handleUploadComplete = (attachmentId: string) => {
     setUploadedAttachments((prev) => [...prev, attachmentId]);
+    // Refetch attachments to update the file panel
+    queryClient.invalidateQueries({ queryKey: ['sessions', sessionId, 'attachments'] });
+  };
+
+  const handleCitationClick = (filename: string, page?: number) => {
+    const attachment = sessionAttachments?.find((att: any) => att.filename === filename);
+    if (attachment) {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
+      const fileToUse = attachment.storedFilename || attachment.filename;
+      setSelectedPDF({
+        filename: attachment.filename,
+        url: `${baseUrl}/dashboard/sessions/uploads/${encodeURIComponent(fileToUse)}`,
+        targetPage: page,
+      });
+    }
+  };
+
+  const handleDocumentClick = (attachment: any) => {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
+    const fileToUse = attachment.storedFilename || attachment.filename;
+    setSelectedPDF({
+      filename: attachment.filename,
+      url: `${baseUrl}/dashboard/sessions/uploads/${encodeURIComponent(fileToUse)}`,
+    });
   };
 
   if (isLoading) {
@@ -136,49 +162,51 @@ export default function ChatSessionPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <Card className="border-b rounded-b-none p-0 bg-background sticky top-0 z-10">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/sessions')}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div>
-                <CardTitle>{conversation.title || 'Untitled Conversation'}</CardTitle>
-                <p 
-                  className="text-sm text-muted-foreground"
-                  title={new Date(conversation.createdAt).toLocaleString('en-US', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: true
-                  })}
-                >
-                  Created {new Date(conversation.createdAt).toLocaleDateString()} at {new Date(conversation.createdAt).toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    hour12: true
-                  })}
-                </p>
+    <div className="flex h-screen overflow-hidden gap-4 p-4">
+      {/* Chat Section */}
+      <div className="flex flex-col flex-1 min-w-0 h-full">
+        <Card className="border-b rounded-b-none p-0 bg-background flex-shrink-0">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 min-w-0">
+                <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/sessions')}>
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <div className="min-w-0">
+                  <CardTitle className="truncate">{conversation.title || 'Untitled Conversation'}</CardTitle>
+                  <p 
+                    className="text-sm text-muted-foreground truncate"
+                    title={new Date(conversation.createdAt).toLocaleString('en-US', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      second: '2-digit',
+                      hour12: true
+                    })}
+                  >
+                    Created {new Date(conversation.createdAt).toLocaleDateString()} at {new Date(conversation.createdAt).toLocaleTimeString('en-US', {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true
+                    })}
+                  </p>
+                </div>
               </div>
+              <AttachmentSelector
+                sessionId={sessionId}
+                attachments={sessionAttachments || []}
+                selectedIds={selectedContextIds}
+                onSelectionChange={setSelectedContextIds}
+                isLoading={isLoadingAttachments}
+              />
             </div>
-            <AttachmentSelector
-              sessionId={sessionId}
-              attachments={sessionAttachments || []}
-              selectedIds={selectedContextIds}
-              onSelectionChange={setSelectedContextIds}
-              isLoading={isLoadingAttachments}
-            />
-          </div>
-        </CardHeader>
-      </Card>
+          </CardHeader>
+        </Card>
 
-      <div className="flex-1 overflow-y-auto" ref={scrollAreaRef}>
+        <div className="flex-1 overflow-y-auto min-h-0" ref={scrollAreaRef}>
         <div className="p-4">
           {displayMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -193,6 +221,7 @@ export default function ChatSessionPage() {
                   userAvatar={authUser?.picture}
                   userName={authUser?.name}
                   isLoading={isLoadingResponse && index === displayMessages.length - 1 && message.role === 'assistant'}
+                  onCitationClick={handleCitationClick}
                 />
               ))}
             </div>
@@ -200,7 +229,7 @@ export default function ChatSessionPage() {
         </div>
       </div>
 
-      <Card className="mt-0 rounded-t-none border-t sticky bottom-0 bg-background">
+      <Card className="mt-0 rounded-t-none border-t bg-background flex-shrink-0">
         <CardContent className="p-4 space-y-3">{error && (
             <Card className="border-destructive">
               <CardContent className="p-3 text-sm text-destructive">
@@ -209,7 +238,16 @@ export default function ChatSessionPage() {
             </Card>
           )}
 
-          <FileUploadButton sessionId={sessionId} onUploadComplete={handleUploadComplete} />
+          <div className="flex items-center gap-2">
+            <FileUploadButton sessionId={sessionId} onUploadComplete={handleUploadComplete} />
+            <AttachmentSelector
+              sessionId={sessionId}
+              attachments={sessionAttachments || []}
+              selectedIds={selectedContextIds}
+              onSelectionChange={setSelectedContextIds}
+              isLoading={isLoadingAttachments}
+            />
+          </div>
 
           {uploadedAttachments.length > 0 && (
             <Card>
@@ -236,6 +274,17 @@ export default function ChatSessionPage() {
           />
         </CardContent>
       </Card>
+      </div>
+
+      {/* File Panel Section */}
+      <div className="w-[600px] flex-shrink-0 h-full overflow-hidden">
+        <FilePanel
+          attachments={sessionAttachments || []}
+          selectedFile={selectedPDF}
+          onClose={() => setSelectedPDF(undefined)}
+          onDocumentClick={handleDocumentClick}
+        />
+      </div>
     </div>
   );
 }

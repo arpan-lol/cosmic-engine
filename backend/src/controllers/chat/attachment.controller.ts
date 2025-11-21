@@ -131,6 +131,7 @@ export class AttachmentController {
         filename: att.filename,
         type: att.type,
         url: att.url,
+        storedFilename: (att.metadata as any)?.storedFilename,
         mimeType: att.mimeType,
         size: att.size,
         createdAt: att.createdAt,

@@ -70,14 +70,14 @@ export default function AttachmentSelector({
           Select Files ({selectedIds.length})
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[80vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Select Files for Context</DialogTitle>
           <DialogDescription>
             Choose which files to use for answering your next question
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto flex-1 min-h-0">
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -130,6 +130,12 @@ export default function AttachmentSelector({
               </div>
             </ScrollArea>
           )}
+
+          <div className="flex justify-end pt-4">
+            <Button onClick={() => setOpen(false)}>
+              Done
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

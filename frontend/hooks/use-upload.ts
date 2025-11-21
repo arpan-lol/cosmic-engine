@@ -150,7 +150,7 @@ export const useSessionAttachments = (sessionId: string | null) => {
     refetchInterval: (query) => {
       const data = query.state.data as any[];
       // Keep refetching if any attachment is still processing
-      const hasProcessing = data?.some((att: any) => !att.processed && !att.error);
+      const hasProcessing = data?.some((att: any) => !att.metadata?.processed && !att.metadata?.error);
       return hasProcessing ? 3000 : false;
     },
   });

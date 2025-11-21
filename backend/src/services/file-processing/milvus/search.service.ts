@@ -2,13 +2,23 @@ import { getMilvusClient } from './client';
 import { EmbeddingService } from '../embedding.service';
 import { CollectionService } from './collection.service';
 
+export interface SearchResult {
+  content: string;
+  attachmentId: string;
+  filename: string;
+  chunkIndex: number;
+  pageNumber?: number;
+  score: number;
+  metadata?: any;
+}
+
 export class SearchService {
   static async search(
     sessionId: string,
     queryText: string,
     topK: number = 10,
     attachmentId?: string
-  ): Promise<Array<{ content: string; metadata: any; score: number }>> {
+  ): Promise<SearchResult[]> {
     try {
       const collectionName = CollectionService.generateCName(sessionId);
       const hasCollection = await CollectionService.hasCollection(collectionName);
@@ -30,13 +40,17 @@ export class SearchService {
 
       let results = searchResults.results.map((result: any) => ({
         content: result.content,
-        metadata: result.metadata,
+        attachmentId: result.metadata?.attachmentId || 'unknown',
+        filename: result.metadata?.filename || 'unknown',
+        chunkIndex: result.chunk_index || 0,
+        pageNumber: result.metadata?.pageNumber,
         score: result.score,
+        metadata: result.metadata,
       }));
 
       if (attachmentId) {
         results = results
-          .filter((result) => result.metadata?.attachmentId === attachmentId)
+          .filter((result) => result.attachmentId === attachmentId)
           .slice(0, topK);
         console.log(`[Milvus] Found ${results.length} results in attachment ${attachmentId}`);
       } else {
