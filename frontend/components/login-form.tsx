@@ -28,9 +28,32 @@ export function LoginForm({
           <div className="grid gap-6">
             <OAuthButtons />
           </div>
+          <CardDescription className="text-center mt-4">
+            or,{' '}
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.preventDefault();
+                try {
+                  const response = await fetch('/auth/guest', {
+                    method: 'POST',
+                  });
+                  const data = await response.json();
+                  if (data.success) {
+                    window.location.href = '/dashboard/sessions';
+                  }
+                } catch (error) {
+                  console.error('Guest login failed:', error);
+                }
+              }}
+              className="underline cursor-pointer hover:text-primary transition-colors inline-flex items-center gap-1"
+            >
+              login as a guest
+              <span className="inline-block">→</span>
+            </button>
+          </CardDescription>
         </CardContent>
       </Card>
-      {/* Guest user implementation*/}
     </div>
   );
 }

@@ -86,6 +86,41 @@ router.get('/google/callback', async (req, res) => {
   }
 });
 
+router.post('/guest', async (req, res) => {
+  try {
+    let guestUser = await prisma.user.findUnique({
+      where: { email: 'guest@cosmicengine' }
+    });
+
+    if (!guestUser) {
+      guestUser = await prisma.user.create({
+        data: {
+          email: 'guest@cosmicengine',
+          name: 'Guest User',
+          password: 'guest',
+          googleId: null,
+        }
+      });
+    }
+
+    const customJwt = signJwt(guestUser);
+    
+    res.json({
+      success: true,
+      token: customJwt,
+      user: {
+        id: guestUser.id,
+        email: guestUser.email,
+        name: guestUser.name,
+        picture: guestUser.picture,
+      }
+    });
+  } catch (err) {
+    console.error('[auth] Guest login error:', err);
+    res.status(500).json({ error: 'Guest login failed' });
+  }
+});
+
 router.post('/refresh', async (req, res) => {
   const authHeader = req.headers.authorization as string | undefined;
   let oldToken: string | undefined;
