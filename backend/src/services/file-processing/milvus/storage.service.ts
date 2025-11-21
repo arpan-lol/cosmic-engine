@@ -6,7 +6,8 @@ export class StorageService {
   static async *storeVectorsStream(
     sessionId: string,
     attachmentId: string,
-    embeddingStream: AsyncGenerator<Embedding>
+    embeddingStream: AsyncGenerator<Embedding>,
+    filename?: string
   ): AsyncGenerator<number> {
     const collectionName = CollectionService.generateCName(sessionId);
     const BATCH_SIZE = 50;
@@ -19,6 +20,7 @@ export class StorageService {
         metadata: {
           ...embedding.metadata,
           attachmentId,
+          filename: filename || 'unknown',
           storedAt: new Date().toISOString(),
         },
       });
@@ -45,7 +47,8 @@ export class StorageService {
   static async storeVectors(
     sessionId: string,
     attachmentId: string,
-    embeddings: Embedding[]
+    embeddings: Embedding[],
+    filename?: string
   ): Promise<void> {
     if (embeddings.length === 0) {
       console.log(`[Milvus] No embeddings to store for attachment: ${attachmentId}`);
@@ -59,6 +62,7 @@ export class StorageService {
       metadata: {
         ...emb.metadata,
         attachmentId,
+        filename: filename || 'unknown',
         storedAt: new Date().toISOString(),
       },
     }));

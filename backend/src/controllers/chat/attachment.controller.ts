@@ -134,9 +134,11 @@ export class AttachmentController {
         mimeType: att.mimeType,
         size: att.size,
         createdAt: att.createdAt,
-        processed: (att.metadata as any)?.processed || false,
-        error: (att.metadata as any)?.error,
-        chunkCount: (att.metadata as any)?.chunkCount,
+        metadata: {
+          processed: (att.metadata as any)?.processed || false,
+          error: (att.metadata as any)?.error,
+          chunkCount: (att.metadata as any)?.chunkCount,
+        },
       }));
 
       return res.status(200).json({ attachments: attachmentsWithStatus });

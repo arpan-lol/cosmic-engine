@@ -85,7 +85,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     });
 
     const embeddingStream = EmbeddingService.generateEmbeddingsStream(chunkStream);
-    const storageStream = StorageService.storeVectorsStream(sessionId, attachmentId, embeddingStream);
+    const storageStream = StorageService.storeVectorsStream(sessionId, attachmentId, embeddingStream, attachment.filename);
 
     let totalChunks = 0;
     let lastProgress = 40;

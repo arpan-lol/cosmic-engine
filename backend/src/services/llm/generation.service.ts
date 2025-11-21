@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from '@google/genai';
-import { RetrievalService } from './retrieval.service';
+import { RetrievalService, EnhancedContext } from './retrieval.service';
 import { buildPrompt } from './prompts/system.prompt';
+import { estimatePromptTokens } from '../../utils/token-estimator.util';
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GOOGLE_GENAI_API_KEY,
@@ -63,13 +64,23 @@ export class GenerationService {
     attachmentIds?: string[]
   ): AsyncGenerator<string> {
     try {
-      let contextChunks: string[] = [];
+      let enhancedContexts: EnhancedContext[] = [];
 
       if (useRAG) {
-        contextChunks = await RetrievalService.getRelevantContext(sessionId, query, 10, attachmentIds);
+        enhancedContexts = await RetrievalService.getRelevantContext(sessionId, query, attachmentIds);
       }
 
-      const prompt = buildPrompt(query, contextChunks, conversationHistory);
+      const prompt = buildPrompt(query, enhancedContexts, conversationHistory);
+
+      // Log token estimation
+      const contextStrings = enhancedContexts.map((ctx) => ctx.content);
+      const estimatedTokens = estimatePromptTokens(
+        prompt.substring(0, 1000), // System prompt portion
+        contextStrings,
+        conversationHistory,
+        query
+      );
+      console.log(`[Generation] Stream prompt token estimate: ${estimatedTokens}`);
 
       let contents = [
         {
@@ -187,13 +198,23 @@ export class GenerationService {
     attachmentIds?: string[]
   ): Promise<string> {
     try {
-      let contextChunks: string[] = [];
+      let enhancedContexts: EnhancedContext[] = [];
 
       if (useRAG) {
-        contextChunks = await RetrievalService.getRelevantContext(sessionId, query, 5, attachmentIds);
+        enhancedContexts = await RetrievalService.getRelevantContext(sessionId, query, attachmentIds);
       }
 
-      const prompt = buildPrompt(query, contextChunks, conversationHistory);
+      const prompt = buildPrompt(query, enhancedContexts, conversationHistory);
+
+      // Log token estimation
+      const contextStrings = enhancedContexts.map((ctx) => ctx.content);
+      const estimatedTokens = estimatePromptTokens(
+        prompt.substring(0, 1000), // System prompt portion
+        contextStrings,
+        conversationHistory,
+        query
+      );
+      console.log(`[Generation] Non-stream prompt token estimate: ${estimatedTokens}`);
 
       let contents = [
         {

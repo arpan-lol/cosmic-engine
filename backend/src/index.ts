@@ -3,6 +3,7 @@ import './config/env.js';
 import { validateEnvironment } from './config/env';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import path from 'path';
 import healthcheckRouter from './routes/health.routes.js'
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes';
@@ -27,6 +28,10 @@ console.log(process.cwd())
 
 app.use(express.json());
 app.use(cookieParser());
+
+// Serve uploaded files
+app.use('/dashboard/sessions/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
 app.use('/api/v1/healthcheck', healthcheckRouter);
 app.use('/auth', authRoutes);
 app.use('/chat', chatRoutes);
