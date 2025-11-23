@@ -1,28 +1,27 @@
 import express from 'express';
 import './config/env.js';
-import { validateEnvironment } from './config/env';
+import { validateEnvironment } from './config/env.js';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'path';
-import healthcheckRouter from './routes/health.routes.js'
+import healthcheckRouter from './routes/health.routes.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
-import authRoutes from './routes/auth.routes';
-import chatRoutes from './routes/chat.routes';
-import { Orchestrator } from './utils/orchestrator.util';
-import { HealthCheck } from './utils/healthcheck.util';
+import authRoutes from './routes/auth.routes.js';
+import chatRoutes from './routes/chat.routes.js';
+import { Orchestrator } from './utils/orchestrator.util.js';
+import { HealthCheck } from './utils/healthcheck.util.js';
 
 validateEnvironment();
 
 const app = express();
 const PORT = process.env.PORT || '3006';
 
-if (process.env.NODE_ENV === 'development') {
-  app.use(cors({
-    origin: 'http://localhost:3000',
+app.use(cors({
+    origin: process.env.FRONTEND_ORIGIN,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   }));
-  console.log('CORS enabled with credentials');
-}
+console.log('CORS enabled with credentials');
 
 console.log(process.cwd())
 

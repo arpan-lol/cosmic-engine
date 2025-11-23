@@ -20,8 +20,8 @@ app = FastAPI(
 gemini_api_key = os.getenv("GOOGLE_GENAI_API_KEY")
 if gemini_api_key:
     genai.configure(api_key=gemini_api_key)
-    gemini_model = genai.GenerativeModel("gemini-1.5-flash")
-    md = MarkItDown(llm_client=gemini_model, llm_model="gemini-1.5-flash")
+    gemini_model = genai.GenerativeModel("gemini-2.5-flash")
+    md = MarkItDown(llm_client=gemini_model, llm_model="gemini-2.5-flash")
     print("✅ MarkItDown initialized with Gemini for image descriptions")
 else:
     md = MarkItDown()

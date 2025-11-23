@@ -50,7 +50,7 @@ export class SearchController {
       );
 
       return res.status(200).json({
-        results: results.map((r: { content: string; metadata: any; score: number }) => ({
+        results: results.map((r: { content: string; metadata?: any; score: number }) => ({
           content: r.content,
           score: r.score,
           metadata: {
