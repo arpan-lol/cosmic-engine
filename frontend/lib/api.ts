@@ -5,13 +5,16 @@ interface RequestConfig extends RequestInit {
 }
 
 class ApiClient {
-  private baseURL: string;
   private isRefreshing: boolean = false;
   private refreshSubscribers: Array<(token: string) => void> = [];
 
-  constructor(baseURL: string) {
-    this.baseURL = baseURL;
+  private getBaseURL() {
+    if (typeof window === 'undefined') {
+      return process.env.API_URL_INTERNAL || 'http://backend:3006';
+    }
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
   }
+
 
   private async getToken(): Promise<string | null> {
     if (typeof window === 'undefined') {
@@ -32,7 +35,7 @@ class ApiClient {
 
   private async refreshToken(oldToken: string): Promise<string | null> {
     try {
-      const response = await fetch(`${this.baseURL}/auth/refresh`, {
+      const response = await fetch(`${this.getBaseURL()}/auth/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -114,7 +117,7 @@ class ApiClient {
 
   async request(url: string, config: RequestConfig = {}): Promise<Response> {
     const { skipAuth, ...fetchConfig } = config;
-    const fullURL = url.startsWith('http') ? url : `${this.baseURL}${url}`;
+    const fullURL = url.startsWith('http') ? url : `${this.getBaseURL()}${url}`;
 
     const isFormData = fetchConfig.body instanceof FormData;
     
@@ -186,4 +189,4 @@ class ApiClient {
   }
 }
 
-export const api = new ApiClient(API_BASE_URL);
+export const api = new ApiClient()

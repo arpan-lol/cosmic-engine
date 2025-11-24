@@ -1,7 +1,7 @@
 import prisma from '../prisma/client';
 import { getMilvusClient } from '../services/file-processing/milvus/client';
 
-const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'python-md:3001';
+const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'ce-python-md-service:3001';
 
 export class HealthCheck {
   static async checkDatabase(): Promise<{ status: 'healthy' | 'unhealthy'; message: string }> {
@@ -36,7 +36,7 @@ export class HealthCheck {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout
 
-      const response = await fetch(`${PYTHON_SERVICE_URL}/health`, {
+      const response = await fetch(`http://${PYTHON_SERVICE_URL}/health`, {
         signal: controller.signal,
       });
 

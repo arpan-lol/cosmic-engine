@@ -6,6 +6,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production && npm cache clean --force
 
+COPY src/prisma ./prisma
+RUN npx prisma generate
+
 FROM base AS builder
 WORKDIR /app
 
@@ -19,7 +22,6 @@ RUN npx prisma generate --schema=src/prisma/schema.prisma
 
 RUN npm run build
 
-# Production image
 FROM base AS runner
 WORKDIR /app
 
