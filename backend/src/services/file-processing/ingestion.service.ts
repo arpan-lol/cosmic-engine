@@ -27,7 +27,7 @@ export class IngestionService {
       console.log(`[Ingestion] Converting file to markdown: ${absolutePath}`);
 
       // call the python microservice
-      const response = await fetch(`${this.PYTHON_SERVICE_URL}/process-file`, {
+      const response = await fetch(`http://${this.PYTHON_SERVICE_URL}/process-file`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

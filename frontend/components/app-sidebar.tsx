@@ -56,7 +56,7 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, state } = useSidebar()
   const { data: authUser } = useAuth()
   const { data: conversations, isLoading } = useConversations()
   const createConversation = useCreateConversation()
@@ -83,7 +83,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <>
+      {state === 'collapsed' && (
+        <div className="fixed left-2 top-3 z-50 hidden md:flex">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={toggleSidebar}
+            aria-label="Open sidebar"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+      <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -157,5 +171,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarFooter>
       )}
     </Sidebar>
+    </>
   )
 }

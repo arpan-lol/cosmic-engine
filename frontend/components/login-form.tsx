@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { api } from '@/lib/api';
 import {
   Card,
   CardContent,
@@ -35,9 +36,7 @@ export function LoginForm({
               onClick={async (e) => {
                 e.preventDefault();
                 try {
-                  const response = await fetch('/auth/guest', {
-                    method: 'POST',
-                  });
+                  const response = await api.post('/auth/guest');
                   const data = await response.json();
                   if (data.success) {
                     window.location.href = '/dashboard/sessions';
