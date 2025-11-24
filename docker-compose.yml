@@ -83,6 +83,8 @@ services:
       - milvus
     networks:
       - internal
+    volumes:
+      - uploads:/app/uploads
 
   backend:
     build: ./backend
@@ -97,6 +99,8 @@ services:
     networks:
       - internal
       - external
+    volumes:
+      - uploads:/app/uploads
 
   frontend:
     build: ./frontend
@@ -118,6 +122,7 @@ networks:
 
 volumes:
   postgres_data:
+  uploads:
   etcd_data:
   minio_data:
   milvus_data:
