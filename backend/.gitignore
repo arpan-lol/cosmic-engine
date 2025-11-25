@@ -6,5 +6,4 @@ volumes
 .api
 logs
 google-creds.json
-src/prisma/migrations
 uploads/
