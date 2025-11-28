@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -12,10 +13,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <div className="text-center">
-        <h2 className="text-xl font-semibold">Loading...</h2>
-        <p className="text-muted-foreground mt-2">Please wait</p>
-      </div>
+      <Loader2 className="h-8 w-8 animate-spin" />
     </div>
   )
 }

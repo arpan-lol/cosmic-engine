@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
 export default function AuthCallbackHandler() {
   const router = useRouter();
@@ -12,10 +13,7 @@ export default function AuthCallbackHandler() {
 
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <div className="text-center">
-        <h2 className="text-xl font-semibold">Completing sign in...</h2>
-        <p className="text-muted-foreground mt-2">Please wait while we redirect you.</p>
-      </div>
+      <Loader2 className="h-8 w-8 animate-spin" />
     </div>
   );
 }

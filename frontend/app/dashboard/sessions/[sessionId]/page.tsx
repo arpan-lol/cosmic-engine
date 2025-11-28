@@ -262,7 +262,7 @@ export default function ChatSessionPage() {
         </div>
       </div>
 
-      <Card className="mt-0 bg-background flex-shrink-0 border-none rounded-none">
+      <Card className="mt-0 bg-background flex-shrink-0 border-0 border-t rounded-none">
         <CardContent className="p-2 space-y-2">{error && (
             <Card className="border-destructive">
               <CardContent className="p-3 text-sm text-destructive">
@@ -278,11 +278,12 @@ export default function ChatSessionPage() {
           <ChatInput
             onSend={handleSendMessage}
             disabled={isStreaming || isLoadingAttachments || hasProcessingAttachments}
+            loading={isLoadingAttachments}
             placeholder={
               isStreaming
                 ? 'Waiting for response...'
                 : isLoadingAttachments
-                ? 'Loading attachments...'
+                ? 'Loading...'
                 : hasProcessingAttachments
                 ? 'Processing documents...'
                 : 'Type your message... (Enter to send, Shift+Enter for new line)'

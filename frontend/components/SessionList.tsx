@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, MessageSquare } from 'lucide-react';
+import { Trash2, Plus, MessageSquare, Loader2 } from 'lucide-react';
 
 export default function SessionList() {
   const router = useRouter();
@@ -34,7 +34,7 @@ export default function SessionList() {
   };
 
   if (isLoading) {
-    return <div className="flex items-center justify-center p-8">Loading conversations...</div>;
+    return <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
   return (
