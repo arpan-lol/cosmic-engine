@@ -160,7 +160,7 @@ export default function ChatMessage({ message, userAvatar, userName, isLoading, 
           'max-w-[80%] border-0 shadow-none',
           isUser && 'bg-primary text-primary-foreground',
           !isUser && !isSystem && 'bg-sidebar',
-          isSystem && 'bg-muted/50 border border-border max-w-[70%]'
+          isSystem && 'bg-muted/50 max-w-[70%]'
         )}
       >
         <CardContent className={cn('p-3', isSystem && 'py-2')}>

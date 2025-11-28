@@ -16,7 +16,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { SidebarTrigger } from '@/components/ui/sidebar';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import type { Message } from '@/lib/types';
 
@@ -199,11 +198,10 @@ export default function ChatSessionPage() {
     <div className="flex h-screen overflow-hidden">
       {/* Chat Section */}
       <div className="flex flex-col flex-1 min-w-0 h-full">
-        <Card className="border-b rounded-b-none p-0 bg-background flex-shrink-0">
+        <Card className="border-0 border-b p-0 bg-background flex-shrink-0 rounded-none">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2 min-w-0">
-                <SidebarTrigger className="-ml-1" />
                 <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/sessions')}>
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
@@ -264,35 +262,18 @@ export default function ChatSessionPage() {
         </div>
       </div>
 
-      <Card className="mt-0 rounded-t-none border-t bg-background flex-shrink-0">
-        <CardContent className="p-4 space-y-3">{error && (
+      <Card className="mt-0 bg-background flex-shrink-0 border-none rounded-none">
+        <CardContent className="p-2 space-y-2">{error && (
             <Card className="border-destructive">
               <CardContent className="p-3 text-sm text-destructive">
-                Error: {error}
+                Error! The server might be overloaded. Please try again.
               </CardContent>
             </Card>
           )}
 
           <div className="flex items-center gap-2">
             <FileUploadButton sessionId={sessionId} onUploadComplete={handleUploadComplete} />
-            <AttachmentSelector
-              sessionId={sessionId}
-              attachments={sessionAttachments || []}
-              selectedIds={selectedContextIds}
-              onSelectionChange={setSelectedContextIds}
-              isLoading={isLoadingAttachments}
-            />
           </div>
-
-          {uploadedAttachments.length > 0 && (
-            <Card>
-              <CardContent className="p-3">
-                <div className="text-sm text-muted-foreground">
-                  {uploadedAttachments.length} file{uploadedAttachments.length !== 1 ? 's' : ''} ready to attach
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           <ChatInput
             onSend={handleSendMessage}

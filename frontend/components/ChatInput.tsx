@@ -33,18 +33,23 @@ export default function ChatInput({
   };
 
   return (
-    <div className="flex gap-2 items-end">
+    <div className="relative">
       <Textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
-        className="min-h-[60px] max-h-[200px] resize-none"
-        rows={2}
+        className="min-h-[50px] max-h-[200px] resize-none pr-12"
+        rows={1}
       />
-      <Button onClick={handleSend} disabled={disabled || !message.trim()} size="icon">
-        <Send className="h-4 w-4" />
+      <Button
+        onClick={handleSend}
+        disabled={disabled || !message.trim()}
+        size="icon"
+        className="absolute bottom-2 right-2 h-9 w-9"
+      >
+        <Send className="h-5 w-5" />
       </Button>
     </div>
   );
