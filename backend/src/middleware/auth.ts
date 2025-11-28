@@ -12,6 +12,10 @@ export function authenticateJWT(req: AuthRequest, res: Response, next: NextFunct
 
   if (!token && req.cookies?.jwt) token = req.cookies.jwt;
 
+  if (!token && (req as any).query && (req as any).query.token) {
+    token = (req as any).query.token as string;
+  }
+
   if (!token) return res.status(401).json({ error: "Missing token" });
 
   try {

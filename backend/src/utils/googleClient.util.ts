@@ -6,7 +6,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const creds = JSON.parse(
-  fs.readFileSync(path.join(__dirname, './google-creds.json'), 'utf8')
+  process.env.NODE_ENV == 'production' ? 
+  fs.readFileSync(path.join(__dirname, './google-creds.json'), 'utf8') :
+  fs.readFileSync(path.join(process.argv[1], '../../google-creds.json'), 'utf8')
 );
 
 export const googleClient = new OAuth2Client(

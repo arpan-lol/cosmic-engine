@@ -1,22 +1,13 @@
-'use client'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/hooks/use-auth'
+export default async function HomePage() {
+  const cookieStore = await cookies()
+  const token = cookieStore.get('jwt')?.value
 
-export default function HomePage() {
-  const router = useRouter()
-  const { data: user, isLoading } = useAuth()
+  if (token) {
+    redirect('/dashboard')
+  }
 
-  useEffect(() => {
-    if (!isLoading) {
-      if (user) {
-        router.push('/dashboard')
-      } else {
-        router.push('/auth/login')
-      }
-    }
-  }, [user, isLoading, router])
-
-  return null
+  redirect('/auth/login')
 }
