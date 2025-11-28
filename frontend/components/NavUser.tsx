@@ -20,7 +20,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import { useLogout } from '@/hooks/use-auth'
-import { ThemeToggle } from './theme-toggle'
+import { ThemeToggle } from './ThemeToggle'
 
 export function NavUser({
   user,

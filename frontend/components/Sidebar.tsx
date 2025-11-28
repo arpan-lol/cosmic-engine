@@ -13,8 +13,8 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 
-import { NavMain } from '@/components/nav-main'
-import { NavUser } from '@/components/nav-user'
+import { NavMain } from '@/components/NavMain'
+import { NavUser } from '@/components/NavUser'
 import {
   Sidebar,
   SidebarContent,
