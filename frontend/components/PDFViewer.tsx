@@ -104,42 +104,7 @@ export default function PDFViewer({ fileUrl, targetPage, onPageChange }: PDFView
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <Card className="p-3 mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={previousPage}
-            disabled={pageNumber <= 1}
-            size="sm"
-            variant="outline"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm">
-            Page {pageNumber} of {numPages || '...'}
-          </span>
-          <Button
-            onClick={nextPage}
-            disabled={pageNumber >= numPages}
-            size="sm"
-            variant="outline"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={zoomOut} size="sm" variant="outline">
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <span className="text-sm min-w-[60px] text-center">
-            {Math.round(scale * 100)}%
-          </span>
-          <Button onClick={zoomIn} size="sm" variant="outline">
-            <ZoomIn className="h-4 w-4" />
-          </Button>
-        </div>
-      </Card>
-
+    <div className="flex flex-col h-full relative">
       <div
         ref={containerRef}
         className="flex-1 overflow-auto bg-muted/30 rounded-lg p-4"
@@ -177,6 +142,40 @@ export default function PDFViewer({ fileUrl, targetPage, onPageChange }: PDFView
           </Document>
         </div>
       </div>
+      <Card className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-3 flex items-center justify-between w-auto z-10">
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={previousPage}
+            disabled={pageNumber <= 1}
+            size="sm"
+            variant="outline"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm">
+            Page {pageNumber} of {numPages || '...'}
+          </span>
+          <Button
+            onClick={nextPage}
+            disabled={pageNumber >= numPages}
+            size="sm"
+            variant="outline"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={zoomOut} size="sm" variant="outline">
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <span className="text-sm min-w-[60px] text-center">
+            {Math.round(scale * 100)}%
+          </span>
+          <Button onClick={zoomIn} size="sm" variant="outline">
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 }

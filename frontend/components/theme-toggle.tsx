@@ -12,7 +12,7 @@ export function ThemeToggle() {
       className="ml-2 size-4 hover:cursor-pointer flex items-center justify-center"
       type="button"
     >
-      {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+      {theme === "dark" ? <Moon className="size-4" /> : <Sun className="size-4" /> }
     </button>
   );
 }

@@ -82,8 +82,8 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
   }
 
   return (
-  <Card className="h-full flex flex-col overflow-hidden rounded-none border-0 border-l">
-      <CardHeader className="pb-3 flex-shrink-0">
+  <Card className="h-full flex flex-col overflow-hidden rounded-none border-0 border-l gap-0">
+      <CardHeader className="flex-shrink-0 pb-0">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={onClose}>
             <ArrowLeft className="h-4 w-4" />
@@ -96,7 +96,7 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 overflow-hidden p-3 min-h-0">
+      <CardContent className="flex-1 overflow-hidden p-3 pt-0 min-h-0">
         <PDFViewer
           fileUrl={selectedFile.url}
           targetPage={selectedFile.targetPage}
