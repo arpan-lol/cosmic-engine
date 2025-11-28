@@ -34,7 +34,7 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
 
   if (!selectedFile && pdfAttachments.length === 0) {
     return (
-      <Card className="h-full rounded-none">
+      <Card className="h-full rounded-none border-0 border-l">
         <CardHeader>
           <CardTitle className="text-lg">Documents</CardTitle>
         </CardHeader>
@@ -50,7 +50,7 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
 
   if (!selectedFile) {
     return (
-      <Card className="h-full rounded-none">
+      <Card className="h-full rounded-none border-0 border-l">
         <CardHeader>
           <CardTitle className="text-lg">Documents ({pdfAttachments.length})</CardTitle>
         </CardHeader>
@@ -82,7 +82,7 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
   }
 
   return (
-  <Card className="h-full flex flex-col overflow-hidden rounded-none">
+  <Card className="h-full flex flex-col overflow-hidden rounded-none border-0 border-l">
       <CardHeader className="pb-3 flex-shrink-0">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={onClose}>

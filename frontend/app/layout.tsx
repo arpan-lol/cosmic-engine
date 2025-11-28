@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
+import { ThemeProvider } from "next-themes";
 import { cn } from '@/lib/utils'
 import { Toaster } from 'sonner'
 import Providers from '@/components/Providers'
@@ -31,20 +32,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      {/* <Analytics /> */}
       <body
         className={cn(
-          'min-h-screen bg-background font-sans antialiased dark',
+          'min-h-screen bg-background text-foreground font-sans antialiased',
           geistSans.variable,
           geistMono.variable
         )}
       >
+      <ThemeProvider attribute="class" defaultTheme="system">
         <div className="relative flex min-h-screen flex-col bg-background">
           <Providers>
             {children}
             <Toaster />
           </Providers>
         </div>
+      </ThemeProvider>
       </body>
     </html>
   )

@@ -159,7 +159,7 @@ export default function ChatMessage({ message, userAvatar, userName, isLoading, 
         className={cn(
           'max-w-[80%] border-0 shadow-none',
           isUser && 'bg-primary text-primary-foreground',
-          !isUser && !isSystem && 'bg-sidebar',
+          !isUser && !isSystem && 'bg-muted/50',
           isSystem && 'bg-muted/50 max-w-[70%]'
         )}
       >

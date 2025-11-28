@@ -23,6 +23,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -80,6 +81,7 @@
   --accent-foreground: #1a1a1c;
   
   --destructive: oklch(0.567 0.18 27.33);
+  --destructive-foreground: #ffffff;
   --border: #c8cad0;
   --input: #c8cad0;
   --ring: #ffd061;
@@ -101,6 +103,65 @@
   
   --card-bg-subtle: oklch(0.975 0.008 40.02);
   --card-bg-vibrant: oklch(0.968 0.018 40.85);
+  --icon-bg-warm: #ffd061;
+  --icon-bg-vibrant: #ffd061;
+  --button-primary-hover: #e6ba4f;
+  --button-secondary-hover: #e6ba4f;
+  --accent-rose: oklch(0.918 0.025 14.57);
+  --warm-brown: #ffd061;
+  
+  --card-golden: #ffd061;
+  --card-teal: #ffd061;
+  --card-peach: #ffe08a;
+  --card-coral: #ffe5a0;
+  --card-lavender: #ffea9f;
+  --card-mint: #ffd980;
+}
+
+.dark {
+  --foreground: oklch(0.98 0 0);
+  
+  --background: oklch(0.1 0 0);
+  --card: oklch(0.15 0 0);
+  --card-foreground: oklch(0.98 0 0);
+  --popover: oklch(0.15 0 0);
+  --popover-foreground: oklch(0.98 0 0);
+  
+  --primary: #ffd061;
+  --primary-foreground: oklch(0.1 0 0);
+  
+  --secondary: oklch(0.2 0.01 57.73);
+  --secondary-foreground: oklch(0.98 0 0);
+  
+  --muted: oklch(0.2 0.005 41.4);
+  --muted-foreground: oklch(0.7 0 0);
+  
+  --accent: #ffd061;
+  --accent-foreground: oklch(0.1 0 0);
+  
+  --destructive: oklch(0.567 0.18 27.33);
+  --destructive-foreground: #ffffff;
+  --border: oklch(0.3 0 0);
+  --input: oklch(0.3 0 0);
+  --ring: #ffd061;
+  
+  --chart-1: #ffd061;
+  --chart-2: #ffe08a;
+  --chart-3: #ffea9f;
+  --chart-4: #ffe5a0;
+  --chart-5: #ffd980;
+  
+  --sidebar: oklch(0.12 0 0);
+  --sidebar-foreground: oklch(0.98 0 0);
+  --sidebar-primary: #ffd061;
+  --sidebar-primary-foreground: oklch(0.1 0 0);
+  --sidebar-accent: oklch(0.18 0.01 57.73);
+  --sidebar-accent-foreground: oklch(0.98 0 0);
+  --sidebar-border: oklch(0.3 0 0);
+  --sidebar-ring: #ffd061;
+  
+  --card-bg-subtle: oklch(0.18 0.005 40.02);
+  --card-bg-vibrant: oklch(0.2 0.01 40.85);
   --icon-bg-warm: #ffd061;
   --icon-bg-vibrant: #ffd061;
   --button-primary-hover: #e6ba4f;

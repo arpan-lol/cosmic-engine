@@ -73,7 +73,7 @@ export default function SessionList() {
               {conversations?.map((conversation) => (
                 <Card
                   key={conversation.id}
-                  className="cursor-pointer hover:bg-accent transition-colors"
+                  className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
                   onClick={() => handleSelectConversation(conversation.id)}
                 >
                   <CardContent className="p-4">

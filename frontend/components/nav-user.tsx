@@ -20,6 +20,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import { useLogout } from '@/hooks/use-auth'
+import { ThemeToggle } from './theme-toggle'
 
 export function NavUser({
   user,
@@ -41,11 +42,8 @@ export function NavUser({
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
+          <div className="flex items-center">
+            <div className="flex items-center gap-2 flex-1">
               <Avatar className="h-9 w-9">
                 <AvatarImage src={user.avatar} alt={user.name} />
                 <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
@@ -56,9 +54,14 @@ export function NavUser({
                   {user.email}
                 </span>
               </div>
-              <MoreVertical className="ml-auto size-4" />
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
+              <ThemeToggle />
+            </div>
+            <DropdownMenuTrigger asChild>
+              <button className="ml-2 size-4 cursor-pointer">
+                <MoreVertical className="size-4" />
+              </button>
+            </DropdownMenuTrigger>
+          </div>
           <DropdownMenuContent
             className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
             side={isMobile ? 'bottom' : 'right'}
