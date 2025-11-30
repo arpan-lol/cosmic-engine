@@ -11,8 +11,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/auth/login?error=missing_token', request.url));
     }
 
+    console.log('[auth/callback] Setting JWT cookie');
     await setJwtCookie(jwt);
 
+    console.log('[auth/callback] Redirecting to dashboard');
     return NextResponse.redirect(new URL('/dashboard', request.url));
   } catch (error) {
     console.error('[auth/callback] Error processing callback:', error);

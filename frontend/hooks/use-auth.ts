@@ -7,10 +7,19 @@ export const useAuth = () => {
     queryKey: ['auth', 'me'],
     queryFn: async () => {
       const response = await api.get('/auth/me');
+      if (!response.ok) {
+        throw new Error('Failed to fetch user');
+      }
       const data = await response.json();
       return data.user;
     },
-    retry: false,
+    retry: (failureCount, error) => {
+      // Don't retry on auth errors
+      if (error.message.includes('401') || error.message.includes('403')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
     staleTime: 5 * 60 * 1000,
   });
 };
@@ -24,6 +33,12 @@ export const useLogout = () => {
     },
     onSuccess: async () => {
       await fetch('/api/auth/token', { method: 'DELETE' });
+      queryClient.clear();
+      window.location.href = '/auth/login';
+    },
+    onError: (error) => {
+      console.error('Logout failed:', error);
+      // Still clear local state
       queryClient.clear();
       window.location.href = '/auth/login';
     },

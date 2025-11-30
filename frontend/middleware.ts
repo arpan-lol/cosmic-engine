@@ -9,11 +9,13 @@ export function middleware(request: NextRequest) {
   const isProtectedRoute = pathname.startsWith('/dashboard');
 
   if (isProtectedRoute && !token) {
+    console.log('[middleware] No token for protected route, redirecting to login');
     const loginUrl = new URL('/auth/login', request.url);
     return NextResponse.redirect(loginUrl);
   }
 
   if (isAuthRoute && token && pathname !== '/auth/callback') {
+    console.log('[middleware] Token exists on auth route, redirecting to dashboard');
     const dashboardUrl = new URL('/dashboard', request.url);
     return NextResponse.redirect(dashboardUrl);
   }

@@ -20,6 +20,7 @@ export function LoginForm({
 }: React.ComponentPropsWithoutRef<'div'>) {
   const router = useRouter();
   const [loadingGuest, setLoadingGuest] = useState(false);
+  const [guestError, setGuestError] = useState<string | null>(null);
 
   return (
     <div className={cn('flex flex-col gap-6', className)} {...props}>
@@ -42,6 +43,7 @@ export function LoginForm({
                 e.preventDefault();
                 if (loadingGuest) return;
                 setLoadingGuest(true);
+                setGuestError(null);
                 try {
                   console.log('[Guest] calling frontend route /auth/guest');
                   const response = await fetch('/auth/guest', { method: 'POST' });
@@ -59,9 +61,13 @@ export function LoginForm({
                   console.log('[Guest] backend response', backendResp.status, backendData);
                   if (backendResp.ok && backendData?.success) {
                     router.push('/dashboard/sessions');
+                    return;
                   }
+
+                  setGuestError('Guest login failed. Please try again.');
                 } catch (error) {
                   console.error('Guest login failed:', error);
+                  setGuestError('Network error. Please check your connection.');
                 } finally {
                   setLoadingGuest(false);
                 }
@@ -71,6 +77,9 @@ export function LoginForm({
               {loadingGuest ? 'Logging in…' : 'login as a guest'}
               <span className="inline-block">→</span>
             </button>
+            {guestError && (
+              <p className="text-sm text-red-500 mt-2">{guestError}</p>
+            )}
           </CardDescription>
         </CardContent>
       </Card>
