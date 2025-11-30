@@ -5,6 +5,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import healthcheckRouter from './routes/health.routes.js';
+import baseRouter from './routes/base.routes.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes.js';
 import chatRoutes from './routes/chat.routes.js';
@@ -32,6 +33,7 @@ app.use(cookieParser());
 app.use('/dashboard/sessions/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 app.use('/api/v1/healthcheck', healthcheckRouter);
+app.use('/', baseRouter)
 app.use('/auth', authRoutes);
 app.use('/chat', chatRoutes);
 
