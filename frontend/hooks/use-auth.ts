@@ -47,6 +47,7 @@ export const useLogout = () => {
 
 export const useGoogleAuth = () => {
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
+  console.log('[frontend/useGoogleAuth] API_BASE_URL:', API_BASE_URL);
   
   const initiateGoogleAuth = () => {
     window.location.href = `${API_BASE_URL}/auth/google`;

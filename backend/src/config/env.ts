@@ -1,8 +1,9 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
+const envFile = process.env.NODE_ENV === 'production' ? '.env.prod' : '.env';
 dotenv.config({
-  path: path.join(process.cwd(), '.env')
+  path: path.join(process.cwd(), envFile)
 });
 
 const REQUIRED_ENV_VARS = [
@@ -42,6 +43,8 @@ export function validateEnvironment(): void {
     if (!process.env[name]) {
       process.env[name] = defaultValue;
       console.log(`Using default for ${name}: ${defaultValue}`);
+    } else {
+      console.log(`${name}: ${process.env[name]}`);
     }
   }
 

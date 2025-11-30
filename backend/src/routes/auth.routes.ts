@@ -11,6 +11,8 @@ import { AuthRequest } from '../types/express';
 const router = Router();
 const FRONTEND_REDIRECT = process.env.FRONTEND_REDIRECT!;
 
+console.log('[auth] FRONTEND_REDIRECT:', FRONTEND_REDIRECT);
+
 router.get('/google', (req, res) => {
   const url = googleClient.generateAuthUrl({
     access_type: 'offline',
@@ -78,6 +80,7 @@ router.get('/google/callback', async (req, res) => {
     console.log('[auth] Redirecting to frontend with JWT in query param');
     const redirectUrl = new URL(FRONTEND_REDIRECT);
     redirectUrl.searchParams.set('jwt', customJwt);
+    console.log('[auth] Redirect URL:', redirectUrl.toString());
     res.redirect(redirectUrl.toString());
   } catch (err) {
     console.error('[auth] Callback error:', err);
