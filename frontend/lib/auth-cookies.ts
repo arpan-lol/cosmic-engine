@@ -12,7 +12,7 @@ export interface CookieOptions {
 
 const defaultOptions: CookieOptions = {
   httpOnly: true,
-  secure: false,
+  secure: process.env.NODE_ENV === 'production',
   sameSite: 'lax',
   path: '/',
   maxAge: 12 * 60 * 60,
