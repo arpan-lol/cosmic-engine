@@ -24,12 +24,11 @@ interface ChatMessageProps {
 interface Citation {
   text: string;
   filename: string;
-  page?: number;
-  excerptNumber?: number;
+  pages: number[];
 }
 
 function parseCitations(text: string): (string | Citation)[] {
-  const citationRegex = /\[SOURCE:\s*([^\|]+?)\s*\|\s*(?:Page\s*(\d+)|Excerpt\s*(\d+))\]/gi;
+  const citationRegex = /\[SOURCE:\s*([^\|\]]+?)\s*\|\s*([^\]]+)\]/gi;
   const parts: (string | Citation)[] = [];
   let lastIndex = 0;
   let match;
@@ -40,19 +39,22 @@ function parseCitations(text: string): (string | Citation)[] {
     }
 
     const filename = match[1].trim();
-    const page = match[2] ? parseInt(match[2], 10) : undefined;
-    const excerptNumber = match[3] ? parseInt(match[3], 10) : undefined;
+    const pagesText = match[2].trim();
+    
+    const pageNumbers: number[] = [];
+    const numberMatches = pagesText.matchAll(/\d+/g);
+    for (const numMatch of numberMatches) {
+      pageNumbers.push(parseInt(numMatch[0], 10));
+    }
 
     parts.push({
       text: match[0],
       filename,
-      page,
-      excerptNumber,
+      pages: pageNumbers.length > 0 ? pageNumbers : [1],
     });
 
     lastIndex = match.index + match[0].length;
     
-    // Skip trailing period or punctuation immediately after citation
     if (lastIndex < text.length && /[.,;:!?]/.test(text[lastIndex])) {
       lastIndex++;
     }
@@ -122,18 +124,22 @@ export default function ChatMessage({ message, userAvatar, userName, isLoading, 
           {part}
         </ReactMarkdown>;
       } else {
-        const pageLabel = part.page ? `Page ${part.page}` : part.excerptNumber ? `Page ${part.excerptNumber}` : part.filename;
+        const firstPage = part.pages[0];
+        const displayText = part.pages.length > 1 
+          ? `${part.filename.split('.')[0]} (${part.pages.length} refs)` 
+          : `${part.filename.split('.')[0]} - p.${firstPage}`;
+        
         return (
           <Button
             key={index}
             variant="outline"
             size="sm"
             className="inline-flex items-center gap-1 mx-1 h-6 text-xs"
-            onClick={() => onCitationClick?.(part.filename, part.page || part.excerptNumber)}
-            title={part.filename}
+            onClick={() => onCitationClick?.(part.filename, firstPage)}
+            title={`${part.filename}${part.pages.length > 1 ? ` (Pages: ${part.pages.join(', ')})` : ` - Page ${firstPage}`}`}
           >
             <FileText className="h-3 w-3" />
-            {pageLabel}
+            {displayText}
           </Button>
         );
       }

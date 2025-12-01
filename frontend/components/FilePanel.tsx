@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -31,6 +31,14 @@ interface FilePanelProps {
 
 export default function FilePanel({ attachments, selectedFile, onClose, onDocumentClick }: FilePanelProps) {
   const [currentPage, setCurrentPage] = useState<number>(1);
+
+  useEffect(() => {
+    if (selectedFile?.targetPage) {
+      setCurrentPage(selectedFile.targetPage);
+    } else {
+      setCurrentPage(1);
+    }
+  }, [selectedFile?.targetPage, selectedFile?.url]);
 
   const pdfAttachments = attachments.filter(
     (att) => att.filename.toLowerCase().endsWith('.pdf') && att.metadata?.processed
@@ -103,7 +111,7 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
       <CardContent className="flex-1 overflow-hidden p-3 pt-0 min-h-0">
         <PDFViewer
           fileUrl={selectedFile.url}
-          targetPage={selectedFile.targetPage}
+          currentPage={currentPage}
           onPageChange={setCurrentPage}
         />
       </CardContent>
