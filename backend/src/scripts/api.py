@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Any
 import time
 import os
 from pathlib import Path
-from utils import process_url_with_markitdown, split_content_into_chunks
+from utils import process_url_with_markitdown, split_content_into_chunks, GeminiClientWrapper
 from markitdown import MarkItDown
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -20,9 +20,8 @@ app = FastAPI(
 gemini_api_key = os.getenv("GOOGLE_GENAI_API_KEY")
 if gemini_api_key:
     genai.configure(api_key=gemini_api_key)
-    gemini_model = genai.GenerativeModel("gemini-2.5-flash")
-    md = MarkItDown(llm_client=gemini_model, llm_model="gemini-2.5-flash")
-    print("✅ MarkItDown initialized with Gemini for image descriptions")
+    gemini_client = GeminiClientWrapper()
+    md = MarkItDown(llm_client=gemini_client, llm_model="gemini-2.5-flash")
 else:
     md = MarkItDown()
     print("⚠️ MarkItDown initialized without LLM (no GOOGLE_GENAI_API_KEY found)")
@@ -296,7 +295,17 @@ async def process_file_endpoint(request: FilePathRequest):
 
     except Exception as e:
         processing_time = time.time() - start_time
-        print(f"❌ Error processing file: {e}")
+        error_str = str(e)
+        print(f"❌ Error processing file: {error_str}")
+        
+        if "GEMINI_RATE_LIMIT" in error_str:
+            error_message = "Google Gemini API RateLimit Hit"
+        elif "GEMINI_INTERNAL_ERROR" in error_str:
+            error_message = "Google Gemini API Internal Server Error"
+        elif "GEMINI_OVERLOADED" in error_str:
+            error_message = "Google Gemini API Internal Server Overloaded"
+        else:
+            error_message = "Processing failed! The server might be overloaded, please try again later."
         
         return ProcessingResponse(
             success=False,
@@ -304,7 +313,7 @@ async def process_file_endpoint(request: FilePathRequest):
             processing_time=processing_time,
             content_length=None,
             markdown_content=None,
-            error_message=f"Error processing file: {str(e)}",
+            error_message=error_message,
             cached=False,
             processing_strategy=None,
             chunks=None,

@@ -129,21 +129,27 @@ export class AttachmentController {
         },
       });
 
-      const attachmentsWithStatus = attachments.map((att) => ({
-        id: att.id,
-        filename: att.filename,
-        type: att.type,
-        url: att.url,
-        storedFilename: (att.metadata as any)?.storedFilename,
-        mimeType: att.mimeType,
-        size: att.size,
-        createdAt: att.createdAt,
-        metadata: {
-          processed: (att.metadata as any)?.processed || false,
-          error: (att.metadata as any)?.processed === false ? 'Processing failed' : undefined,
-          chunkCount: (att.metadata as any)?.chunkCount,
-        },
-      }));
+      const attachmentsWithStatus = attachments.map((att) => {
+        const metadata = att.metadata as any;
+        const processed = metadata?.processed || false;
+        const hasFailed = metadata?.failedAt || metadata?.error;
+        
+        return {
+          id: att.id,
+          filename: att.filename,
+          type: att.type,
+          url: att.url,
+          storedFilename: metadata?.storedFilename,
+          mimeType: att.mimeType,
+          size: att.size,
+          createdAt: att.createdAt,
+          metadata: {
+            processed,
+            error: !processed && hasFailed ? (metadata?.error || 'Processing failed') : undefined,
+            chunkCount: metadata?.chunkCount,
+          },
+        };
+      });
 
       return res.status(200).json({ attachments: attachmentsWithStatus });
     } catch (error) {
@@ -173,12 +179,13 @@ export class AttachmentController {
       const metadata = attachment.metadata as any;
       const processed = metadata?.processed || false;
       const chunkCount = metadata?.chunkCount;
+      const hasFailed = metadata?.failedAt || metadata?.error;
 
       return res.status(200).json({
         attachmentId: attachment.id,
         filename: attachment.filename,
         processed,
-        error: processed === false && metadata?.failedAt ? 'Processing failed' : undefined,
+        error: !processed && hasFailed ? (metadata?.error || 'Processing failed') : undefined,
         chunkCount,
         processedAt: metadata?.processedAt,
         failedAt: metadata?.failedAt,
@@ -214,6 +221,49 @@ export class AttachmentController {
       logger.error('AttachmentController', 'Error starting SSE stream', error instanceof Error ? error : undefined, { attachmentId, userId });
       if (error instanceof NotFoundError) throw error;
       next(new ProcessingError('Failed to start stream'));
+    }
+  }
+
+  static async deleteAttachment(req: AuthRequest, res: Response, next: NextFunction): Promise<Response | void> {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedError();
+    }
+
+    const { attachmentId } = req.params;
+
+    try {
+      const attachment = await prisma.attachment.findUnique({
+        where: { id: attachmentId },
+      });
+
+      if (!attachment) {
+        throw new NotFoundError('Attachment not found');
+      }
+
+      const metadata = attachment.metadata as any;
+      const sessionId = metadata?.sessionId;
+
+      if (sessionId) {
+        const session = await prisma.session.findUnique({
+          where: { id: sessionId, userId },
+        });
+
+        if (!session) {
+          throw new UnauthorizedError('Not authorized to delete this attachment');
+        }
+      }
+
+      await prisma.attachment.delete({
+        where: { id: attachmentId },
+      });
+
+      logger.info('AttachmentController', `Attachment deleted: ${attachmentId}`, { attachmentId, sessionId, userId });
+      return res.status(200).json({ success: true, message: 'Attachment deleted successfully' });
+    } catch (error) {
+      logger.error('AttachmentController', 'Error deleting attachment', error instanceof Error ? error : undefined, { attachmentId, userId });
+      if (error instanceof NotFoundError || error instanceof UnauthorizedError) throw error;
+      next(new ProcessingError('Failed to delete attachment'));
     }
   }
 }

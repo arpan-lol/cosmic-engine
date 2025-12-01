@@ -158,9 +158,34 @@ export const useSessionAttachments = (sessionId: string | null) => {
     enabled: !!sessionId,
     refetchInterval: (query) => {
       const data = query.state.data as any[];
-      // Keep refetching if any attachment is still processing
-      const hasProcessing = data?.some((att: any) => !att.metadata?.processed && !att.metadata?.error);
-      return hasProcessing ? 3000 : false;
+      const hasProcessing = data?.some((att: any) => 
+        !att.metadata?.processed && !att.metadata?.error
+      );
+      return hasProcessing ? 2000 : false;
+    },
+    staleTime: 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  });
+};
+
+export const useDeleteAttachment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (attachmentId: string) => {
+      const response = await api.delete(`/chat/attachments/${attachmentId}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Delete failed' }));
+        throw new Error(errorData.error || `Delete failed with status ${response.status}`);
+      }
+
+      return await response.json();
+    },
+    onSuccess: (_, attachmentId) => {
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
   });
 };

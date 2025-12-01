@@ -33,6 +33,7 @@ router.post('/upload', corsMiddleware, upload.single('file'), asyncHandler(ChatC
 router.get('/sessions/:sessionId/attachments', asyncHandler(ChatController.getSessionAttachments));
 router.get('/attachments/:attachmentId/status', asyncHandler(ChatController.getAttachmentStatus));
 router.get('/attachments/:attachmentId/stream', corsMiddleware, asyncHandler(ChatController.streamAttachmentStatus));
+router.delete('/attachments/:attachmentId', asyncHandler(ChatController.deleteAttachment));
 
 router.post('/sessions/:id/search', asyncHandler(ChatController.searchSession));
 

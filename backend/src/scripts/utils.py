@@ -15,13 +15,68 @@ import google.generativeai as genai
 
 load_dotenv(override=True)
 
-# Initialize Gemini for image descriptions
+class GeminiClientWrapper:
+    
+    def __init__(self, model_name: str = "gemini-2.5-flash"):
+        self.model = genai.GenerativeModel(model_name)
+        self.chat = self
+        self.completions = self
+    
+    def create(self, messages, model=None, **kwargs):
+        try:
+            user_message = None
+            image_data = None
+            
+            for msg in messages:
+                if msg.get("role") == "user":
+                    content = msg.get("content")
+                    if isinstance(content, list):
+                        for item in content:
+                            if item.get("type") == "text":
+                                user_message = item.get("text")
+                            elif item.get("type") == "image_url":
+                                image_url = item.get("image_url", {}).get("url", "")
+                                if image_url.startswith("data:"):
+                                    import base64
+                                    from PIL import Image
+                                    import io
+                                    
+                                    image_b64 = image_url.split(",", 1)[1]
+                                    image_bytes = base64.b64decode(image_b64)
+                                    image_data = Image.open(io.BytesIO(image_bytes))
+                    elif isinstance(content, str):
+                        user_message = content
+            
+            if image_data:
+                response = self.model.generate_content([user_message or "Describe this image in detail.", image_data])
+            else:
+                response = self.model.generate_content(user_message or "Describe this image in detail.")
+            
+            class Choice:
+                def __init__(self, text):
+                    self.message = type('obj', (object,), {'content': text})
+            
+            class Response:
+                def __init__(self, text):
+                    self.choices = [Choice(text)]
+            
+            return Response(response.text)
+        except Exception as e:
+            error_str = str(e)
+            if "429" in error_str or "quota" in error_str.lower() or "rate" in error_str.lower():
+                raise Exception(f"GEMINI_RATE_LIMIT: {error_str}")
+            elif "500" in error_str or "internal" in error_str.lower():
+                raise Exception(f"GEMINI_INTERNAL_ERROR: {error_str}")
+            elif "503" in error_str or "overload" in error_str.lower():
+                raise Exception(f"GEMINI_OVERLOADED: {error_str}")
+            else:
+                raise Exception(f"GEMINI_ERROR: {error_str}")
+
 gemini_api_key = os.getenv("GOOGLE_GENAI_API_KEY")
 if gemini_api_key:
     genai.configure(api_key=gemini_api_key)
-    gemini_model = genai.GenerativeModel("gemini-1.5-flash")
-    md = MarkItDown(llm_client=gemini_model, llm_model="gemini-1.5-flash")
-    print("✅ MarkItDown initialized with Gemini for image descriptions")
+    gemini_client = GeminiClientWrapper()
+    md = MarkItDown(llm_client=gemini_client, llm_model="gemini-2.5-flash")
 else:
     md = MarkItDown()
     print("⚠️ MarkItDown initialized without LLM (no GOOGLE_GENAI_API_KEY found)")

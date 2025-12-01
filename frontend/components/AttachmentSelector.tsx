@@ -42,9 +42,17 @@ export default function AttachmentSelector({
 }: AttachmentSelectorProps) {
   const [open, setOpen] = useState(false);
 
+  console.log('[ATTACHMENT_SELECTOR] Received attachments:', attachments);
+  console.log('[ATTACHMENT_SELECTOR] Selected IDs:', selectedIds);
+
   const processedAttachments = attachments.filter(
-    (att) => att.metadata?.processed
+    (att) => {
+      console.log(`[ATTACHMENT_SELECTOR] Filtering ${att.filename}:`, att.metadata);
+      return att.metadata?.processed;
+    }
   );
+  
+  console.log('[ATTACHMENT_SELECTOR] Processed attachments:', processedAttachments);
 
   const toggleAttachment = (id: string) => {
     if (selectedIds.includes(id)) {

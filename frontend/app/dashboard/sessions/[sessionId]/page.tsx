@@ -6,7 +6,7 @@ import { useConversation } from '@/hooks/use-conversations';
 import { useStreamMessage } from '@/hooks/use-stream-message';
 import { useAuth } from '@/hooks/use-auth';
 import { useQueryClient } from '@tanstack/react-query';
-import { useSessionAttachments } from '@/hooks/use-upload';
+import { useSessionAttachments, useDeleteAttachment } from '@/hooks/use-upload';
 import ChatMessage from '@/components/ChatMessage';
 import ChatInput from '@/components/ChatInput';
 import FileUploadButton from '@/components/FileUploadButton';
@@ -18,6 +18,17 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import type { Message } from '@/lib/types';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function ChatSessionPage() {
   const params = useParams();
@@ -34,13 +45,17 @@ export default function ChatSessionPage() {
     return [];
   });
   const [selectedPDF, setSelectedPDF] = useState<{ filename: string; url: string; targetPage?: number } | undefined>();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [attachmentToDelete, setAttachmentToDelete] = useState<string | null>(null);
 
   const { data: authUser } = useAuth();
   const { data: conversation, isLoading } = useConversation(sessionId);
   const { data: sessionAttachments, isLoading: isLoadingAttachments } = useSessionAttachments(sessionId);
   const { sendMessage, isStreaming, streamedContent, error, reset } = useStreamMessage();
+  const deleteAttachment = useDeleteAttachment();
 
-  console.log('User avatar data:', { picture: authUser?.picture, name: authUser?.name });
+  console.log('[SESSION] Current sessionAttachments:', sessionAttachments);
+  console.log('[SESSION] isLoadingAttachments:', isLoadingAttachments);
 
   const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
 
@@ -62,41 +77,55 @@ export default function ChatSessionPage() {
     }
   }, [selectedContextIds, sessionId]);
 
-  // Auto-select newly uploaded attachments
   useEffect(() => {
-    if (sessionAttachments && sessionAttachments.length > 0) {
-      const processedAttachmentIds = sessionAttachments
-        .filter((att: any) => att.metadata?.processed)
-        .map((att: any) => att.id);
-      
-      // Find newly uploaded files that aren't already selected
-      const newAttachments = uploadedAttachments.filter(id => 
-        processedAttachmentIds.includes(id) && !selectedContextIds.includes(id)
-      );
-      
-      if (newAttachments.length > 0) {
-        setSelectedContextIds(prev => [...prev, ...newAttachments]);
-      }
+    console.log('[PROCESSING] useEffect triggered');
+    console.log('[PROCESSING] sessionAttachments:', sessionAttachments);
+    console.log('[PROCESSING] uploadedAttachments:', uploadedAttachments);
+    
+    if (!sessionAttachments || uploadedAttachments.length === 0) {
+      console.log('[PROCESSING] Early return - no attachments or no uploads pending');
+      return;
     }
-  }, [sessionAttachments, uploadedAttachments, selectedContextIds]);
+
+    const processedUploads = sessionAttachments
+      .filter((att: any) => {
+        const isInUploadedList = uploadedAttachments.includes(att.id);
+        const isProcessed = att.metadata?.processed === true;
+        console.log(`[PROCESSING] Attachment ${att.id} (${att.filename}):`, { isInUploadedList, isProcessed, metadata: att.metadata });
+        return isInUploadedList && isProcessed;
+      })
+      .map((att: any) => att.id);
+
+    console.log('[PROCESSING] Processed uploads:', processedUploads);
+
+    if (processedUploads.length > 0) {
+      setSelectedContextIds(prev => {
+        const newIds = processedUploads.filter((id: string) => !prev.includes(id));
+        console.log('[PROCESSING] Adding to selectedContextIds:', newIds);
+        return newIds.length > 0 ? [...prev, ...newIds] : prev;
+      });
+      
+      setUploadedAttachments(prev => {
+        const updated = prev.filter((id: string) => !processedUploads.includes(id));
+        console.log('[PROCESSING] Cleaning uploadedAttachments:', updated);
+        return updated;
+      });
+    }
+  }, [sessionAttachments, uploadedAttachments]);
 
   const handleSendMessage = async (content: string) => {
-    const attachments = uploadedAttachments.length > 0 
-      ? conversation?.attachments?.filter((att: any) => uploadedAttachments.includes(att.id)) || []
-      : undefined;
-
-    const tempUserMessage: Message = {
-      id: `temp-${Date.now()}`,
+    const userMsg: Message = {
+      id: `temp-user-${Date.now()}`,
       sessionId,
       role: 'user',
       content,
       createdAt: new Date().toISOString(),
-      attachments,
+      attachments: sessionAttachments?.filter((att: any) =>
+        selectedContextIds.includes(att.id)
+      ) || [],
     };
 
-    setOptimisticMessages((prev) => [...prev, tempUserMessage]);
-
-    const tempAssistantMessage: Message = {
+    const assistantMsg: Message = {
       id: `temp-assistant-${Date.now()}`,
       sessionId,
       role: 'assistant',
@@ -104,17 +133,13 @@ export default function ChatSessionPage() {
       createdAt: new Date().toISOString(),
     };
 
-    setOptimisticMessages((prev) => [...prev, tempAssistantMessage]);
-
-    const messageIndex = optimisticMessages.length + 1;
+    setOptimisticMessages(prev => [...prev, userMsg, assistantMsg]);
 
     await sendMessage(sessionId, content, {
-      attachmentIds: selectedContextIds.length > 0 ? selectedContextIds : (uploadedAttachments.length > 0 ? uploadedAttachments : undefined),
+      attachmentIds: selectedContextIds.length > 0 ? selectedContextIds : undefined,
       onComplete: () => {
         queryClient.invalidateQueries({ queryKey: ['conversations', sessionId] });
-        queryClient.invalidateQueries({ queryKey: ['conversations'] });
-        reset();
-        setUploadedAttachments([]);
+        setTimeout(() => reset(), 100);
       },
       onError: (error) => {
         console.error('Error sending message:', error);
@@ -122,10 +147,21 @@ export default function ChatSessionPage() {
     });
   };
 
+
   const handleUploadComplete = (attachmentId: string) => {
-    setUploadedAttachments((prev) => [...prev, attachmentId]);
-    // Refetch attachments to update the file panel
-    queryClient.invalidateQueries({ queryKey: ['sessions', sessionId, 'attachments'] });
+    console.log('[UPLOAD] Upload complete for attachment:', attachmentId);
+    
+    setUploadedAttachments((prev) => {
+      const updated = [...prev, attachmentId];
+      console.log('[UPLOAD] Updated uploadedAttachments:', updated);
+      return updated;
+    });
+    
+    // Force immediate refetch by invalidating with refetchType: 'active'
+    queryClient.invalidateQueries({ 
+      queryKey: ['sessions', sessionId, 'attachments'],
+      refetchType: 'active'
+    });
   };
 
   const handleCitationClick = (filename: string, page?: number) => {
@@ -151,6 +187,38 @@ export default function ChatSessionPage() {
       filename: attachment.filename,
       url: `${baseUrl}/dashboard/sessions/uploads/${encodeURIComponent(fileToUse)}`,
     });
+  };
+
+  const handleDeleteAttachment = (attachmentId: string) => {
+    setAttachmentToDelete(attachmentId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteAttachment = async () => {
+    if (!attachmentToDelete) return;
+
+    try {
+      await deleteAttachment.mutateAsync(attachmentToDelete);
+      
+      if (selectedPDF) {
+        const deletedAttachment = sessionAttachments?.find((att: any) => att.id === attachmentToDelete);
+        if (deletedAttachment && selectedPDF.url.includes(deletedAttachment.storedFilename || deletedAttachment.filename)) {
+          setSelectedPDF(undefined);
+        }
+      }
+
+      setSelectedContextIds(prev => prev.filter(id => id !== attachmentToDelete));
+      setUploadedAttachments(prev => prev.filter(id => id !== attachmentToDelete));
+      
+      queryClient.invalidateQueries({ queryKey: ['sessions', sessionId, 'attachments'] });
+      toast.success('File deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete attachment:', error);
+      toast.error('Failed to delete file. Please try again.');
+    } finally {
+      setDeleteDialogOpen(false);
+      setAttachmentToDelete(null);
+    }
   };
 
   if (isLoading) {
@@ -184,9 +252,9 @@ export default function ChatSessionPage() {
     (att: any) => !att.metadata?.processed && !att.metadata?.error
   ) || false;
   
-  if (isStreaming && streamedContent) {
+  if ((isStreaming || streamedContent) && displayMessages.length > 0) {
     const lastMessage = displayMessages[displayMessages.length - 1];
-    if (lastMessage && lastMessage.role === 'assistant') {
+    if (lastMessage && lastMessage.role === 'assistant' && streamedContent) {
       displayMessages[displayMessages.length - 1] = {
         ...lastMessage,
         content: streamedContent,
@@ -300,8 +368,27 @@ export default function ChatSessionPage() {
           selectedFile={selectedPDF}
           onClose={() => setSelectedPDF(undefined)}
           onDocumentClick={handleDocumentClick}
+          onDeleteAttachment={handleDeleteAttachment}
         />
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete File</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this file? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteAttachment} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -124,6 +124,12 @@ export default function ChatMessage({ message, userAvatar, userName, isLoading, 
           {part}
         </ReactMarkdown>;
       } else {
+        const isPDF = part.filename.toLowerCase().endsWith('.pdf');
+        
+        if (!isPDF) {
+          return null;
+        }
+        
         const firstPage = part.pages[0];
         const displayText = part.pages.length > 1 
           ? `${part.filename.split('.')[0]} (${part.pages.length} refs)` 

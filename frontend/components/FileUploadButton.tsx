@@ -248,6 +248,7 @@ function FileProgressCard({ attachmentId, fileInfo, onComplete, onError }: FileP
   
   const getUnifiedProgress = () => {
     if (fileInfo.isUploading) return 2;
+    if (streamStatus?.status === 'completed') return 100;
     if (fileInfo.isWaitingForProcessing && streamStatus?.status !== 'processing') return fakeProgress;
     if (streamStatus?.progress !== undefined) {
       return Math.round(5 + (streamStatus.progress * 0.95));
