@@ -68,6 +68,13 @@ export class AttachmentController {
         },
       });
 
+      sseService.sendToAttachment(attachment.id, {
+        status: 'processing',
+        step: 'queued',
+        message: `Upload complete, queuing ${file.originalname}...`,
+        progress: 0,
+      });
+
       jobQueue.add('process-file', {
         attachmentId: attachment.id,
         userId,

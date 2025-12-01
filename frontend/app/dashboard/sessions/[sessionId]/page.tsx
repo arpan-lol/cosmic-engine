@@ -271,7 +271,7 @@ export default function ChatSessionPage() {
             </Card>
           )}
 
-          <div className="flex items-center gap-2">
+          <div className="w-full">
             <FileUploadButton sessionId={sessionId} onUploadComplete={handleUploadComplete} />
           </div>
 

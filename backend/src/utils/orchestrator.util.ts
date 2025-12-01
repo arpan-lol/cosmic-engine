@@ -63,13 +63,6 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     });
     const markdown = await IngestionService.convertToMarkdown(attachment.url);
 
-    await prisma.chat.create({
-      data: {
-        sessionId,
-        role: 'system',
-        content: `✅ Converted to markdown (${markdown.length.toLocaleString()} characters)`,
-      },
-    });
 
     // Step 2-4: Stream-based processing (chunking, embedding, storage)
     logger.info('Orchestrator', 'Steps 2-4: Stream processing chunks', { attachmentId, sessionId, markdownLength: markdown.length });
@@ -90,16 +83,18 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
 
     let totalChunks = 0;
     let lastProgress = 40;
+    let lastReportedCount = 0;
     
     for await (const storedCount of storageStream) {
       totalChunks = storedCount;
       const newProgress = Math.min(40 + Math.floor((storedCount / 100) * 40), 80);
-      if (newProgress > lastProgress) {
+      if (newProgress > lastProgress || storedCount - lastReportedCount >= 50) {
         lastProgress = newProgress;
+        lastReportedCount = storedCount;
         sseService.sendToAttachment(attachmentId, {
           status: 'processing',
           step: 'embedding',
-          message: `Stored ${storedCount} vectors...`,
+          message: `Processing vectors (${storedCount} stored)...`,
           progress: newProgress,
         });
       }
@@ -124,13 +119,6 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     });
     await CollectionService.buildIndexAndLoad(collectionName);
 
-    await prisma.chat.create({
-      data: {
-        sessionId,
-        role: 'system',
-        content: ` Vector search index built for ${attachment.filename} (${totalChunks} vectors)`,
-      },
-    });
 
     // Step 6: Update attachment metadata
     await prisma.attachment.update({

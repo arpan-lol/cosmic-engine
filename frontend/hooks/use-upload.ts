@@ -65,7 +65,7 @@ export const useAttachmentStatus = (attachmentId: string | null) => {
     enabled: !!attachmentId,
     refetchInterval: (query) => {
       const data = query.state.data;
-      return data && !data.processed && !data.error ? 2000 : false;
+      return data && !data.processed && !data.error ? 500 : false;
     },
   });
 };

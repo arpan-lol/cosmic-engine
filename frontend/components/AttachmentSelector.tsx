@@ -65,7 +65,7 @@ export default function AttachmentSelector({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" disabled={isLoading}>
+        <Button variant="outline" size="sm" disabled={isLoading} className="border-primary">
           <FileText className="h-4 w-4 mr-2" />
           Select Files ({selectedIds.length})
         </Button>

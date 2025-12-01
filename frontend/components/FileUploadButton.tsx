@@ -22,6 +22,8 @@ export default function FileUploadButton({
   const [isUploading, setIsUploading] = useState(false);
   const [hasShownToast, setHasShownToast] = useState(false);
   const [wasProcessingOnMount, setWasProcessingOnMount] = useState(false);
+  const [isWaitingForProcessing, setIsWaitingForProcessing] = useState(false);
+  const [fakeProgress, setFakeProgress] = useState(5);
   const uploadFile = useUploadFile();
   const { data: attachmentStatus } = useAttachmentStatus(uploadedAttachmentId);
   const { streamStatus, isConnected } = useAttachmentStream(uploadedAttachmentId);
@@ -62,6 +64,30 @@ export default function FileUploadButton({
     }
   }, [isUploading]);
 
+  // Clear waiting state only when processing actually starts (not just connected) or completes
+  useEffect(() => {
+    if (isWaitingForProcessing && (streamStatus?.status === 'processing' || attachmentStatus?.processed)) {
+      setIsWaitingForProcessing(false);
+    }
+  }, [isWaitingForProcessing, streamStatus?.status, attachmentStatus?.processed]);
+
+  // Simulate slow progress during long preprocessing phase
+  useEffect(() => {
+    if (!isWaitingForProcessing || streamStatus?.status === 'processing') {
+      setFakeProgress(5);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setFakeProgress(prev => {
+        if (prev >= 20) return prev;
+        return prev + 1;
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isWaitingForProcessing, streamStatus?.status]);
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -83,10 +109,14 @@ export default function FileUploadButton({
     try {
       const result = await uploadFile.mutateAsync({ file, sessionId });
       setUploadedAttachmentId(result.attachmentId);
+      setIsUploading(false);
+      setIsWaitingForProcessing(true);
       if (onUploadComplete) {
         onUploadComplete(result.attachmentId);
       }
     } catch (error) {
+      setIsUploading(false);
+      setIsWaitingForProcessing(false);
       console.error('Upload failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Upload failed';
       
@@ -106,8 +136,6 @@ export default function FileUploadButton({
           duration: 6000,
         });
       }
-    } finally {
-      setIsUploading(false);
     }
 
     if (fileInputRef.current) {
@@ -119,8 +147,28 @@ export default function FileUploadButton({
     fileInputRef.current?.click();
   };
 
+  const isProcessing = (isConnected && streamStatus && streamStatus.status === 'processing') || 
+    (!isConnected && attachmentStatus && !attachmentStatus.processed && !attachmentStatus.error);
+  
+  const showProgressCard = isUploading || isWaitingForProcessing || isProcessing;
+  
+  const getUnifiedProgress = () => {
+    if (isUploading) return 2;
+    if (isWaitingForProcessing && streamStatus?.status !== 'processing') return fakeProgress;
+    if (streamStatus?.progress !== undefined) {
+      return Math.round(5 + (streamStatus.progress * 0.95));
+    }
+    return 5;
+  };
+  
+  const getStatusMessage = () => {
+    if (isUploading) return 'Uploading file...';
+    if (isWaitingForProcessing && streamStatus?.status !== 'processing') return 'Preprocessing file...';
+    return streamStatus?.message || `Processing ${attachmentStatus?.filename || 'file'}...`;
+  };
+
   return (
-    <div className="space-y-2">
+    <div className="w-full space-y-2">
       <input
         ref={fileInputRef}
         type="file"
@@ -131,9 +179,10 @@ export default function FileUploadButton({
       <Button
         variant="outline"
         onClick={handleButtonClick}
-        disabled={uploadFile.isPending || isUploading}
+        disabled={uploadFile.isPending || isUploading || isProcessing}
+        className="hover:border-primary"
       >
-        {uploadFile.isPending || isUploading ? (
+        {uploadFile.isPending || isUploading || isProcessing ? (
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
         ) : (
           <Paperclip className="h-4 w-4 mr-2" />
@@ -141,41 +190,23 @@ export default function FileUploadButton({
         Upload File
       </Button>
 
-      {isUploading && (
-        <Card>
-          <CardContent className="p-3">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <div className="text-sm font-medium">Uploading...</div>
-                </div>
-                <div className="text-xs text-muted-foreground">0%</div>
-              </div>
-              <Progress value={0} className="h-2" />
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {((isConnected && streamStatus && streamStatus.status === 'processing') || 
-        (!isConnected && attachmentStatus && !attachmentStatus.processed && !attachmentStatus.error)) && (
-        <Card>
+      {showProgressCard && (
+        <Card className="w-full">
           <CardContent className="p-3">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <div className="text-sm font-medium">
-                    {streamStatus?.message || `Processing ${attachmentStatus?.filename || 'file'}...`}
+                    {getStatusMessage()}
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {streamStatus?.progress || 0}%
+                  {getUnifiedProgress()}%
                 </div>
               </div>
-              <Progress value={streamStatus?.progress || 0} className="h-2" />
-              {streamStatus?.step && (
+              <Progress value={getUnifiedProgress()} className="h-2" />
+              {streamStatus?.step && !isUploading && (
                 <div className="text-xs text-muted-foreground">
                   Step: {streamStatus.step}
                 </div>
@@ -186,7 +217,7 @@ export default function FileUploadButton({
       )}
 
       {(streamStatus?.status === 'error' || attachmentStatus?.error) && (
-        <Card>
+        <Card className="w-full">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 text-red-600">
               <XCircle className="h-4 w-4" />
