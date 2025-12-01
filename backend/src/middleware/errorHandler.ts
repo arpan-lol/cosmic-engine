@@ -15,6 +15,10 @@ export const globalErrorHandler: ErrorRequestHandler = (
     timestamp: new Date().toISOString()
   });
 
+  const origin = process.env.FRONTEND_ORIGIN || 'https://cosmicengine.arpantaneja.dev';
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+
   // Handle Multer errors
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {

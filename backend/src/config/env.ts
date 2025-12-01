@@ -11,6 +11,7 @@ const REQUIRED_ENV_VARS = [
   'GOOGLE_GENAI_API_KEY',
   'JWT_SECRET',
   'REDIRECT_URI',
+  'FRONTEND_ORIGIN',
 ] as const;
 
 const OPTIONAL_ENV_VARS = [

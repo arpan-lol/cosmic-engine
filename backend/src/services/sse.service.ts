@@ -9,6 +9,9 @@ class SSEService {
   private clients: Map<string, SSEClient[]> = new Map();
 
   addClient(attachmentId: string, res: Response) {
+    const origin = process.env.FRONTEND_ORIGIN || 'https://cosmicengine.arpantaneja.dev';
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
