@@ -1,4 +1,6 @@
 import path from 'path';
+import { logger } from '../../utils/logger.util';
+import { ProcessingError } from '../../types/errors';
 
 interface PyResponse {
   success: boolean;
@@ -24,9 +26,8 @@ export class IngestionService {
         ? filePath 
         : path.resolve(process.cwd(), filePath);
 
-      console.log(`[Ingestion] Converting file to markdown: ${absolutePath}`);
+      logger.info('Ingestion', 'Converting file to markdown', { filePath: absolutePath });
 
-      // call the python microservice
       const response = await fetch(`http://${this.PYTHON_SERVICE_URL}/process-file`, {
         method: 'POST',
         headers: {
@@ -38,27 +39,37 @@ export class IngestionService {
       });
 
       if (!response.ok) {
-        throw new Error(`Python service responded with status: ${response.status}`);
+        logger.error('Ingestion', `Python service responded with status: ${response.status}`, undefined, { filePath: absolutePath });
+        throw new ProcessingError(`Python service responded with status: ${response.status}`);
       }
 
       const data = await response.json() as PyResponse;
 
       if (!data.success) {
-        throw new Error(data.error_message || 'Python service failed to process file');
+        logger.error('Ingestion', 'Python service failed to process file', undefined, { filePath: absolutePath, errorMessage: data.error_message });
+        throw new ProcessingError(data.error_message || 'Python service failed to process file');
       }
 
       if (!data.markdown_content) {
-        throw new Error('Python service returned empty markdown content');
+        logger.error('Ingestion', 'Python service returned empty markdown content', undefined, { filePath: absolutePath });
+        throw new ProcessingError('Python service returned empty markdown content');
       }
 
-      console.log(
-        `[Ingestion] ✅ Converted successfully: ${data.content_length} characters in ${data.processing_time.toFixed(2)}s`
+      logger.info(
+        'Ingestion',
+        'Converted successfully',
+        { contentLength: data.content_length, processingTime: data.processing_time.toFixed(2), filePath: absolutePath }
       );
 
       return data.markdown_content;
     } catch (error) {
-      console.error('[Ingestion] ❌ Conversion failed:', error);
-      throw new Error(
+      logger.error('Ingestion', 'Conversion failed', error instanceof Error ? error : undefined, { filePath });
+      
+      if (error instanceof ProcessingError) {
+        throw error;
+      }
+      
+      throw new ProcessingError(
         `Failed to convert file to markdown: ${
           error instanceof Error ? error.message : 'Unknown error'
         }`

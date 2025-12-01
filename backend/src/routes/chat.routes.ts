@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { authenticateJWT } from '../middleware/auth';
 import { ChatController } from '../controllers/chat';
 import { upload } from '../config/upload';
+import { asyncHandler } from '../utils/asyncHandler.util';
 
 const router = Router();
 
@@ -21,22 +22,18 @@ const corsMiddleware = (req: Request, res: Response, next: NextFunction) => {
 
 router.use(authenticateJWT);
 
-// Session management
-router.post('/sessions', ChatController.createSession);
-router.get('/sessions', ChatController.getSessions);
-router.get('/sessions/:id', ChatController.getSessionById);
-router.delete('/sessions/:id', ChatController.deleteSession);
+router.post('/sessions', asyncHandler(ChatController.createSession));
+router.get('/sessions', asyncHandler(ChatController.getSessions));
+router.get('/sessions/:id', asyncHandler(ChatController.getSessionById));
+router.delete('/sessions/:id', asyncHandler(ChatController.deleteSession));
 
-// Messaging (unified endpoint - creates message and streams response)
-router.post('/sessions/:id/message', ChatController.message);
+router.post('/sessions/:id/message', asyncHandler(ChatController.message));
 
-// File uploads and processing
-router.post('/upload', corsMiddleware, upload.single('file'), ChatController.uploadFile);
-router.get('/sessions/:sessionId/attachments', ChatController.getSessionAttachments);
-router.get('/attachments/:attachmentId/status', ChatController.getAttachmentStatus);
-router.get('/attachments/:attachmentId/stream', corsMiddleware, ChatController.streamAttachmentStatus);
+router.post('/upload', corsMiddleware, upload.single('file'), asyncHandler(ChatController.uploadFile));
+router.get('/sessions/:sessionId/attachments', asyncHandler(ChatController.getSessionAttachments));
+router.get('/attachments/:attachmentId/status', asyncHandler(ChatController.getAttachmentStatus));
+router.get('/attachments/:attachmentId/stream', corsMiddleware, asyncHandler(ChatController.streamAttachmentStatus));
 
-// Semantic search
-router.post('/sessions/:id/search', ChatController.searchSession);
+router.post('/sessions/:id/search', asyncHandler(ChatController.searchSession));
 
 export default router;

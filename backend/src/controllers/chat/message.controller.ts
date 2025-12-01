@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../types/express';
 import prisma from '../../prisma/client';
 import {
@@ -6,21 +6,21 @@ import {
   SendMessageResponse,
 } from '../../types/chat.types';
 import { GenerationService } from '../../services/llm/generation.service';
+import { logger } from '../../utils/logger.util';
+import { UnauthorizedError, NotFoundError, ValidationError, ProcessingError } from '../../types/errors';
 
 export class MessageController {
-  static async message(req: AuthRequest, res: Response): Promise<void> {
+  static async message(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.user?.userId;
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+      throw new UnauthorizedError();
     }
 
     const { id: sessionId } = req.params;
     const { content, attachmentIds }: SendMessageRequest = req.body;
 
     if (!content?.trim()) {
-      res.status(400).json({ error: 'Message content is required' });
-      return;
+      throw new ValidationError('Message content is required');
     }
 
     try {
@@ -35,8 +35,7 @@ export class MessageController {
       });
 
       if (!session) {
-        res.status(404).json({ error: 'Session not found' });
-        return;
+        throw new NotFoundError('Session not found');
       }
 
       const userMessage = await prisma.chat.create({
@@ -106,22 +105,39 @@ export class MessageController {
         res.write(
           `data: ${JSON.stringify({ type: 'done', messageId: assistantMessage.id })}\n\n`
         );
-      } catch (streamError) {
-        console.error('[chat] Error in LLM streaming:', streamError);
+      } catch (streamError: any) {
+        logger.error('MessageController', 'Error in LLM streaming', streamError instanceof Error ? streamError : undefined, { sessionId, userId });
+        
+        let errorMessage = 'Processing failed! The server might be overloaded, please try again later.';
+        
+        if (streamError?.shouldExposeToClient && streamError?.clientMessage) {
+          errorMessage = streamError.clientMessage;
+        } else if (streamError instanceof Error && streamError.message) {
+          errorMessage = streamError.message;
+        }
+        
         res.write(
-          `data: ${JSON.stringify({ type: 'error', error: 'Failed to generate response' })}\n\n`
+          `data: ${JSON.stringify({ type: 'error', error: errorMessage })}\n\n`
         );
       }
 
       res.end();
-    } catch (error) {
-      console.error('[chat] Error in message endpoint:', error);
+    } catch (error: any) {
+      logger.error('MessageController', 'Error in message endpoint', error instanceof Error ? error : undefined, { sessionId, userId });
       
       if (!res.headersSent) {
-        res.status(500).json({ error: 'Failed to process message' });
+        next(error);
       } else {
+        let errorMessage = 'Processing failed! The server might be overloaded, please try again later.';
+        
+        if (error?.shouldExposeToClient && error?.clientMessage) {
+          errorMessage = error.clientMessage;
+        } else if (error instanceof Error && error.message) {
+          errorMessage = error.message;
+        }
+        
         res.write(
-          `data: ${JSON.stringify({ type: 'error', error: 'Stream failed' })}\n\n`
+          `data: ${JSON.stringify({ type: 'error', error: errorMessage })}\n\n`
         );
         res.end();
       }

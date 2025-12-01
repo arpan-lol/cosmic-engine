@@ -5,6 +5,8 @@ import { ChunkingService } from '../services/file-processing/chunking.service';
 import { EmbeddingService } from '../services/file-processing/embedding.service';
 import { CollectionService, StorageService } from '../services/file-processing/milvus';
 import { sseService } from '../services/sse.service';
+import { logger } from './logger.util';
+import { ProcessingError } from '../types/errors';
 
 interface OrchestrationJob {
   attachmentId: string;
@@ -13,7 +15,7 @@ interface OrchestrationJob {
 }
 
 async function processFile(attachmentId: string, userId: number, sessionId: string): Promise<void> {
-  console.log(`[Orchestrator] Starting pipeline for attachment: ${attachmentId} in session: ${sessionId}`);
+  logger.info('Orchestrator', `Starting pipeline for attachment: ${attachmentId}`, { sessionId, userId });
 
   try {
     const attachment = await prisma.attachment.findUnique({
@@ -21,10 +23,10 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     });
 
     if (!attachment) {
-      throw new Error(`Attachment not found: ${attachmentId}`);
+      throw new ProcessingError(`Attachment not found: ${attachmentId}`);
     }
 
-    console.log(`[Orchestrator] Processing: ${attachment.filename}`);
+    logger.info('Orchestrator', `Processing: ${attachment.filename}`, { attachmentId, sessionId });
 
     await prisma.chat.create({
       data: {
@@ -42,7 +44,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     });
 
     // Step 0: Initialize collection for each session
-    console.log('[Orchestrator] Step 0: Initializing vector store...');
+    logger.info('Orchestrator', 'Step 0: Initializing vector store', { attachmentId, sessionId });
     sseService.sendToAttachment(attachmentId, {
       status: 'processing',
       step: 'initialization',
@@ -52,8 +54,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     const collectionName = CollectionService.generateCName(sessionId);
     await CollectionService.initializeCollection(collectionName);
 
-    // Step 1: Ingestion
-    console.log('[Orchestrator] Step 1: Converting to markdown...');
+    logger.info('Orchestrator', 'Step 1: Converting to markdown', { attachmentId, sessionId });
     sseService.sendToAttachment(attachmentId, {
       status: 'processing',
       step: 'ingestion',
@@ -71,10 +72,10 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     });
 
     // Step 2-4: Stream-based processing (chunking, embedding, storage)
-    console.log('[Orchestrator] Steps 2-4: Stream processing chunks...');
+    logger.info('Orchestrator', 'Steps 2-4: Stream processing chunks', { attachmentId, sessionId, markdownLength: markdown.length });
     sseService.sendToAttachment(attachmentId, {
       status: 'processing',
-      step: 'streaming',
+      step: 'chunking',
       message: `Chunking ${markdown.length} characters`,
       progress: 40,
     });
@@ -97,14 +98,14 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
         lastProgress = newProgress;
         sseService.sendToAttachment(attachmentId, {
           status: 'processing',
-          step: 'streaming',
+          step: 'embedding',
           message: `Stored ${storedCount} vectors...`,
           progress: newProgress,
         });
       }
     }
 
-    console.log(`[Orchestrator] Stream processing completed: ${totalChunks} chunks`);
+    logger.info('Orchestrator', `Stream processing completed: ${totalChunks} chunks`, { attachmentId, sessionId, totalChunks });
 
     await prisma.chat.create({
       data: {
@@ -114,8 +115,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       },
     });
 
-    // Step 5: Build index and load collection (now that data is inserted)
-    console.log('[Orchestrator] Step 5: Building index and loading collection...');
+    logger.info('Orchestrator', 'Step 5: Building index and loading collection', { attachmentId, sessionId });
     sseService.sendToAttachment(attachmentId, {
       status: 'processing',
       step: 'indexing',
@@ -148,7 +148,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       },
     });
 
-    console.log(`[Orchestrator] ✅ Successfully processed: ${attachmentId}`);
+    logger.info('Orchestrator', `Successfully processed: ${attachmentId}`, { attachmentId, sessionId, totalChunks });
     
     sseService.sendToAttachment(attachmentId, {
       status: 'completed',
@@ -164,7 +164,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     }, 1000);
 
   } catch (error) {
-    console.error(`[Orchestrator] ❌ Error processing ${attachmentId}:`, error);
+    logger.error('Orchestrator', `Error processing ${attachmentId}`, error instanceof Error ? error : undefined, { attachmentId, sessionId });
 
     sseService.sendToAttachment(attachmentId, {
       status: 'failed',
@@ -185,7 +185,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
         },
       });
     } catch (updateError) {
-      console.error('[Orchestrator] Failed to update error status:', updateError);
+      logger.error('Orchestrator', 'Failed to update error status', updateError instanceof Error ? updateError : undefined, { attachmentId });
     }
 
     setTimeout(() => {
@@ -197,14 +197,14 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
 }
 
 export function Orchestrator() {
-  console.log('[Orchestrator] Registering file processor...');
+  logger.info('Orchestrator', 'Registering file processor');
 
   jobQueue.registerHandler('process-file', async (data: OrchestrationJob) => {
     const { attachmentId, userId, sessionId } = data;
-    console.log(`[Orchestrator] Processing file job: attachmentId=${attachmentId}, userId=${userId}, sessionId=${sessionId}`);
+    logger.info('Orchestrator', 'Processing file job', { attachmentId, userId, sessionId });
     await processFile(attachmentId, userId, sessionId);
-    console.log(`[Orchestrator] ✅ File job completed: ${attachmentId}`);
+    logger.info('Orchestrator', 'File job completed', { attachmentId });
   });
 
-  console.log('[Orchestrator] ✅ File processor ready');
+  logger.info('Orchestrator', 'File processor ready');
 }

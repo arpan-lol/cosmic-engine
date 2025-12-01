@@ -1,36 +1,37 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../types/express';
 import prisma from '../../prisma/client';
 import { UploadFileResponse } from '../../types/chat.types';
 import path from 'path';
 import { jobQueue } from '../../queue';
 import { sseService } from '../../services/sse.service';
+import { logger } from '../../utils/logger.util';
+import { UnauthorizedError, NotFoundError, ValidationError, ProcessingError } from '../../types/errors';
 
 export class AttachmentController {
-  static async uploadFile(req: AuthRequest, res: Response): Promise<Response> {
+  static async uploadFile(req: AuthRequest, res: Response, next: NextFunction): Promise<Response | void> {
     const userId = req.user?.userId;
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    if (!userId) throw new UnauthorizedError();
 
     if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      throw new ValidationError('No file uploaded');
     }
 
-    const { sessionId } = req.body; // Get sessionId from request body
+    const { sessionId } = req.body;
 
     if (!sessionId) {
-      return res.status(400).json({ error: 'Session ID is required' });
+      throw new ValidationError('Session ID is required');
     }
 
     const file = req.file;
 
     try {
-      // Verify session belongs to user
       const session = await prisma.session.findUnique({
         where: { id: sessionId, userId },
       });
 
       if (!session) {
-        return res.status(404).json({ error: 'Session not found' });
+        throw new NotFoundError('Session not found');
       }
 
       // Determine file type based on mimetype
@@ -67,13 +68,12 @@ export class AttachmentController {
         },
       });
 
-      // Queue the file for processing with sessionId
       jobQueue.add('process-file', {
         attachmentId: attachment.id,
         userId,
-        sessionId, // Pass sessionId to orchestrator
+        sessionId,
       }).catch((err: Error) => {
-        console.error(`[chat] Failed to queue file processing: ${err.message}`);
+        logger.error('AttachmentController', 'Failed to queue file processing', err, { attachmentId: attachment.id, sessionId });
       });
 
       const response: UploadFileResponse = {
@@ -83,33 +83,30 @@ export class AttachmentController {
         url: attachment.url,
       };
 
-      console.log(`[chat] File uploaded: ${attachment.filename} (${attachment.id}) for session ${sessionId}`);
+      logger.info('AttachmentController', `File uploaded: ${attachment.filename}`, { attachmentId: attachment.id, sessionId });
       return res.status(201).json(response);
     } catch (error) {
-      console.error('[chat] Error uploading file:', error);
-      return res.status(500).json({ error: 'Failed to upload file' });
+      logger.error('AttachmentController', 'Error uploading file', error instanceof Error ? error : undefined, { sessionId, userId });
+      if (error instanceof NotFoundError || error instanceof ValidationError) throw error;
+      next(new ProcessingError('Failed to upload file'));
     }
   }
 
-  /**
-   * Get all attachments for a session
-   */
-  static async getSessionAttachments(req: AuthRequest, res: Response): Promise<Response> {
+  static async getSessionAttachments(req: AuthRequest, res: Response, next: NextFunction): Promise<Response | void> {
     const userId = req.user?.userId;
     if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      throw new UnauthorizedError();
     }
 
     const { sessionId } = req.params;
 
     try {
-      // Verify session belongs to user
       const session = await prisma.session.findUnique({
         where: { id: sessionId, userId },
       });
 
       if (!session) {
-        return res.status(404).json({ error: 'Session not found' });
+        throw new NotFoundError('Session not found');
       }
 
       // Get all attachments for this session
@@ -144,15 +141,13 @@ export class AttachmentController {
 
       return res.status(200).json({ attachments: attachmentsWithStatus });
     } catch (error) {
-      console.error('[chat] Error fetching session attachments:', error);
-      return res.status(500).json({ error: 'Failed to fetch attachments' });
+      logger.error('AttachmentController', 'Error fetching session attachments', error instanceof Error ? error : undefined, { sessionId, userId });
+      if (error instanceof NotFoundError) throw error;
+      next(new ProcessingError('Failed to fetch attachments'));
     }
   }
 
-  /**
-   * Get attachment processing status
-   */
-  static async getAttachmentStatus(req: AuthRequest, res: Response) {
+  static async getAttachmentStatus(req: AuthRequest, res: Response, next: NextFunction): Promise<Response | void> {
     const userId = req.user?.userId;
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -189,10 +184,10 @@ export class AttachmentController {
     }
   }
 
-  static async streamAttachmentStatus(req: AuthRequest, res: Response) {
+  static async streamAttachmentStatus(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     const userId = req.user?.userId;
     if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      throw new UnauthorizedError();
     }
 
     const { attachmentId } = req.params;
@@ -203,15 +198,16 @@ export class AttachmentController {
       });
 
       if (!attachment) {
-        return res.status(404).json({ error: 'Attachment not found' });
+        throw new NotFoundError('Attachment not found');
       }
 
       sseService.addClient(attachmentId, res);
 
-      console.log(`[chat] SSE stream started for attachment: ${attachmentId}`);
+      logger.info('AttachmentController', `SSE stream started for attachment: ${attachmentId}`);
     } catch (error) {
-      console.error('[chat] Error starting SSE stream:', error);
-      return res.status(500).json({ error: 'Failed to start stream' });
+      logger.error('AttachmentController', 'Error starting SSE stream', error instanceof Error ? error : undefined, { attachmentId, userId });
+      if (error instanceof NotFoundError) throw error;
+      next(new ProcessingError('Failed to start stream'));
     }
   }
 }

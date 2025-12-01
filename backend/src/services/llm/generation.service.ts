@@ -2,6 +2,8 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { RetrievalService, EnhancedContext } from './retrieval.service';
 import { buildPrompt } from './prompts/system.prompt';
 import { estimatePromptTokens } from '../../utils/token-estimator.util';
+import { logger } from '../../utils/logger.util';
+import { isGeminiError, parseGeminiError, ProcessingError } from '../../types/errors';
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GOOGLE_GENAI_API_KEY,
@@ -19,13 +21,13 @@ async function callEndpoint(url: string): Promise<string> {
     const res = await fetch(url);
     if (res.ok) {
       const responseText = await res.text();
-      console.log(`[Tool] Fetched endpoint: ${url} (${responseText.length} chars)`);
+      logger.info('Generation-Tool', `Fetched endpoint: ${url}`, { length: responseText.length });
       return responseText;
     } else {
       return `endpoint fetch failed with status: ${res.status} ${res.statusText}`;
     }
   } catch (err) {
-    console.error('[Tool] Error fetching endpoint:', err);
+    logger.error('Generation-Tool', 'Error fetching endpoint', err instanceof Error ? err : undefined, { url });
     return `endpoint fetch failed with error: ${err instanceof Error ? err.message : 'Unknown error'}`;
   }
 }
@@ -72,15 +74,14 @@ export class GenerationService {
 
       const prompt = buildPrompt(query, enhancedContexts, conversationHistory);
 
-      // Log token estimation
       const contextStrings = enhancedContexts.map((ctx) => ctx.content);
       const estimatedTokens = estimatePromptTokens(
-        prompt.substring(0, 1000), // System prompt portion
+        prompt.substring(0, 1000),
         contextStrings,
         conversationHistory,
         query
       );
-      console.log(`[Generation] Stream prompt token estimate: ${estimatedTokens}`);
+      logger.info('Generation', 'Stream prompt token estimate', { estimatedTokens, sessionId });
 
       let contents = [
         {
@@ -96,7 +97,7 @@ export class GenerationService {
 
       while (iterationCount < maxIterations) {
         iterationCount++;
-        console.log(`[Generation] Stream iteration ${iterationCount}`);
+        logger.debug('Generation', `Stream iteration ${iterationCount}`, { sessionId });
 
         const result = await ai.models.generateContent({
           model: MODEL,
@@ -159,7 +160,7 @@ export class GenerationService {
 
           continue;
         } else {
-          console.log('[Generation] Streaming final response');
+          logger.info('Generation', 'Streaming final response', { sessionId });
 
           const streamResult = await ai.models.generateContentStream({
             model: MODEL,
@@ -180,11 +181,16 @@ export class GenerationService {
         }
       }
 
-      console.warn(`[Generation] Reached maximum iterations in stream (${maxIterations})`);
+      logger.warn('Generation', `Reached maximum iterations in stream (${maxIterations})`, { sessionId });
       yield 'Maximum processing iterations reached. Please try rephrasing your question.';
     } catch (error) {
-      console.error('[Generation] Error streaming response:', error);
-      throw new Error('Failed to stream response');
+      logger.error('Generation', 'Error streaming response', error instanceof Error ? error : undefined, { sessionId });
+      
+      if (isGeminiError(error)) {
+        throw parseGeminiError(error);
+      }
+      
+      throw new ProcessingError('Failed to stream response');
     }
   }
 
@@ -206,15 +212,14 @@ export class GenerationService {
 
       const prompt = buildPrompt(query, enhancedContexts, conversationHistory);
 
-      // Log token estimation
       const contextStrings = enhancedContexts.map((ctx) => ctx.content);
       const estimatedTokens = estimatePromptTokens(
-        prompt.substring(0, 1000), // System prompt portion
+        prompt.substring(0, 1000),
         contextStrings,
         conversationHistory,
         query
       );
-      console.log(`[Generation] Non-stream prompt token estimate: ${estimatedTokens}`);
+      logger.info('Generation', 'Non-stream prompt token estimate', { estimatedTokens, sessionId });
 
       let contents = [
         {
@@ -231,7 +236,7 @@ export class GenerationService {
 
       while (iterationCount < maxIterations) {
         iterationCount++;
-        console.log(`[Generation] Iteration ${iterationCount}`);
+        logger.debug('Generation', `Iteration ${iterationCount}`, { sessionId });
 
         const result = await ai.models.generateContent({
           model: MODEL,
@@ -251,22 +256,24 @@ export class GenerationService {
 
         lastResponseText = responseText;
 
-        console.log(`[Generation] Response text: ${responseText.substring(0, 100)}...`);
-        console.log(`[Generation] Function calls found: ${result.functionCalls?.length || 0}`);
+        logger.debug('Generation', 'Response text', { preview: responseText.substring(0, 100), sessionId });
+        logger.debug('Generation', 'Function calls found', { count: result.functionCalls?.length || 0, sessionId });
 
         if (result.functionCalls && result.functionCalls.length > 0) {
           const functionCall = result.functionCalls[0];
           const { name, args } = functionCall;
 
           if (!name || !toolFunctions[name]) {
-            throw new Error(`Unknown function call: ${name}`);
+            logger.error('Generation', `Unknown function call: ${name}`, undefined, { sessionId, functionCall });
+            throw new ProcessingError(`Unknown function call: ${name}`);
           }
 
           if (!args || !args.url) {
-            throw new Error(`Missing required 'url' argument for function: ${name}`);
+            logger.error('Generation', `Missing required 'url' argument for function: ${name}`, undefined, { sessionId });
+            throw new ProcessingError(`Missing required 'url' argument for function: ${name}`);
           }
 
-          console.log(`[Generation] Executing tool: ${name} with URL: ${args.url}`);
+          logger.info('Generation', `Executing tool: ${name}`, { url: args.url, sessionId });
           const toolResponse = await toolFunctions[name](args.url as string);
 
           const functionResponsePart = {
@@ -296,16 +303,21 @@ export class GenerationService {
 
           continue;
         } else {
-          console.log('[Generation] Final response generated');
+          logger.info('Generation', 'Final response generated', { sessionId });
           return responseText || '';
         }
       }
 
-      console.warn(`[Generation] Reached maximum iterations (${maxIterations}), returning last response`);
+      logger.warn('Generation', `Reached maximum iterations (${maxIterations}), returning last response`, { sessionId });
       return lastResponseText || 'Maximum processing iterations reached. Please try rephrasing your question.';
     } catch (error) {
-      console.error('[Generation] Error generating response:', error);
-      throw new Error('Failed to generate response');
+      logger.error('Generation', 'Error generating response', error instanceof Error ? error : undefined, { sessionId });
+      
+      if (isGeminiError(error)) {
+        throw parseGeminiError(error);
+      }
+      
+      throw new ProcessingError('Failed to generate response');
     }
   }
 }

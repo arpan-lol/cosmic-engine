@@ -1,31 +1,29 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../types/express';
 import prisma from '../../prisma/client';
 import { CollectionService, SearchService } from '../../services/file-processing/milvus';
+import { logger } from '../../utils/logger.util';
+import { UnauthorizedError, NotFoundError, ValidationError, ProcessingError } from '../../types/errors';
 
 export class SearchController {
-  /**
-   * Search within a session's documents
-   */
-  static async searchSession(req: AuthRequest, res: Response): Promise<Response> {
+  static async searchSession(req: AuthRequest, res: Response, next: NextFunction): Promise<Response | void> {
     const userId = req.user?.userId;
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    if (!userId) throw new UnauthorizedError();
 
     const { id: sessionId } = req.params;
     const { query, topK = 10 } = req.body;
 
     if (!query?.trim()) {
-      return res.status(400).json({ error: 'Search query is required' });
+      throw new ValidationError('Search query is required');
     }
 
     try {
-      // Verify session belongs to user
       const session = await prisma.session.findUnique({
         where: { id: sessionId, userId },
       });
 
       if (!session) {
-        return res.status(404).json({ error: 'Session not found' });
+        throw new NotFoundError('Session not found');
       }
 
       // Get session stats
@@ -66,8 +64,9 @@ export class SearchController {
         },
       });
     } catch (error) {
-      console.error('[chat] Error searching session:', error);
-      return res.status(500).json({ error: 'Failed to search session' });
+      logger.error('SearchController', 'Error searching session', error instanceof Error ? error : undefined, { sessionId, userId, query });
+      if (error instanceof NotFoundError || error instanceof ValidationError) throw error;
+      next(new ProcessingError('Failed to search session'));
     }
   }
 }

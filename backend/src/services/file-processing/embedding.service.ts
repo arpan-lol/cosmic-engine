@@ -1,5 +1,7 @@
 import { Chunk } from './chunking.service';
 import { GoogleGenAI } from '@google/genai';
+import { logger } from '../../utils/logger.util';
+import { isGeminiError, parseGeminiError, ProcessingError } from '../../types/errors';
 
 export interface Embedding {
   chunkIndex: number;
@@ -56,13 +58,15 @@ export class EmbeddingService {
       });
 
       if (!response.embeddings || response.embeddings.length === 0) {
-        throw new Error('No embeddings returned from API');
+        logger.error('Embedding', 'No embeddings returned from API', undefined, { chunkCount: chunks.length });
+        throw new ProcessingError('No embeddings returned from API');
       }
 
       const embeddings: Embedding[] = chunks.map((chunk, index) => {
         const values = response.embeddings![index].values;
         if (!values) {
-          throw new Error(`No embedding values for chunk ${index}`);
+          logger.error('Embedding', `No embedding values for chunk ${index}`, undefined, { chunkIndex: chunk.index });
+          throw new ProcessingError(`No embedding values for chunk ${index}`);
         }
         return {
           chunkIndex: chunk.index,
@@ -74,8 +78,17 @@ export class EmbeddingService {
 
       return embeddings;
     } catch (error) {
-      console.error('Error generating embeddings:', error);
-      throw new Error(`Failed to generate embeddings: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error('Embedding', 'Error generating embeddings', error instanceof Error ? error : undefined, { chunkCount: chunks.length });
+      
+      if (isGeminiError(error)) {
+        throw parseGeminiError(error);
+      }
+      
+      if (error instanceof ProcessingError) {
+        throw error;
+      }
+      
+      throw new ProcessingError(`Failed to generate embeddings: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -88,13 +101,23 @@ export class EmbeddingService {
       });
 
       if (!response.embeddings || !response.embeddings[0]?.values) {
-        throw new Error('No embeddings returned for query');
+        logger.error('Embedding', 'No embeddings returned for query', undefined, { queryLength: queryText.length });
+        throw new ProcessingError('No embeddings returned for query');
       }
 
       return response.embeddings[0].values;
     } catch (error) {
-      console.error('Error generating query embedding:', error);
-      throw new Error(`Failed to generate query embedding: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logger.error('Embedding', 'Error generating query embedding', error instanceof Error ? error : undefined, { queryLength: queryText.length });
+      
+      if (isGeminiError(error)) {
+        throw parseGeminiError(error);
+      }
+      
+      if (error instanceof ProcessingError) {
+        throw error;
+      }
+      
+      throw new ProcessingError(`Failed to generate query embedding: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

@@ -34,6 +34,15 @@ export const useUploadFile = () => {
         headers: {},
       });
 
+      if (response.status === 413) {
+        throw new Error('File size exceeds the maximum limit. Please check your server configuration for upload limits.');
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(errorData.error || `Upload failed with status ${response.status}`);
+      }
+
       return await response.json();
     },
     onSuccess: (_, variables) => {

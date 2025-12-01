@@ -21,6 +21,7 @@ export default function FileUploadButton({
   const [uploadedAttachmentId, setUploadedAttachmentId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [hasShownToast, setHasShownToast] = useState(false);
+  const [wasProcessingOnMount, setWasProcessingOnMount] = useState(false);
   const uploadFile = useUploadFile();
   const { data: attachmentStatus } = useAttachmentStatus(uploadedAttachmentId);
   const { streamStatus, isConnected } = useAttachmentStream(uploadedAttachmentId);
@@ -34,6 +35,8 @@ export default function FileUploadButton({
       );
       if (processingAttachment) {
         setUploadedAttachmentId(processingAttachment.id);
+        setWasProcessingOnMount(true);
+        setHasShownToast(true);
       }
     }
   }, [sessionAttachments, uploadedAttachmentId]);
@@ -41,7 +44,7 @@ export default function FileUploadButton({
   // Show toast when processing completes
   useEffect(() => {
     const isCompleted = streamStatus?.status === 'completed' || attachmentStatus?.processed;
-    if (isCompleted && !hasShownToast) {
+    if (isCompleted && !hasShownToast && !wasProcessingOnMount) {
       const filename = attachmentStatus?.filename || 'File';
       const chunkCount = streamStatus?.chunkCount || attachmentStatus?.chunkCount || 0;
       toast.success(`${filename} processed (${chunkCount} chunks)`, {
@@ -49,18 +52,31 @@ export default function FileUploadButton({
       });
       setHasShownToast(true);
     }
-  }, [streamStatus?.status, attachmentStatus?.processed, hasShownToast, attachmentStatus?.filename, streamStatus?.chunkCount, attachmentStatus?.chunkCount]);
+  }, [streamStatus?.status, attachmentStatus?.processed, hasShownToast, wasProcessingOnMount, attachmentStatus?.filename, streamStatus?.chunkCount, attachmentStatus?.chunkCount]);
 
   // Reset toast flag when new upload starts
   useEffect(() => {
     if (isUploading) {
       setHasShownToast(false);
+      setWasProcessingOnMount(false);
     }
   }, [isUploading]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const maxSize = 50 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error('File size exceeds 50MB limit', {
+        description: 'Please upload a smaller file!',
+        duration: 6000,
+      });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';``
+      }
+      return;
+    }
 
     setIsUploading(true);
 
@@ -72,6 +88,24 @@ export default function FileUploadButton({
       }
     } catch (error) {
       console.error('Upload failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+      
+      if (errorMessage.includes('413') || errorMessage.includes('size') || errorMessage.includes('limit')) {
+        toast.error('File too large', {
+          description: 'The file exceeds server upload limits. Please contact support to increase limits or upload a smaller file.',
+          duration: 8000,
+        });
+      } else if (errorMessage.includes('CORS') || errorMessage.includes('fetch')) {
+        toast.error('Upload failed', {
+          description: 'Network error. Please check your connection and try again.',
+          duration: 6000,
+        });
+      } else {
+        toast.error('Upload failed', {
+          description: errorMessage,
+          duration: 6000,
+        });
+      }
     } finally {
       setIsUploading(false);
     }
