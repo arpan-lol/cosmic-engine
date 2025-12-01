@@ -64,16 +64,16 @@ export default function FileUploadButton({
     }
   }, [isUploading]);
 
-  // Clear waiting state only when processing actually starts (not just connected) or completes
+  // Clear waiting state only when processing actually starts (not just connected), completes, or errors
   useEffect(() => {
-    if (isWaitingForProcessing && (streamStatus?.status === 'processing' || attachmentStatus?.processed)) {
+    if (isWaitingForProcessing && (streamStatus?.status === 'processing' || streamStatus?.status === 'error' || attachmentStatus?.processed || attachmentStatus?.error)) {
       setIsWaitingForProcessing(false);
     }
-  }, [isWaitingForProcessing, streamStatus?.status, attachmentStatus?.processed]);
+  }, [isWaitingForProcessing, streamStatus?.status, attachmentStatus?.processed, attachmentStatus?.error]);
 
   // Simulate slow progress during long preprocessing phase
   useEffect(() => {
-    if (!isWaitingForProcessing || streamStatus?.status === 'processing') {
+    if (!isWaitingForProcessing || streamStatus?.status === 'processing' || streamStatus?.status === 'error' || attachmentStatus?.error) {
       setFakeProgress(5);
       return;
     }
@@ -86,7 +86,7 @@ export default function FileUploadButton({
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [isWaitingForProcessing, streamStatus?.status]);
+  }, [isWaitingForProcessing, streamStatus?.status, attachmentStatus?.error]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -150,7 +150,8 @@ export default function FileUploadButton({
   const isProcessing = (isConnected && streamStatus && streamStatus.status === 'processing') || 
     (!isConnected && attachmentStatus && !attachmentStatus.processed && !attachmentStatus.error);
   
-  const showProgressCard = isUploading || isWaitingForProcessing || isProcessing;
+  const hasError = streamStatus?.status === 'error' || attachmentStatus?.error;
+  const showProgressCard = !hasError && (isUploading || isWaitingForProcessing || isProcessing);
   
   const getUnifiedProgress = () => {
     if (isUploading) return 2;

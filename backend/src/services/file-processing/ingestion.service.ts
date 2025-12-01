@@ -47,7 +47,7 @@ export class IngestionService {
 
       if (!data.success) {
         logger.error('Ingestion', 'Python service failed to process file', undefined, { filePath: absolutePath, errorMessage: data.error_message });
-        throw new ProcessingError(data.error_message || 'Python service failed to process file');
+        throw new ProcessingError('File processing failed');
       }
 
       if (!data.markdown_content) {

@@ -151,13 +151,19 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       sseService.closeAttachment(attachmentId);
     }, 1000);
 
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Orchestrator', `Error processing ${attachmentId}`, error instanceof Error ? error : undefined, { attachmentId, sessionId });
+
+    let userMessage = 'Processing failed! Please try again later.';
+    
+    if (error?.shouldExposeToClient && error?.clientMessage) {
+      userMessage = error.clientMessage;
+    }
 
     sseService.sendToAttachment(attachmentId, {
       status: 'failed',
       step: 'error',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: userMessage,
       progress: 0,
     });
 

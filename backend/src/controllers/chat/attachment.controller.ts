@@ -129,7 +129,6 @@ export class AttachmentController {
         },
       });
 
-      // Format response with processing status
       const attachmentsWithStatus = attachments.map((att) => ({
         id: att.id,
         filename: att.filename,
@@ -141,7 +140,7 @@ export class AttachmentController {
         createdAt: att.createdAt,
         metadata: {
           processed: (att.metadata as any)?.processed || false,
-          error: (att.metadata as any)?.error,
+          error: (att.metadata as any)?.processed === false ? 'Processing failed' : undefined,
           chunkCount: (att.metadata as any)?.chunkCount,
         },
       }));
@@ -157,7 +156,7 @@ export class AttachmentController {
   static async getAttachmentStatus(req: AuthRequest, res: Response, next: NextFunction): Promise<Response | void> {
     const userId = req.user?.userId;
     if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      throw new UnauthorizedError();
     }
 
     try {
@@ -168,26 +167,26 @@ export class AttachmentController {
       });
 
       if (!attachment) {
-        return res.status(404).json({ error: 'Attachment not found' });
+        throw new NotFoundError('Attachment not found');
       }
 
       const metadata = attachment.metadata as any;
       const processed = metadata?.processed || false;
-      const error = metadata?.error;
       const chunkCount = metadata?.chunkCount;
 
       return res.status(200).json({
         attachmentId: attachment.id,
         filename: attachment.filename,
         processed,
-        error,
+        error: processed === false && metadata?.failedAt ? 'Processing failed' : undefined,
         chunkCount,
         processedAt: metadata?.processedAt,
         failedAt: metadata?.failedAt,
       });
     } catch (error) {
-      console.error('[chat] Error getting attachment status:', error);
-      return res.status(500).json({ error: 'Failed to get attachment status' });
+      logger.error('AttachmentController', 'Error getting attachment status', error instanceof Error ? error : undefined, { attachmentId: req.params.attachmentId, userId });
+      if (error instanceof NotFoundError) throw error;
+      next(new ProcessingError('Failed to get attachment status'));
     }
   }
 
