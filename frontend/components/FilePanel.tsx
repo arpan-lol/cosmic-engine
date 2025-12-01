@@ -1,11 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { FileText, X, ArrowLeft } from 'lucide-react';
-import PDFViewer from './PDFViewer';
+
+const PDFViewer = dynamic(() => import('./PDFViewer'), {
+  loading: () => <div>Loading PDF...</div>,
+});
 
 interface Attachment {
   id: string;
