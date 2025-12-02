@@ -52,4 +52,6 @@ model Attachment {
   size      Int
   metadata  Json?
   createdAt DateTime @default(now())
+  bm25indexStatus String?  // 'pending' | 'completed' | ' '
+  bm25indexedAt DateTime?
 }

@@ -3,6 +3,7 @@ import { authenticateJWT } from '../middleware/auth';
 import { ChatController } from '../controllers/chat';
 import { upload } from '../config/upload';
 import { asyncHandler } from '../utils/asyncHandler.util';
+import { BM25Controller } from 'src/controllers/bm25.controllers';
 
 const router = Router();
 
@@ -28,7 +29,7 @@ router.get('/sessions/:id', asyncHandler(ChatController.getSessionById));
 router.delete('/sessions/:id', asyncHandler(ChatController.deleteSession));
 
 router.post('/sessions/:id/message', asyncHandler(ChatController.message));
-
+router.post('/indexbm25', asyncHandler(BM25Controller.indexFiles))
 router.post('/upload', corsMiddleware, upload.single('file'), asyncHandler(ChatController.uploadFile));
 router.get('/sessions/:sessionId/attachments', asyncHandler(ChatController.getSessionAttachments));
 router.get('/attachments/:attachmentId/status', asyncHandler(ChatController.getAttachmentStatus));
