@@ -7,6 +7,7 @@ import { CollectionService, StorageService } from '../services/file-processing/m
 import { sseService } from '../services/sse.service';
 import { logger } from './logger.util';
 import { ProcessingError } from '../types/errors';
+import { processBM25 } from './bm25.util';
 
 interface OrchestrationJob {
   attachmentId: string;
@@ -198,6 +199,13 @@ export function Orchestrator() {
     logger.info('Orchestrator', 'Processing file job', { attachmentId, userId, sessionId });
     await processFile(attachmentId, userId, sessionId);
     logger.info('Orchestrator', 'File job completed', { attachmentId });
+  });
+
+  jobQueue.registerHandler('index-bm25', async (data: OrchestrationJob) => {
+    const { attachmentId, userId, sessionId } = data;
+    logger.info('Orchestrator', 'Processing BM25 indexing job', { attachmentId, userId, sessionId });
+    await processBM25(attachmentId, userId, sessionId);
+    logger.info('Orchestrator', 'BM25 indexing job completed', { attachmentId });
   });
 
   logger.info('Orchestrator', 'File processor ready');

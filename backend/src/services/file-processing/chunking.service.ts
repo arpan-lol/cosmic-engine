@@ -19,7 +19,7 @@ export class ChunkingService {
     markdown: string,
     options: ChunkOptions = {}
   ): AsyncGenerator<Chunk> {
-    const { chunkSize = 4000, overlap = 200 } = options;
+    const { chunkSize = 1000, overlap = 200 } = options;
 
     if (chunkSize <= overlap) {
       throw new Error('chunkSize must be greater than chunkOverlap');

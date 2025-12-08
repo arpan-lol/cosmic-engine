@@ -1,6 +1,7 @@
 import { getMilvusClient } from './client';
 import { EmbeddingService } from '../embedding.service';
 import { CollectionService } from './collection.service';
+import { Chunk } from '../chunking.service';
 
 export interface SearchResult {
   content: string;
@@ -71,5 +72,42 @@ export class SearchService {
   ): Promise<string[]> {
     const results = await this.search(sessionId, query, topK);
     return results.map((result) => result.content);
+  }
+
+  static async getAllChunks(
+    sessionId: string,
+    attachmentId: string
+  ): Promise<Chunk[]> {
+    try {
+      const collectionName = CollectionService.generateCName(sessionId);
+      const hasCollection = await CollectionService.hasCollection(collectionName);
+      
+      if (!hasCollection) {
+        console.log(`[Milvus] No collection found for session: ${sessionId}`);
+        return [];
+      }
+
+      const client = getMilvusClient();
+
+      const queryResults = await client.query({
+        collection_name: collectionName,
+        filter: `metadata["attachmentId"] == "${attachmentId}"`,
+        output_fields: ['chunk_index', 'content'],
+      });
+
+      const chunks: Chunk[] = queryResults.data.map((result: any) => ({
+        content: result.content || '',
+        index: result.chunk_index || 0,
+        metadata: result.metadata,
+      }));
+
+      chunks.sort((a, b) => a.index - b.index);
+
+      console.log(`[Milvus] Retrieved ${chunks.length} chunks for attachment ${attachmentId}`);
+      return chunks;
+    } catch (error) {
+      console.error(`[Milvus] Failed to retrieve chunks for attachment ${attachmentId}:`, error);
+      return [];
+    }
   }
 }

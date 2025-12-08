@@ -21,37 +21,65 @@ model User {
 }
 
 model Session {
-  id        String    @id @default(uuid())
+  id        String   @id @default(uuid())
   userId    Int
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String?
   chats     Chat[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Chat {
-  id          String      @id @default(uuid())
+  id          String       @id @default(uuid())
   sessionId   String
-  session     Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  role        String      // 'user' | 'assistant' | 'system'
-  content     String      @db.Text
+  session     Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role        String // 'user' | 'assistant' | 'system'
+  content     String       @db.Text
   attachments Attachment[]
   tokens      Int?
-  createdAt   DateTime    @default(now())
+  createdAt   DateTime     @default(now())
 }
 
 model Attachment {
-  id        String   @id @default(uuid())
-  chatId    String?
-  chat      Chat?    @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  type      String   
-  url       String
-  filename  String
-  mimeType  String
-  size      Int
-  metadata  Json?
-  createdAt DateTime @default(now())
-  bm25indexStatus String?  // 'pending' | 'completed' | ' '
-  bm25indexedAt DateTime?
+  id              String           @id @default(uuid())
+  chatId          String?
+  chat            Chat?            @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  type            String
+  url             String
+  filename        String
+  mimeType        String
+  size            Int
+  metadata        Json?
+  createdAt       DateTime         @default(now())
+  bm25indexStatus String?
+  bm25indexedAt   DateTime?
+  bm25Meta        BM25IndexMeta?
+  bm25Entries     BM25IndexEntry[]
+}
+
+model BM25IndexMeta {
+  attachmentId   String     @id
+  attachment     Attachment @relation(fields: [attachmentId], references: [id], onDelete: Cascade)
+  totalDocs      Int
+  avgChunkLength Float
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model BM25IndexEntry {
+  id             String     @id @default(uuid())
+  attachmentId   String
+  attachment     Attachment @relation(fields: [attachmentId], references: [id], onDelete: Cascade)
+  chunkIndex     Int
+  term           String
+  tf             Int
+  df             Int
+  chunkLength    Int
+  avgChunkLength Float
+  totalDocs      Int
+  createdAt      DateTime   @default(now())
+
+  @@index([attachmentId, term])
+  @@index([attachmentId, chunkIndex])
 }
