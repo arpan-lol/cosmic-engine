@@ -78,7 +78,7 @@ async function processBM25(
     const docs: DocStats[] = chunks.map((chunk) => {
       const tokens = tokenize(chunk.content);
       return {
-        chunkIndex: chunk.index,
+        chunkIndex: Number(chunk.index),
         tokens,
         length: tokens.length,
       };
@@ -126,11 +126,6 @@ async function processBM25(
     });
 
     // STEP 4: Flatten and store BM25 entries
-    logger.info('BM25', 'Step 4: Store BM25 entries', {
-      attachmentId,
-      sessionId,
-    });
-
     const entriesData: Array<{
       attachmentId: string;
       chunkIndex: number;
@@ -147,7 +142,7 @@ async function processBM25(
       for (const term in tf) {
         entriesData.push({
           attachmentId,
-          chunkIndex: doc.chunkIndex,
+          chunkIndex: Number(doc.chunkIndex),
           term,
           tf: tf[term],
           df: dfMap[term],
@@ -157,6 +152,12 @@ async function processBM25(
         });
       }
     }
+
+    logger.info('BM25', 'Step 4: Store BM25 entries', {
+      attachmentId,
+      sessionId,
+      entryCount: entriesData.length,
+    });
 
     //clear old entries before inserting new ones
     await prisma.bM25IndexEntry.deleteMany({

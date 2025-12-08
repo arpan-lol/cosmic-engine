@@ -1,6 +1,6 @@
 import path from 'path';
-import { logger } from '../../utils/logger.util';
-import { ProcessingError } from '../../types/errors';
+import { logger } from '../utils/logger.util';
+import { ProcessingError } from '../types/errors';
 
 interface PyResponse {
   success: boolean;

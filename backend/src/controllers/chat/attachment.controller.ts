@@ -65,6 +65,7 @@ export class AttachmentController {
             processed: false,
             sessionId, // Store session reference
           },
+          bm25indexStatus: "not started"
         },
       });
 
