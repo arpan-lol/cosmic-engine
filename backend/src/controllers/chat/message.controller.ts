@@ -17,7 +17,7 @@ export class MessageController {
     }
 
     const { id: sessionId } = req.params;
-    const { content, attachmentIds }: SendMessageRequest = req.body;
+    const { content, attachmentIds, options }: SendMessageRequest = req.body;
 
     if (!content?.trim()) {
       throw new ValidationError('Message content is required');
@@ -78,13 +78,13 @@ export class MessageController {
       let fullResponse = '';
 
       try {
-        // Stream LLM response with optional attachment filtering for RAG
         const stream = GenerationService.streamResponse(
           sessionId,
           content.trim(),
           conversationHistory,
-          true, // useRAG
-          attachmentIds // filter RAG search to these attachments if provided
+          true,
+          attachmentIds,
+          options
         );
 
         for await (const chunk of stream) {

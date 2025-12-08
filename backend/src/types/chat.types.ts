@@ -1,3 +1,7 @@
+export interface RetrievalOptions {
+  bm25?: boolean;
+}
+
 export interface CreateSessionRequest {
   title?: string;
 }
@@ -10,7 +14,8 @@ export interface CreateSessionResponse {
 
 export interface SendMessageRequest {
   content: string;
-  attachmentIds?: string[]; 
+  attachmentIds?: string[];
+  options?: RetrievalOptions;
 }
 
 export interface SendMessageResponse {

@@ -4,6 +4,7 @@ import { buildPrompt } from './prompts/system.prompt';
 import { estimatePromptTokens } from '../../utils/token-estimator.util';
 import { logger } from '../../utils/logger.util';
 import { isGeminiError, parseGeminiError, ProcessingError } from '../../types/errors';
+import { RetrievalOptions } from '../../types/chat.types';
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GOOGLE_GENAI_API_KEY,
@@ -63,13 +64,14 @@ export class GenerationService {
     query: string,
     conversationHistory: ChatMessage[] = [],
     useRAG: boolean = true,
-    attachmentIds?: string[]
+    attachmentIds?: string[],
+    options?: RetrievalOptions
   ): AsyncGenerator<string> {
     try {
       let enhancedContexts: EnhancedContext[] = [];
 
       if (useRAG) {
-        enhancedContexts = await RetrievalService.getRelevantContext(sessionId, query, attachmentIds);
+        enhancedContexts = await RetrievalService.getRelevantContext(sessionId, query, attachmentIds, options);
       }
 
       const prompt = buildPrompt(query, enhancedContexts, conversationHistory);
