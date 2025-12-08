@@ -1,7 +1,7 @@
 import { getMilvusClient } from './client';
 import { EmbeddingService } from '../embedding.service';
 import { CollectionService } from './collection.service';
-import { Chunk } from '../chunking.service';
+import { Chunk } from '../chunking.service'
 
 export interface SearchResult {
   content: string;

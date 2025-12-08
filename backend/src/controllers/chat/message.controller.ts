@@ -82,7 +82,6 @@ export class MessageController {
           sessionId,
           content.trim(),
           conversationHistory,
-          true,
           attachmentIds,
           options
         );

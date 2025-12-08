@@ -2,6 +2,7 @@ import { SearchService, SearchResult } from '../milvus';
 import { dynamicTopK } from '../../config/rag.config';
 import { RetrievalOptions } from '../../types/chat.types';
 import { HybridSearchService } from '../features/search-strategies/hybrid-search.service';
+import { AppError } from 'src/types/errors';
 
 export interface EnhancedContext {
   content: string;
@@ -32,7 +33,7 @@ export class RetrievalService {
       return await this.vectorSearch(sessionId, query, attachmentIds);
     } catch (error) {
       console.error(`[Retrieval] Error getting context for session ${sessionId}:`, error);
-      return [];
+      throw new AppError(`[Retrieval] Error getting context for session ${sessionId}: ${error}`, )
     }
   }
 

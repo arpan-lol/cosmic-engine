@@ -1,14 +1,8 @@
 import prisma from '../prisma/client';
 import { logger } from './logger.util';
 import { ProcessingError } from '../types/errors';
-import { Chunk } from 'src/services/file-processing/chunking.service';
-import { SearchService } from 'src/services/file-processing/milvus';
-
-interface BM25Data {
-  attachmentId: string;
-  userId: number;
-  sessionId: string;
-}
+import { Chunk } from 'src/services/chunking.service';
+import { SearchService } from 'src/services/milvus';
 
 function tokenize(text: string): string[] {
   return text
@@ -213,4 +207,4 @@ async function processBM25(
 }
 
 
-export { processBM25 };
+export { processBM25, tokenize };
