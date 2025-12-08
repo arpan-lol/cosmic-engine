@@ -1,4 +1,4 @@
-import { Chunk } from './chunking.service';
+import { Chunk } from '../chunking.service';
 import { GoogleGenAI } from '@google/genai';
 import { logger } from '../../utils/logger.util';
 import { isGeminiError, parseGeminiError, ProcessingError } from '../../types/errors';

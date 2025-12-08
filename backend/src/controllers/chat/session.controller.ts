@@ -6,7 +6,7 @@ import {
   CreateSessionResponse,
   SessionDetails,
 } from '../../types/chat.types';
-import { CollectionService } from '../../services/file-processing/milvus';
+import { CollectionService } from '../../services/milvus';
 import { logger } from '../../utils/logger.util';
 import { UnauthorizedError, NotFoundError, ProcessingError } from '../../types/errors';
 

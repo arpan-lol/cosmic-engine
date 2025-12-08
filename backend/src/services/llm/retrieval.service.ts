@@ -1,4 +1,4 @@
-import { SearchService, SearchResult } from '../file-processing/milvus';
+import { SearchService, SearchResult } from '../milvus';
 import { dynamicTopK } from '../../config/rag.config';
 import { RetrievalOptions } from '../../types/chat.types';
 import { HybridSearchService } from '../features/search-strategies/hybrid-search.service';

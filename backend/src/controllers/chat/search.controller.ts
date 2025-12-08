@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../types/express';
 import prisma from '../../prisma/client';
-import { CollectionService, SearchService } from '../../services/file-processing/milvus';
+import { CollectionService, SearchService } from '../../services/milvus';
 import { logger } from '../../utils/logger.util';
 import { UnauthorizedError, NotFoundError, ValidationError, ProcessingError } from '../../types/errors';
 

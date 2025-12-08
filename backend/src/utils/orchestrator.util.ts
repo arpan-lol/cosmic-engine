@@ -1,9 +1,9 @@
 import { jobQueue } from '../queue';
 import prisma from '../prisma/client';
-import { IngestionService } from '../services/file-processing/ingestion.service';
-import { ChunkingService } from '../services/file-processing/chunking.service';
-import { EmbeddingService } from '../services/file-processing/embedding.service';
-import { CollectionService, StorageService } from '../services/file-processing/milvus';
+import { IngestionService } from '../services/ingestion.service';
+import { ChunkingService } from '../services/chunking.service';
+import { EmbeddingService } from '../services/embedding.service';
+import { CollectionService, StorageService } from '../services//milvus';
 import { sseService } from '../services/sse.service';
 import { logger } from './logger.util';
 import { ProcessingError } from '../types/errors';

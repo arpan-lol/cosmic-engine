@@ -1,5 +1,5 @@
 import prisma from '../prisma/client';
-import { getMilvusClient } from '../services/file-processing/milvus/client';
+import { getMilvusClient } from '../services/milvus/client';
 
 const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'ce-python-md-service:3001';
 
