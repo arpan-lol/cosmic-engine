@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { FileText, X, ArrowLeft, Trash2 } from 'lucide-react';
 
 const PDFViewer = dynamic(() => import('./PDFViewer'), {
@@ -17,6 +18,7 @@ interface Attachment {
   type: string;
   url: string;
   size: number;
+  bm25indexStatus?: string;
   metadata?: {
     processed?: boolean;
   };
@@ -79,7 +81,6 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-[600px]">
-            <div className="space-y-2">
               {pdfAttachments.map((att) => (
                 <Card
                   key={att.id}
@@ -91,7 +92,14 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
                       className="flex-1 min-w-0 cursor-pointer"
                       onClick={() => onDocumentClick?.(att)}
                     >
-                      <p className="text-sm font-medium">{att.filename}</p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-sm font-medium">{att.filename}</p>
+                        {att.bm25indexStatus === 'completed' && (
+                          <Badge variant="secondary" className="text-xs">
+                            BM25 Indexed
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         {(att.size / 1024).toFixed(1)} KB
                       </p>
@@ -110,10 +118,9 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
                   </div>
                 </Card>
               ))}
-            </div>
-          </ScrollArea>
-        </CardContent>
-      </Card>
+            </ScrollArea>
+          </CardContent>
+        </Card>
     );
   }
 

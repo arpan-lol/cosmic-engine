@@ -10,6 +10,9 @@ interface HybridHit {
   chunkIndex: number;
   vectorScore?: number;
   bm25Score?: number;
+  content?: string;
+  filename?: string;
+  pageNumber?: number;
 }
 
 export class HybridSearchService {
@@ -62,6 +65,9 @@ export class HybridSearchService {
           chunkIndex: hit.chunkIndex,
         };
         existing.vectorScore = hit.score;
+        existing.content = hit.content;
+        existing.filename = hit.filename;
+        existing.pageNumber = hit.pageNumber;
         hybridMap.set(key, existing);
       }
 
@@ -81,10 +87,12 @@ export class HybridSearchService {
     const vectorScores = allHits.map((h) => h.vectorScore ?? 0).filter((s) => s > 0);
     const bm25Scores = allHits.map((h) => h.bm25Score ?? 0).filter((s) => s > 0);
 
-    const minVector = Math.min(...vectorScores, 0);
-    const maxVector = Math.max(...vectorScores, 0);
-    const minBM25 = Math.min(...bm25Scores, 0);
-    const maxBM25 = Math.max(...bm25Scores, 0);
+    const minVector = vectorScores.length ? Math.min(...vectorScores) : 0;
+    const maxVector = vectorScores.length ? Math.max(...vectorScores) : 1;
+
+    const minBM25 = bm25Scores.length ? Math.min(...bm25Scores) : 0;
+    const maxBM25 = bm25Scores.length ? Math.max(...bm25Scores) : 1;
+
 
     const alpha = 0.7;
     const beta = 0.3;
@@ -106,30 +114,36 @@ export class HybridSearchService {
 
     rankedHits.sort((a, b) => b.finalScore - a.finalScore);
 
-    const topHits = rankedHits.slice(0, totalTopK);
+    const FINAL_HYBRID_K = Math.min(12, totalTopK);
+    const topHits = rankedHits.slice(0, FINAL_HYBRID_K);
 
-    const contextPromises = topHits.map(async (hit) => {
-      const vecHits = await SearchService.search(sessionId, '', 1, hit.attachmentId);
-      const vecHit = vecHits.find((v) => v.chunkIndex === hit.chunkIndex);
+    const hydratedHits = await Promise.all(
+      topHits.map(async (hit) => {
+        if (!hit.content || !hit.filename) {
+          const chunk = await SearchService.getChunk(
+            sessionId,
+            hit.attachmentId,
+            hit.chunkIndex
+          );
+          if (chunk) {
+            hit.content = chunk.content;
+            hit.filename = chunk.filename;
+            hit.pageNumber = chunk.pageNumber;
+          }
+        }
+        return hit;
+      })
+    );
 
-      if (!vecHit) {
-        return null;
-      }
-
-      const context: EnhancedContext = {
-        content: vecHit.content,
+    const validContexts: EnhancedContext[] = hydratedHits
+      .filter((hit) => hit.content && hit.filename)
+      .map((hit) => ({
+        content: hit.content!,
         attachmentId: hit.attachmentId,
-        filename: vecHit.filename,
+        filename: hit.filename!,
         chunkIndex: hit.chunkIndex,
-        pageNumber: vecHit.pageNumber,
-      };
-
-      return context;
-    });
-
-    const contexts = await Promise.all(contextPromises);
-
-    const validContexts = contexts.filter((ctx) => ctx !== null);
+        pageNumber: hit.pageNumber,
+      }));
 
     console.log(
       `[HybridSearch] Retrieved ${validContexts.length} hybrid-ranked context chunks from ${attachmentIds.length} attachments`

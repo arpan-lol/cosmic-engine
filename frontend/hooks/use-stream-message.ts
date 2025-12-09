@@ -15,6 +15,7 @@ export const useStreamMessage = () => {
       options?: {
         attachmentIds?: string[];
         documentIds?: string[];
+        bm25?: boolean;
         onToken?: (token: string) => void;
         onComplete?: (messageId: string) => void;
         onError?: (error: string) => void;
@@ -44,16 +45,24 @@ export const useStreamMessage = () => {
           headers['Authorization'] = `Bearer ${token}`;
         }
 
+        const requestBody: any = {
+          content,
+          attachmentIds: options?.attachmentIds,
+          documentIds: options?.documentIds,
+        };
+
+        if (options?.bm25 !== undefined) {
+          requestBody.options = {
+            bm25: options.bm25,
+          };
+        }
+
         const response = await fetch(
           `${API_BASE_URL}/chat/sessions/${sessionId}/message`,
           {
             method: 'POST',
             headers,
-            body: JSON.stringify({
-              content,
-              attachmentIds: options?.attachmentIds,
-              documentIds: options?.documentIds,
-            }),
+            body: JSON.stringify(requestBody),
           }
         );
 

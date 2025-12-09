@@ -5,7 +5,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Paperclip, Loader2, FileText } from 'lucide-react';
+import { Paperclip, Loader2, FileText, Copy, Check } from 'lucide-react';
+import { useState } from 'react';
 import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -70,6 +71,13 @@ function parseCitations(text: string): (string | Citation)[] {
 export default function ChatMessage({ message, userAvatar, userName, isLoading, onCitationClick }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(message.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const renderContentWithCitations = (content: string) => {
     const parts = parseCitations(content);
@@ -155,106 +163,148 @@ export default function ChatMessage({ message, userAvatar, userName, isLoading, 
   return (
     <div
       className={cn(
-        'flex gap-3 mb-4 items-start',
-        isUser && 'justify-end',
-        !isUser && !isSystem && 'justify-start',
-        isSystem && 'justify-center'
+        'mb-4',
+        isUser && 'flex gap-3 items-start justify-end',
+        !isUser && !isSystem && 'flex flex-col gap-2',
+        isSystem && 'flex justify-center'
       )}
     >
       {!isUser && !isSystem && (
-        <div className="h-8 w-8 flex-shrink-0">
-          <Image src="/logo.png" alt="AI" width={28} height={28} className="h-8 w-8" />
+        <>
+          <div className="flex gap-3 items-start">
+            <div className="h-8 w-8 flex-shrink-0">
+              <Image src="/logo.png" alt="AI" width={28} height={28} className="h-8 w-8" />
+            </div>
+            <Card className="max-w-[80%] border-0 shadow-none bg-muted/50">
+              <CardContent className="p-3">
+                {isLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">Thinking...</span>
+                  </div>
+                ) : (
+                  <div className="prose prose-sm dark:prose-invert max-w-none animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    {renderContentWithCitations(message.content)}
+                  </div>
+                )}
+
+                <div
+                  className="text-xs mt-2 text-muted-foreground"
+                  title={new Date(message.createdAt).toLocaleString('en-US', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                  })}
+                >
+                  {new Date(message.createdAt).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
+
+      {!isUser && !isSystem && !isLoading && message.content && (
+        <div className="ml-11">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={handleCopy}
+          >
+            {copied ? (
+              <>
+                <Check className="h-3 w-3 mr-1" />
+                Copied
+              </>
+            ) : (
+              <>
+                <Copy className="h-3 w-3 mr-1" />
+                Copy
+              </>
+            )}
+          </Button>
         </div>
       )}
 
-      <Card
-        className={cn(
-          'max-w-[80%] border-0 shadow-none',
-          isUser && 'bg-primary text-primary-foreground',
-          !isUser && !isSystem && 'bg-muted/50',
-          isSystem && 'bg-muted/50 max-w-[70%]'
-        )}
-      >
-        <CardContent className={cn('p-3', isSystem && 'py-2')}>
-          {isLoading && !isUser && !isSystem ? (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm">Thinking...</span>
-            </div>
-          ) : isUser ? (
-            <div className="whitespace-pre-wrap break-words">{message.content}</div>
-          ) : isSystem ? (
-            <div className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{message.content}</div>
-          ) : (
-            <div className="prose prose-sm dark:prose-invert max-w-none">
-              {renderContentWithCitations(message.content)}
-            </div>
-          )}
-
-          {message.attachments && message.attachments.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {message.attachments.map((attachment) => (
-                <div
-                  key={attachment.id}
-                  className={cn(
-                    'flex items-center gap-2 text-sm p-2 rounded border',
-                    isUser
-                      ? 'border-primary-foreground/20'
-                      : 'border-border'
-                  )}
-                >
-                  <Paperclip className="h-4 w-4" />
-                  <a
-                    href={attachment.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:underline truncate"
-                  >
-                    {attachment.filename}
-                  </a>
-                  <span className={cn(
-                    'text-xs',
-                    isUser ? 'text-primary-foreground/60' : 'text-muted-foreground'
-                  )}>
-                    ({(attachment.size / 1024).toFixed(1)} KB)
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {!isSystem && (
-            <div
-              className={cn(
-                'text-xs mt-2',
-                isUser ? 'text-primary-foreground/60' : 'text-muted-foreground'
-              )}
-              title={new Date(message.createdAt).toLocaleString('en-US', {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-              hour: 'numeric',
-              minute: '2-digit',
-              second: '2-digit',
-              hour12: true
-            })}
-          >
-            {new Date(message.createdAt).toLocaleTimeString('en-US', {
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true
-            })}
-          </div>
-          )}
-        </CardContent>
-      </Card>
-
       {isUser && (
-        <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarImage src={userAvatar} alt={userName || 'User'} />
-          <AvatarFallback>{userName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
-        </Avatar>
+        <>
+          <Card
+            className={cn(
+              'max-w-[80%] border-0 shadow-none',
+              'bg-primary text-primary-foreground'
+            )}
+          >
+            <CardContent className="p-3">
+              <div className="whitespace-pre-wrap break-words">{message.content}</div>
+              
+              {message.attachments && message.attachments.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {message.attachments.map((attachment) => (
+                    <div
+                      key={attachment.id}
+                      className="flex items-center gap-2 text-sm p-2 rounded border border-primary-foreground/20"
+                    >
+                      <Paperclip className="h-4 w-4" />
+                      <a
+                        href={attachment.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline truncate"
+                      >
+                        {attachment.filename}
+                      </a>
+                      <span className="text-xs text-primary-foreground/60">
+                        ({(attachment.size / 1024).toFixed(1)} KB)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div
+                className="text-xs mt-2 text-primary-foreground/60"
+                title={new Date(message.createdAt).toLocaleString('en-US', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: true
+                })}
+              >
+                {new Date(message.createdAt).toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })}
+              </div>
+            </CardContent>
+          </Card>
+          <Avatar className="h-8 w-8 flex-shrink-0">
+            <AvatarImage src={userAvatar} alt={userName || 'User'} />
+            <AvatarFallback>{userName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+          </Avatar>
+        </>
+      )}
+
+      {isSystem && (
+        <Card className="bg-muted/50 max-w-[70%] border-0 shadow-none">
+          <CardContent className="p-3 py-2">
+            <div className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{message.content}</div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

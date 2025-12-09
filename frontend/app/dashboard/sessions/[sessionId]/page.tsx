@@ -7,6 +7,7 @@ import { useStreamMessage } from '@/hooks/use-stream-message';
 import { useAuth } from '@/hooks/use-auth';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSessionAttachments, useDeleteAttachment } from '@/hooks/use-upload';
+import { useSearchOptions } from '@/hooks/use-search-options';
 import ChatMessage from '@/components/ChatMessage';
 import ChatInput from '@/components/ChatInput';
 import FileUploadButton from '@/components/FileUploadButton';
@@ -53,6 +54,7 @@ export default function ChatSessionPage() {
   const { data: sessionAttachments, isLoading: isLoadingAttachments } = useSessionAttachments(sessionId);
   const { sendMessage, isStreaming, streamedContent, error, reset } = useStreamMessage();
   const deleteAttachment = useDeleteAttachment();
+  const { options: searchOptions } = useSearchOptions();
 
   console.log('[SESSION] Current sessionAttachments:', sessionAttachments);
   console.log('[SESSION] isLoadingAttachments:', isLoadingAttachments);
@@ -137,6 +139,7 @@ export default function ChatSessionPage() {
 
     await sendMessage(sessionId, content, {
       attachmentIds: selectedContextIds.length > 0 ? selectedContextIds : undefined,
+      bm25: searchOptions.hybridSearch,
       onComplete: () => {
         queryClient.invalidateQueries({ queryKey: ['conversations', sessionId] });
         setTimeout(() => reset(), 100);
@@ -252,9 +255,9 @@ export default function ChatSessionPage() {
     (att: any) => !att.metadata?.processed && !att.metadata?.error
   ) || false;
   
-  if ((isStreaming || streamedContent) && displayMessages.length > 0) {
+  if (isStreaming && streamedContent && displayMessages.length > 0) {
     const lastMessage = displayMessages[displayMessages.length - 1];
-    if (lastMessage && lastMessage.role === 'assistant' && streamedContent) {
+    if (lastMessage && lastMessage.role === 'assistant') {
       displayMessages[displayMessages.length - 1] = {
         ...lastMessage,
         content: streamedContent,
@@ -333,8 +336,29 @@ export default function ChatSessionPage() {
       <Card className="mt-0 bg-background flex-shrink-0 border-0 border-t rounded-none">
         <CardContent className="p-2 space-y-2">{error && (
             <Card className="border-destructive">
-              <CardContent className="p-3 text-sm text-destructive">
-                Error! The server might be overloaded. Please try again.
+              <CardContent className="p-3 text-sm text-destructive flex items-start justify-between gap-2">
+                <span>Error! The server might be overloaded. Please try again.</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 -mt-0.5 hover:bg-destructive/10"
+                  onClick={() => reset()}
+                >
+                  <span className="sr-only">Dismiss error</span>
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </Button>
               </CardContent>
             </Card>
           )}

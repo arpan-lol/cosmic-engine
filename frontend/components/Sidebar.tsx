@@ -11,7 +11,8 @@ import {
 import * as React from 'react'
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
+import BM25FileSelector from './BM25FileSelector'
 
 import { NavMain } from '@/components/NavMain'
 import { NavUser } from '@/components/NavUser'
@@ -30,8 +31,18 @@ import {
 } from '@/components/ui/sidebar'
 import { useAuth } from '@/hooks/use-auth'
 import { useConversations, useCreateConversation } from '@/hooks/use-conversations'
+import { useSessionAttachments } from '@/hooks/use-upload'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { useSearchOptions } from '@/hooks/use-search-options'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 
 const data = {
   navMain: [
@@ -61,11 +72,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: conversations, isLoading } = useConversations()
   const createConversation = useCreateConversation()
   const router = useRouter()
+  const pathname = usePathname()
+  const { options, toggleHybridSearch } = useSearchOptions()
+  const [showBM25Dialog, setShowBM25Dialog] = useState(false)
   const [user, setUser] = useState<{
     name: string
     email: string
     avatar: string
   }>()
+
+  const sessionId = pathname?.match(/\/dashboard\/sessions\/([^\/]+)/)?.[1]
+  const { data: sessionAttachments } = useSessionAttachments(sessionId || '')
 
   useEffect(() => {
     if (authUser) {
@@ -80,6 +97,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const handleCreateConversation = async () => {
     const result = await createConversation.mutateAsync(undefined)
     router.push(`/dashboard/sessions/${result.sessionId}`)
+  }
+
+  const handleHybridSearchToggle = (checked: boolean) => {
+    if (checked) {
+      setShowBM25Dialog(true)
+    }
+    toggleHybridSearch()
   }
 
   return (
@@ -164,6 +188,38 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </ScrollArea>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {sessionId && (
+          <SidebarGroup>
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="search-strategies" className="border-none">
+                <AccordionTrigger className="py-2 px-2 hover:no-underline">
+                  <SidebarGroupLabel>Search Strategies</SidebarGroupLabel>
+                </AccordionTrigger>
+                <AccordionContent className="px-2 pb-2 space-y-2">
+                  <div className="flex items-center justify-between py-2">
+                    <Label htmlFor="hybrid-search" className="text-sm cursor-pointer">
+                      Hybrid Search
+                    </Label>
+                    <Switch
+                      id="hybrid-search"
+                      checked={options.hybridSearch}
+                      onCheckedChange={handleHybridSearchToggle}
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setShowBM25Dialog(true)}
+                  >
+                    Index Files for BM25
+                  </Button>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       {user && (
         <SidebarFooter>
@@ -171,6 +227,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarFooter>
       )}
     </Sidebar>
+    {sessionId && sessionAttachments && (
+      <BM25FileSelector
+        sessionId={sessionId}
+        attachments={sessionAttachments}
+        open={showBM25Dialog}
+        onOpenChange={setShowBM25Dialog}
+        onIndexingStarted={() => {
+          console.log('BM25 indexing started');
+        }}
+      />
+    )}
     </>
   )
 }
