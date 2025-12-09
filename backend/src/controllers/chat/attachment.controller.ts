@@ -144,6 +144,7 @@ export class AttachmentController {
           mimeType: att.mimeType,
           size: att.size,
           createdAt: att.createdAt,
+          bm25indexStatus: att.bm25indexStatus || 'not started',
           metadata: {
             processed,
             error: !processed && hasFailed ? (metadata?.error || 'Processing failed') : undefined,

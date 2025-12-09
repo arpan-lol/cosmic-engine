@@ -65,13 +65,47 @@ export class SearchService {
     }
   }
 
-  static async getContext(
+  static async getChunk(
     sessionId: string,
-    query: string,
-    topK: number = 10
-  ): Promise<string[]> {
-    const results = await this.search(sessionId, query, topK);
-    return results.map((result) => result.content);
+    attachmentId: string,
+    chunkIndex: number
+  ): Promise<SearchResult | null> {
+    try {
+      const collectionName = CollectionService.generateCName(sessionId);
+      const hasCollection = await CollectionService.hasCollection(collectionName);
+      
+      if (!hasCollection) {
+        console.log(`[Milvus] No collection found for session: ${sessionId}`);
+        return null;
+      }
+
+      const client = getMilvusClient();
+
+      const queryResults = await client.query({
+        collection_name: collectionName,
+        filter: `metadata["attachmentId"] == "${attachmentId}" && chunk_index == ${chunkIndex}`,
+        output_fields: ['content', 'metadata', 'chunk_index'],
+        limit: 1,
+      });
+
+      if (!queryResults.data || queryResults.data.length === 0) {
+        return null;
+      }
+
+      const result = queryResults.data[0];
+      return {
+        content: result.content || '',
+        attachmentId: result.metadata?.attachmentId || attachmentId,
+        filename: result.metadata?.filename || 'unknown',
+        chunkIndex: result.chunk_index || chunkIndex,
+        pageNumber: result.metadata?.pageNumber,
+        score: 0,
+        metadata: result.metadata,
+      };
+    } catch (error) {
+      console.error(`[Milvus] Failed to retrieve chunk ${chunkIndex} for attachment ${attachmentId}:`, error);
+      return null;
+    }
   }
 
   static async getAllChunks(

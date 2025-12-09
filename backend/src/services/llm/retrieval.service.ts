@@ -13,7 +13,7 @@ export interface EnhancedContext {
 }
 
 export class RetrievalService {
-  static async getRelevantContext(
+  static async getContext(
     sessionId: string,
     query: string,
     attachmentIds?: string[],

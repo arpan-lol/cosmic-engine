@@ -1,5 +1,5 @@
-import { GoogleGenAI, Type } from '@google/genai';
-import { RetrievalService, EnhancedContext } from './retrieval.service';
+import { GoogleGenAI, Type, Content, Part } from '@google/genai';
+import { RetrievalService } from './retrieval.service';
 import { buildPrompt } from './prompts/system.prompt';
 import { estimatePromptTokens } from '../../utils/token-estimator.util';
 import { logger } from '../../utils/logger.util';
@@ -15,6 +15,11 @@ const MODEL = 'gemini-2.5-flash';
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
+}
+
+interface ToolAwareResult {
+  finalText: string;
+  contents: Content[];
 }
 
 async function callEndpoint(url: string): Promise<string> {
@@ -57,8 +62,59 @@ const callEndpointDeclaration = {
   ],
 };
 
-export class GenerationService {
+function formatHistory(
+  conversationHistory: ChatMessage[]
+): Content[] {
+  return conversationHistory.map((msg) => ({
+    role: msg.role === 'assistant' ? ('model' as const) : ('user' as const),
+    parts: [{ text: msg.content }],
+  }));
+}
 
+async function* streamWithToolSupport(
+  contents: Content[],
+  sessionId: string
+): AsyncGenerator<{ type: 'token' | 'functionCall'; data: any }> {
+  const stream = await ai.models.generateContentStream({
+    model: MODEL,
+    contents,
+    config: {
+      tools: [callEndpointDeclaration],
+      temperature: 0.7,
+      maxOutputTokens: 2048,
+    },
+  });
+
+  let detectedFunctionCall: any | undefined;
+  let modelPartsForFunctionCall: Part[] | undefined;
+
+  for await (const chunk of stream) {
+    const candidates = chunk.candidates ?? [];
+
+    for (const candidate of candidates) {
+      const parts: Part[] = candidate.content?.parts ?? [];
+
+      for (const part of parts) {
+        if (part.text) {
+          yield { type: 'token', data: part.text };
+        }
+
+        if (part.functionCall) {
+          detectedFunctionCall = part.functionCall;
+          modelPartsForFunctionCall = parts;
+          yield {
+            type: 'functionCall',
+            data: { functionCall: detectedFunctionCall, modelParts: modelPartsForFunctionCall },
+          };
+          return;
+        }
+      }
+    }
+  }
+}
+
+
+export class GenerationService {
   static async *streamResponse(
     sessionId: string,
     query: string,
@@ -67,250 +123,111 @@ export class GenerationService {
     options?: RetrievalOptions
   ): AsyncGenerator<string> {
     try {
-      const enhancedContexts = await RetrievalService.getRelevantContext(sessionId, query, attachmentIds, options);
-
-      const prompt = buildPrompt(query, enhancedContexts, conversationHistory);
-
+      const enhancedContexts = await RetrievalService.getContext(sessionId, query, attachmentIds, options);
+      const systemPromptWithContext = buildPrompt('', enhancedContexts, []);
       const contextStrings = enhancedContexts.map((ctx) => ctx.content);
       const estimatedTokens = estimatePromptTokens(
-        prompt.substring(0, 1000),
+        systemPromptWithContext.substring(0, 1000),
         contextStrings,
         conversationHistory,
         query
       );
       logger.info('Generation', 'Stream prompt token estimate', { estimatedTokens, sessionId });
 
-      let contents = [
+      // initial contents: system (as user instruction), history, and the user query
+      let contents: Content[] = [
         {
           role: 'user' as const,
-          parts: [{ text: prompt }],
+          parts: [{ text: systemPromptWithContext }],
+        },
+        ...formatHistory(conversationHistory),
+        {
+          role: 'user' as const,
+          parts: [{ text: query }],
         },
       ];
 
-      const tools = [callEndpointDeclaration];
-
-      let iterationCount = 0;
       const maxIterations = 10;
+      let iterationCount = 0;
 
       while (iterationCount < maxIterations) {
         iterationCount++;
-        logger.debug('Generation', `Stream iteration ${iterationCount}`, { sessionId });
+        logger.debug('Generation', `Streaming iteration ${iterationCount}`, { sessionId });
 
-        const result = await ai.models.generateContent({
-          model: MODEL,
-          contents: contents,
-          config: {
-            tools: tools,
-            temperature: 0.7,
-            maxOutputTokens: 2048,
-          },
-        });
+        let accumulatedText = '';
+        let functionCallDetected = false;
+        let functionCallData: any = null;
 
-        let responseText = '';
-        if (result.candidates && result.candidates[0] && result.candidates[0].content) {
-          const parts = result.candidates[0].content.parts || [];
-          const textParts = parts.filter((part) => part.text);
-          responseText = textParts.map((part) => part.text).join(' ').trim();
+        for await (const item of streamWithToolSupport(contents, sessionId)) {
+          if (item.type === 'token') {
+            accumulatedText += item.data;
+            yield item.data;
+          } else if (item.type === 'functionCall') {
+            functionCallDetected = true;
+            functionCallData = item.data;
+            break;
+          }
         }
 
-        console.log(`[Generation] Function calls found: ${result.functionCalls?.length || 0}`);
-
-        if (result.functionCalls && result.functionCalls.length > 0) {
-          const functionCall = result.functionCalls[0];
+        if (functionCallDetected && functionCallData) {
+          const { functionCall, modelParts } = functionCallData;
           const { name, args } = functionCall;
 
-          if (!name || !toolFunctions[name]) {
-            throw new Error(`Unknown function call: ${name}`);
-          }
-
-          if (!args || !args.url) {
-            throw new Error(`Missing required 'url' argument for function: ${name}`);
-          }
-
-          console.log(`[Generation] Executing tool: ${name} with URL: ${args.url}`);
-          const toolResponse = await toolFunctions[name](args.url as string);
-
-          const functionResponsePart = {
-            name: functionCall.name,
-            response: {
-              result: toolResponse,
-            },
-          };
-
-          contents.push({
-            role: 'model' as any,
-            parts: result.candidates?.[0]?.content?.parts || [
-              {
-                functionCall: functionCall,
-              } as any,
-            ],
-          });
-
-          contents.push({
-            role: 'user',
-            parts: [
-              {
-                functionResponse: functionResponsePart,
-              } as any,
-            ],
-          });
-
-          continue;
-        } else {
-          logger.info('Generation', 'Streaming final response', { sessionId });
-
-          const streamResult = await ai.models.generateContentStream({
-            model: MODEL,
-            contents: contents,
-            config: {
-              temperature: 0.7,
-              maxOutputTokens: 2048,
-            },
-          });
-
-          for await (const chunk of streamResult) {
-            if (chunk.text) {
-              yield chunk.text;
-            }
-          }
-
-          return;
-        }
-      }
-
-      logger.warn('Generation', `Reached maximum iterations in stream (${maxIterations})`, { sessionId });
-      yield 'Maximum processing iterations reached. Please try rephrasing your question.';
-    } catch (error) {
-      logger.error('Generation', 'Error streaming response', error instanceof Error ? error : undefined, { sessionId });
-      
-      if (isGeminiError(error)) {
-        throw parseGeminiError(error);
-      }
-      
-      throw new ProcessingError('Failed to stream response');
-    }
-  }
-
-  
-
-    static async generateResponse(
-    sessionId: string,
-    query: string,
-    conversationHistory: ChatMessage[] = [],
-    attachmentIds?: string[],
-    options?: RetrievalOptions
-  ): Promise<string> {
-    try {
-      const enhancedContexts = await RetrievalService.getRelevantContext(sessionId, query, attachmentIds, options);
-
-      const prompt = buildPrompt(query, enhancedContexts, conversationHistory);
-
-      const contextStrings = enhancedContexts.map((ctx) => ctx.content);
-      const estimatedTokens = estimatePromptTokens(
-        prompt.substring(0, 1000),
-        contextStrings,
-        conversationHistory,
-        query
-      );
-      logger.info('Generation', 'Non-stream prompt token estimate', { estimatedTokens, sessionId });
-
-      let contents = [
-        {
-          role: 'user' as const,
-          parts: [{ text: prompt }],
-        },
-      ];
-
-      const tools = [callEndpointDeclaration];
-
-      let iterationCount = 0;
-      const maxIterations = 10;
-      let lastResponseText = '';
-
-      while (iterationCount < maxIterations) {
-        iterationCount++;
-        logger.debug('Generation', `Iteration ${iterationCount}`, { sessionId });
-
-        const result = await ai.models.generateContent({
-          model: MODEL,
-          contents: contents,
-          config: {
-            tools: tools,
-            temperature: 0.7,
-          },
-        });
-
-        let responseText = '';
-        if (result.candidates && result.candidates[0] && result.candidates[0].content) {
-          const parts = result.candidates[0].content.parts || [];
-          const textParts = parts.filter((part) => part.text);
-          responseText = textParts.map((part) => part.text).join(' ').trim();
-        }
-
-        lastResponseText = responseText;
-
-        logger.debug('Generation', 'Response text', { preview: responseText.substring(0, 100), sessionId });
-        logger.debug('Generation', 'Function calls found', { count: result.functionCalls?.length || 0, sessionId });
-
-        if (result.functionCalls && result.functionCalls.length > 0) {
-          const functionCall = result.functionCalls[0];
-          const { name, args } = functionCall;
+          logger.info('Generation', `Function call detected during stream: ${name}`, { sessionId });
 
           if (!name || !toolFunctions[name]) {
             logger.error('Generation', `Unknown function call: ${name}`, undefined, { sessionId, functionCall });
             throw new ProcessingError(`Unknown function call: ${name}`);
           }
 
-          if (!args || !args.url) {
-            logger.error('Generation', `Missing required 'url' argument for function: ${name}`, undefined, { sessionId });
-            throw new ProcessingError(`Missing required 'url' argument for function: ${name}`);
+          if (!args || !args.url || typeof args.url !== 'string') {
+            logger.error('Generation', `Missing or invalid 'url' arg for function: ${name}`, undefined, { sessionId, args });
+            throw new ProcessingError(`Missing or invalid 'url' arg for function: ${name}`);
           }
+
+          contents.push({
+            role: 'model' as const,
+            parts: modelParts ?? [{ functionCall }],
+          });
 
           logger.info('Generation', `Executing tool: ${name}`, { url: args.url, sessionId });
           const toolResponse = await toolFunctions[name](args.url as string);
 
-          const functionResponsePart = {
-            name: functionCall.name,
-            response: {
-              result: toolResponse,
-            },
-          };
-
           contents.push({
-            role: 'model' as any,
-            parts: result.candidates?.[0]?.content?.parts || [
-              {
-                functionCall: functionCall,
-              } as any,
-            ],
-          });
-
-          contents.push({
-            role: 'user',
+            role: 'user' as const,
             parts: [
               {
-                functionResponse: functionResponsePart,
+                functionResponse: {
+                  name,
+                  response: {
+                    result: toolResponse,
+                  },
+                },
               } as any,
             ],
           });
 
           continue;
-        } else {
-          logger.info('Generation', 'Final response generated', { sessionId });
-          return responseText || '';
         }
+
+        contents.push({
+          role: 'model' as const,
+          parts: [{ text: accumulatedText }],
+        });
+
+        return;
       }
 
-      logger.warn('Generation', `Reached maximum iterations (${maxIterations}), returning last response`, { sessionId });
-      return lastResponseText || 'Maximum processing iterations reached. Please try rephrasing your question.';
+      logger.warn('Generation', `Reached maximum streaming iterations (${maxIterations})`, { sessionId });
+      yield 'Maximum processing iterations reached. Please try rephrasing your question.';
     } catch (error) {
-      logger.error('Generation', 'Error generating response', error instanceof Error ? error : undefined, { sessionId });
-      
+      logger.error('Generation', 'Error streaming response', error instanceof Error ? error : undefined, { sessionId });
+
       if (isGeminiError(error)) {
         throw parseGeminiError(error);
       }
-      
-      throw new ProcessingError('Failed to generate response');
+
+      throw new ProcessingError('Failed to stream response');
     }
   }
 }
