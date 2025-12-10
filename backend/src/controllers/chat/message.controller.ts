@@ -7,6 +7,7 @@ import {
 } from '../../types/chat.types';
 import { GenerationService } from '../../services/llm/generation.service';
 import { logger } from '../../utils/logger.util';
+import { sseService } from '../../services/sse.service';
 import { UnauthorizedError, NotFoundError, ValidationError, ProcessingError } from '../../types/errors';
 
 export class MessageController {
@@ -118,6 +119,11 @@ export class MessageController {
         res.write(
           `data: ${JSON.stringify({ type: 'error', error: errorMessage })}\n\n`
         );
+        sseService.publishToSession(sessionId, {
+          type: 'error',
+          data: { error: errorMessage },
+          timestamp: new Date().toISOString(),
+        });
       }
 
       res.end();
@@ -134,10 +140,14 @@ export class MessageController {
         } else if (error instanceof Error && error.message) {
           errorMessage = error.message;
         }
-        
         res.write(
           `data: ${JSON.stringify({ type: 'error', error: errorMessage })}\n\n`
         );
+        sseService.publishToSession(sessionId, {
+          type: 'error',
+          data: { error: errorMessage },
+          timestamp: new Date().toISOString(),
+        });
         res.end();
       }
     }

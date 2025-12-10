@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { authenticateJWT } from '../middleware/auth';
 import { ChatController } from '../controllers/chat';
+import { EventsController } from '../controllers/events.controller';
 import { upload } from '../config/upload';
 import { asyncHandler } from '../utils/asyncHandler.util';
 import { BM25Controller } from 'src/controllers/bm25.controllers';
@@ -27,6 +28,8 @@ router.post('/sessions', asyncHandler(ChatController.createSession));
 router.get('/sessions', asyncHandler(ChatController.getSessions));
 router.get('/sessions/:id', asyncHandler(ChatController.getSessionById));
 router.delete('/sessions/:id', asyncHandler(ChatController.deleteSession));
+
+router.get('/sessions/:id/events', corsMiddleware, asyncHandler(EventsController.streamSessionEvents));
 
 router.post('/sessions/:id/message', asyncHandler(ChatController.message));
 router.post('/indexbm25/:id', asyncHandler(BM25Controller.indexFiles))
