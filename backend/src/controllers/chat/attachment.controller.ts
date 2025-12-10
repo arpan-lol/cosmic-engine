@@ -216,12 +216,25 @@ export class AttachmentController {
         throw new NotFoundError('Attachment not found');
       }
 
+      const metadata = attachment.metadata as any;
+      const sessionId = metadata?.sessionId;
+
+      if (sessionId) {
+        const session = await prisma.session.findUnique({
+          where: { id: sessionId, userId },
+        });
+
+        if (!session) {
+          throw new UnauthorizedError('You do not have access to this attachment');
+        }
+      }
+
       sseService.addClient(attachmentId, res);
 
-      logger.info('AttachmentController', `SSE stream started for attachment: ${attachmentId}`);
+      logger.info('AttachmentController', `SSE stream started for attachment: ${attachmentId}`, { userId, sessionId });
     } catch (error) {
       logger.error('AttachmentController', 'Error starting SSE stream', error instanceof Error ? error : undefined, { attachmentId, userId });
-      if (error instanceof NotFoundError) throw error;
+      if (error instanceof NotFoundError || error instanceof UnauthorizedError) throw error;
       next(new ProcessingError('Failed to start stream'));
     }
   }
