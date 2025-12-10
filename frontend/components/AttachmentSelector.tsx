@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { FileText, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -20,6 +21,7 @@ interface Attachment {
   type: string;
   size: number;
   createdAt: string;
+  bm25indexStatus?: string;
   metadata?: {
     processed?: boolean;
     chunkCount?: number;
@@ -32,6 +34,7 @@ interface AttachmentSelectorProps {
   selectedIds: string[];
   onSelectionChange: (ids: string[]) => void;
   isLoading?: boolean;
+  flashTrigger?: number;
 }
 
 export default function AttachmentSelector({
@@ -39,20 +42,26 @@ export default function AttachmentSelector({
   selectedIds,
   onSelectionChange,
   isLoading,
+  flashTrigger,
 }: AttachmentSelectorProps) {
   const [open, setOpen] = useState(false);
+  const [isFlashing, setIsFlashing] = useState(false);
 
-  console.log('[ATTACHMENT_SELECTOR] Received attachments:', attachments);
-  console.log('[ATTACHMENT_SELECTOR] Selected IDs:', selectedIds);
+  useEffect(() => {
+    if (flashTrigger && flashTrigger > 0) {
+      setIsFlashing(true);
+      const timer = setTimeout(() => setIsFlashing(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [flashTrigger]);
+
 
   const processedAttachments = attachments.filter(
     (att) => {
-      console.log(`[ATTACHMENT_SELECTOR] Filtering ${att.filename}:`, att.metadata);
       return att.metadata?.processed;
     }
   );
   
-  console.log('[ATTACHMENT_SELECTOR] Processed attachments:', processedAttachments);
 
   const toggleAttachment = (id: string) => {
     if (selectedIds.includes(id)) {
@@ -73,7 +82,12 @@ export default function AttachmentSelector({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" disabled={isLoading} className="border-primary">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          disabled={isLoading} 
+          className={isFlashing ? "animate-pulse border-primary" : ""}
+        >
           <FileText className="h-4 w-4 mr-2" />
           Select Files ({selectedIds.length})
         </Button>
@@ -123,8 +137,15 @@ export default function AttachmentSelector({
                       onCheckedChange={() => toggleAttachment(attachment.id)}
                     />
                     <div className="flex-1 space-y-1">
-                      <div className="text-sm font-medium leading-none">
-                        {attachment.filename}
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-medium leading-none">
+                          {attachment.filename}
+                        </div>
+                        {attachment.bm25indexStatus === 'completed' && (
+                          <Badge variant="secondary" className="text-xs">
+                            BM25 Indexed
+                          </Badge>
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {(attachment.size / 1024).toFixed(1)} KB

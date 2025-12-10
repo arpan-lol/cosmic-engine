@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import prisma from '../prisma/client';
 
-interface AttachmentClient {
+interface ProgressClient {
   res: Response;
   attachmentId: string;
 }
@@ -25,7 +25,7 @@ export interface EngineEvent {
 }
 
 class SSEService {
-  private attachmentClients: Map<string, AttachmentClient[]> = new Map();
+  private progressClients: Map<string, ProgressClient[]> = new Map();
   private sessionClients: Map<string, SessionClient[]> = new Map();
   private keepAliveIntervals: Map<string, NodeJS.Timeout> = new Map();
 
@@ -52,63 +52,63 @@ class SSEService {
 
   // FILE PROCESSING STREAMS - Per-attachment, short-lived
 
-  addClient(attachmentId: string, res: Response) {
+  addProgressClient(attachmentId: string, res: Response) {
     this.setupSSEHeaders(res);
 
-    const clients = this.attachmentClients.get(attachmentId) || [];
+    const clients = this.progressClients.get(attachmentId) || [];
     clients.push({ res, attachmentId });
-    this.attachmentClients.set(attachmentId, clients);
+    this.progressClients.set(attachmentId, clients);
 
     console.log(`[SSE] Client connected for attachment: ${attachmentId} (total: ${clients.length})`);
 
-    this.sendToAttachment(attachmentId, {
+    this.sendProgress(attachmentId, {
       status: 'connected',
-      message: 'Listening for updates...',
+      message: 'indexing...',
     });
 
     res.on('close', () => {
-      this.removeAttachmentClient(attachmentId, res);
+      this.removeProgressClient(attachmentId, res);
     });
   }
 
-  private removeAttachmentClient(attachmentId: string, res: Response) {
-    const clients = this.attachmentClients.get(attachmentId);
+  private removeProgressClient(attachmentId: string, res: Response) {
+    const clients = this.progressClients.get(attachmentId);
     if (!clients) return;
 
     const filtered = clients.filter(client => client.res !== res);
     
     if (filtered.length === 0) {
-      this.attachmentClients.delete(attachmentId);
+      this.progressClients.delete(attachmentId);
       console.log(`[SSE] No more clients for attachment: ${attachmentId}`);
     } else {
-      this.attachmentClients.set(attachmentId, filtered);
+      this.progressClients.set(attachmentId, filtered);
       console.log(`[SSE] Client disconnected for ${attachmentId} (remaining: ${filtered.length})`);
     }
   }
 
-  sendToAttachment(attachmentId: string, data: any) {
-    const clients = this.attachmentClients.get(attachmentId);
+  sendProgress(attachmentId: string, data: any) {
+    const clients = this.progressClients.get(attachmentId);
     if (!clients || clients.length === 0) return;
 
     clients.forEach(client => {
       const success = this.sendSSE(client.res, data);
       if (!success) {
-        this.removeAttachmentClient(attachmentId, client.res);
+        this.removeProgressClient(attachmentId, client.res);
       }
     });
 
     console.log(`[SSE] Sent to ${clients.length} client(s) for ${attachmentId}:`, data.status);
   }
 
-  closeAttachment(attachmentId: string) {
-    const clients = this.attachmentClients.get(attachmentId);
+  closeProgress(attachmentId: string) {
+    const clients = this.progressClients.get(attachmentId);
     if (!clients) return;
 
     clients.forEach(client => {
       client.res.end();
     });
 
-    this.attachmentClients.delete(attachmentId);
+    this.progressClients.delete(attachmentId);
     console.log(`[SSE] Closed all connections for ${attachmentId}`);
   }
 
@@ -210,15 +210,17 @@ class SSEService {
       console.log(`[EventStream] Published ${event.type} event to ${sentCount} client(s) for session ${sessionId}`);
     }
 
-    prisma.chat.create({
-      data: {
-        sessionId,
-        role: 'system',
-        content: JSON.stringify(eventWithTimestamp),
-      },
-    }).catch((err: any) => {
-      console.error(`[EventStream] Failed to persist event to DB:`, err);
-    });
+    if (event.type === 'notification') {
+      prisma.chat.create({
+        data: {
+          sessionId,
+          role: 'system',
+          content: JSON.stringify(eventWithTimestamp),
+        },
+      }).catch((err: any) => {
+        console.error(`[EventStream] Failed to persist event to DB:`, err);
+      });
+    }
   }
 
   publishToUser(userId: number, event: EngineEvent) {

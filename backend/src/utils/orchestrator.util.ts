@@ -29,7 +29,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
 
     logger.info('Orchestrator', `Processing: ${attachment.filename}`, { attachmentId, sessionId });
 
-    sseService.sendToAttachment(attachmentId, {
+    sseService.sendProgress(attachmentId, {
       status: 'processing',
       step: 'started',
       message: `Processing ${attachment.filename}...`,
@@ -38,7 +38,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
 
     // Step 0: Initialize collection for each session
     logger.info('Orchestrator', 'Step 0: Initializing vector store', { attachmentId, sessionId });
-    sseService.sendToAttachment(attachmentId, {
+    sseService.sendProgress(attachmentId, {
       status: 'processing',
       step: 'initialization',
       message: 'Initializing vector store...',
@@ -48,7 +48,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     await CollectionService.initializeCollection(collectionName);
 
     logger.info('Orchestrator', 'Step 1: Converting to markdown', { attachmentId, sessionId });
-    sseService.sendToAttachment(attachmentId, {
+    sseService.sendProgress(attachmentId, {
       status: 'processing',
       step: 'ingestion',
       message: 'Preprocessing',
@@ -59,7 +59,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
 
     // Step 2-4: Stream-based processing (chunking, embedding, storage)
     logger.info('Orchestrator', 'Steps 2-4: Stream processing chunks', { attachmentId, sessionId, markdownLength: markdown.length });
-    sseService.sendToAttachment(attachmentId, {
+    sseService.sendProgress(attachmentId, {
       status: 'processing',
       step: 'chunking',
       message: `Chunking ${markdown.length} characters`,
@@ -84,7 +84,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       if (newProgress > lastProgress || storedCount - lastReportedCount >= 50) {
         lastProgress = newProgress;
         lastReportedCount = storedCount;
-        sseService.sendToAttachment(attachmentId, {
+        sseService.sendProgress(attachmentId, {
           status: 'processing',
           step: 'embedding',
           message: `Processing vectors (${storedCount} stored)...`,
@@ -96,7 +96,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     logger.info('Orchestrator', `Stream processing completed: ${totalChunks} chunks`, { attachmentId, sessionId, totalChunks });
 
     logger.info('Orchestrator', 'Step 5: Building index and loading collection', { attachmentId, sessionId });
-    sseService.sendToAttachment(attachmentId, {
+    sseService.sendProgress(attachmentId, {
       status: 'processing',
       step: 'indexing',
       message: 'Building search index...',
@@ -123,7 +123,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
 
     logger.info('Orchestrator', `Successfully processed: ${attachmentId}`, { attachmentId, sessionId, totalChunks });
     
-    sseService.sendToAttachment(attachmentId, {
+    sseService.sendProgress(attachmentId, {
       status: 'completed',
       step: 'finished',
       message: `Successfully processed! (${totalChunks} chunks)`,
@@ -149,7 +149,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     });
 
     setTimeout(() => {
-      sseService.closeAttachment(attachmentId);
+      sseService.closeProgress(attachmentId);
     }, 1000);
 
   } catch (error: any) {
@@ -161,7 +161,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       userMessage = error.clientMessage;
     }
 
-    sseService.sendToAttachment(attachmentId, {
+    sseService.sendProgress(attachmentId, {
       status: 'failed',
       step: 'error',
       message: userMessage,
@@ -184,7 +184,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     }
 
     setTimeout(() => {
-      sseService.closeAttachment(attachmentId);
+      sseService.closeProgress(attachmentId);
     }, 1000);
 
     throw error;

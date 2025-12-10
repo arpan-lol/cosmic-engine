@@ -20,6 +20,8 @@ export class MessageController {
     const { id: sessionId } = req.params;
     const { content, attachmentIds, options }: SendMessageRequest = req.body;
 
+    console.log('[MESSAGE] Received request body:', JSON.stringify({ content: content?.substring(0, 50), attachmentIds, options }, null, 2));
+
     if (!content?.trim()) {
       throw new ValidationError('Message content is required');
     }
@@ -111,8 +113,17 @@ export class MessageController {
         
         let errorMessage = 'Processing failed! The server might be overloaded, please try again later.';
         
+        console.log('[MESSAGE] Stream error caught:', {
+          shouldExposeToClient: streamError?.shouldExposeToClient,
+          clientMessage: streamError?.clientMessage,
+          message: streamError?.message,
+          name: streamError?.name
+        });
+        
         if (streamError?.shouldExposeToClient && streamError?.clientMessage) {
           errorMessage = streamError.clientMessage;
+        } else if (streamError?.shouldExposeToClient && streamError instanceof Error && streamError.message) {
+          errorMessage = streamError.message;
         } else if (streamError instanceof Error && streamError.message) {
           errorMessage = streamError.message;
         }

@@ -30,13 +30,12 @@ interface FilePanelProps {
   onClose?: () => void;
   onDocumentClick?: (attachment: Attachment) => void;
   onDeleteAttachment?: (attachmentId: string) => void;
+  bm25Progress?: Record<string, any>;
 }
 
-export default function FilePanel({ attachments, selectedFile, onClose, onDocumentClick, onDeleteAttachment }: FilePanelProps) {
+export default function FilePanel({ attachments, selectedFile, onClose, onDocumentClick, onDeleteAttachment, bm25Progress }: FilePanelProps) {
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  console.log('[FILE_PANEL] Received attachments:', attachments);
-  console.log('[FILE_PANEL] Attachments count:', attachments?.length || 0);
 
   useEffect(() => {
     if (selectedFile?.targetPage) {
@@ -50,12 +49,10 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
     (att) => {
       const isPDF = att.filename.toLowerCase().endsWith('.pdf');
       const isProcessed = att.metadata?.processed;
-      console.log(`[FILE_PANEL] Filtering ${att.filename}:`, { isPDF, isProcessed, metadata: att.metadata });
       return isPDF && isProcessed;
     }
   );
   
-  console.log('[FILE_PANEL] Filtered PDF attachments:', pdfAttachments);
 
   if (!selectedFile && pdfAttachments.length === 0) {
     return (
@@ -97,6 +94,11 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
                         {att.bm25indexStatus === 'completed' && (
                           <Badge variant="secondary" className="text-xs">
                             BM25 Indexed
+                          </Badge>
+                        )}
+                        {(att.bm25indexStatus === 'processing' || att.bm25indexStatus === 'queued') && (
+                          <Badge variant="outline" className="text-xs">
+                            {bm25Progress?.[att.id]?.message || 'Indexing...'}
                           </Badge>
                         )}
                       </div>

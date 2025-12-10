@@ -39,11 +39,26 @@ export class IngestionService {
       });
 
       if (!response.ok) {
-        logger.error('Ingestion', `Python service responded with status: ${response.status}`, undefined, { filePath: absolutePath });
+        const errorText = await response.text();
+        logger.error('Ingestion', `Python service responded with status: ${response.status}`, undefined, { 
+          filePath: absolutePath, 
+          responseBody: errorText.substring(0, 500) 
+        });
         throw new ProcessingError(`Python service responded with status: ${response.status}`);
       }
 
-      const data = await response.json() as PyResponse;
+      const responseText = await response.text();
+      let data: PyResponse;
+      
+      try {
+        data = JSON.parse(responseText) as PyResponse;
+      } catch (parseError) {
+        logger.error('Ingestion', 'Failed to parse Python service response', parseError instanceof Error ? parseError : undefined, { 
+          filePath: absolutePath,
+          responsePreview: responseText.substring(0, 500)
+        });
+        throw new ProcessingError(`Python service returned invalid JSON. Response preview: ${responseText.substring(0, 100)}`);
+      }
 
       if (!data.success) {
         logger.error('Ingestion', 'Python service failed to process file', undefined, { filePath: absolutePath, errorMessage: data.error_message });

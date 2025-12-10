@@ -33,7 +33,7 @@ export class RetrievalService {
       return await this.vectorSearch(sessionId, query, attachmentIds);
     } catch (error) {
       console.error(`[Retrieval] Error getting context for session ${sessionId}:`, error);
-      throw new AppError(`[Retrieval] Error getting context for session ${sessionId}: ${error}`, )
+      throw error;
     }
   }
 

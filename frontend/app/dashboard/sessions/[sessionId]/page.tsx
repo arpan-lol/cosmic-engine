@@ -6,7 +6,7 @@ import { useConversation } from '@/hooks/use-conversations';
 import { useStreamMessage } from '@/hooks/use-stream-message';
 import { useAuth } from '@/hooks/use-auth';
 import { useQueryClient } from '@tanstack/react-query';
-import { useSessionAttachments, useDeleteAttachment } from '@/hooks/use-upload';
+import { useSessionAttachments, useDeleteAttachment, useBM25Progress } from '@/hooks/use-upload';
 import { useSearchOptions } from '@/hooks/use-search-options';
 import { useEngineEvents } from '@/hooks/use-engine-events';
 import ChatMessage from '@/components/ChatMessage';
@@ -15,6 +15,7 @@ import FileUploadButton from '@/components/FileUploadButton';
 import AttachmentSelector from '@/components/AttachmentSelector';
 import FilePanel from '@/components/FilePanel';
 import { SystemMessage } from '@/components/SystemMessage';
+import BM25ProgressCard from '@/components/BM25ProgressCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -56,13 +57,15 @@ export default function ChatSessionPage() {
   const { data: sessionAttachments, isLoading: isLoadingAttachments } = useSessionAttachments(sessionId);
   const { sendMessage, isStreaming, streamedContent, error, reset } = useStreamMessage();
   const deleteAttachment = useDeleteAttachment();
-  const { options: searchOptions } = useSearchOptions();
+  const { options: searchOptions, disableHybridSearch } = useSearchOptions();
+  const bm25Progress = useBM25Progress(sessionId, sessionAttachments);
 
-  console.log('[SESSION] Current sessionAttachments:', sessionAttachments);
-  console.log('[SESSION] isLoadingAttachments:', isLoadingAttachments);
+  console.log('[SESSION] bm25Progress:', bm25Progress);
+  console.log('[SESSION] sessionAttachments:', sessionAttachments);
 
   const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
   const [engineEvents, setEngineEvents] = useState<EngineEvent[]>([]);
+  const [flashTrigger, setFlashTrigger] = useState(0);
 
   const handleEngineEvent = useCallback((event: EngineEvent) => {
     if (event.scope === 'session') {
@@ -119,12 +122,19 @@ export default function ChatSessionPage() {
   }, [selectedContextIds, sessionId]);
 
   useEffect(() => {
-    console.log('[PROCESSING] useEffect triggered');
-    console.log('[PROCESSING] sessionAttachments:', sessionAttachments);
-    console.log('[PROCESSING] uploadedAttachments:', uploadedAttachments);
+    if (sessionAttachments && typeof window !== 'undefined') {
+      const validIds = selectedContextIds.filter((id: string) => 
+        sessionAttachments.some((att: any) => att.id === id)
+      );
+      if (validIds.length !== selectedContextIds.length) {
+        setSelectedContextIds(validIds);
+      }
+    }
+  }, [sessionAttachments]);
+
+  useEffect(() => {
     
     if (!sessionAttachments || uploadedAttachments.length === 0) {
-      console.log('[PROCESSING] Early return - no attachments or no uploads pending');
       return;
     }
 
@@ -132,25 +142,23 @@ export default function ChatSessionPage() {
       .filter((att: any) => {
         const isInUploadedList = uploadedAttachments.includes(att.id);
         const isProcessed = att.metadata?.processed === true;
-        console.log(`[PROCESSING] Attachment ${att.id} (${att.filename}):`, { isInUploadedList, isProcessed, metadata: att.metadata });
         return isInUploadedList && isProcessed;
       })
       .map((att: any) => att.id);
 
-    console.log('[PROCESSING] Processed uploads:', processedUploads);
 
     if (processedUploads.length > 0) {
       setSelectedContextIds(prev => {
         const newIds = processedUploads.filter((id: string) => !prev.includes(id));
-        console.log('[PROCESSING] Adding to selectedContextIds:', newIds);
         return newIds.length > 0 ? [...prev, ...newIds] : prev;
       });
       
       setUploadedAttachments(prev => {
         const updated = prev.filter((id: string) => !processedUploads.includes(id));
-        console.log('[PROCESSING] Cleaning uploadedAttachments:', updated);
         return updated;
       });
+
+      setFlashTrigger(prev => prev + 1);
     }
   }, [sessionAttachments, uploadedAttachments]);
 
@@ -176,6 +184,9 @@ export default function ChatSessionPage() {
 
     setOptimisticMessages(prev => [...prev, userMsg, assistantMsg]);
 
+    console.log('[SESSION] searchOptions.hybridSearch =', searchOptions.hybridSearch);
+    console.log('[SESSION] Sending message with bm25 =', searchOptions.hybridSearch);
+
     await sendMessage(sessionId, content, {
       attachmentIds: selectedContextIds.length > 0 ? selectedContextIds : undefined,
       bm25: searchOptions.hybridSearch,
@@ -192,6 +203,16 @@ export default function ChatSessionPage() {
 
   const handleUploadComplete = (attachmentId: string) => {
     console.log('[UPLOAD] Upload complete for attachment:', attachmentId);
+    
+    if (searchOptions.hybridSearch) {
+      console.log('[UPLOAD] Disabling hybrid search due to new file upload');
+      disableHybridSearch();
+      
+      toast.info('Hybrid Search disabled', {
+        description: 'New files need BM25 indexing before using hybrid search',
+        duration: 5000,
+      });
+    }
     
     setUploadedAttachments((prev) => {
       const updated = [...prev, attachmentId];
@@ -317,6 +338,11 @@ export default function ChatSessionPage() {
   const hasProcessingAttachments = sessionAttachments?.some(
     (att: any) => !att.metadata?.processed && !att.metadata?.error
   ) || false;
+
+  // Check if any attachments are currently being BM25 indexed
+  const hasBM25Indexing = sessionAttachments?.some(
+    (att: any) => att.bm25indexStatus === 'queued' || att.bm25indexStatus === 'processing'
+  ) || false;
   
   if (isStreaming && streamedContent && displayMessages.length > 0) {
     const lastMessage = displayMessages[displayMessages.length - 1];
@@ -368,6 +394,7 @@ export default function ChatSessionPage() {
                 selectedIds={selectedContextIds}
                 onSelectionChange={(ids) => setSelectedContextIds(ids)}
                 isLoading={isLoadingAttachments}
+                flashTrigger={flashTrigger}
               />
             </div>
           </CardHeader>
@@ -445,9 +472,28 @@ export default function ChatSessionPage() {
             <FileUploadButton sessionId={sessionId} onUploadComplete={handleUploadComplete} />
           </div>
 
+          {sessionAttachments && Object.entries(bm25Progress).map(([attachmentId, progressData]) => {
+            console.log('[BM25 RENDER] Rendering progress for:', attachmentId, progressData);
+            const attachment = sessionAttachments.find((att: any) => att.id === attachmentId);
+            if (!attachment) {
+              console.log('[BM25 RENDER] No attachment found for:', attachmentId);
+              return null;
+            }
+            
+            console.log('[BM25 RENDER] Rendering BM25ProgressCard for:', attachment.filename);
+            return (
+              <BM25ProgressCard
+                key={attachmentId}
+                attachmentId={attachmentId}
+                filename={attachment.filename}
+                progressData={progressData}
+              />
+            );
+          })}
+
           <ChatInput
             onSend={handleSendMessage}
-            disabled={isStreaming || isLoadingAttachments || hasProcessingAttachments}
+            disabled={isStreaming || isLoadingAttachments || hasProcessingAttachments || hasBM25Indexing}
             loading={isLoadingAttachments}
             placeholder={
               isStreaming
@@ -456,6 +502,8 @@ export default function ChatSessionPage() {
                 ? 'Loading...'
                 : hasProcessingAttachments
                 ? 'Processing documents...'
+                : hasBM25Indexing
+                ? 'Indexing files for BM25...'
                 : 'Type your message... (Enter to send, Shift+Enter for new line)'
             }
           />
@@ -471,6 +519,7 @@ export default function ChatSessionPage() {
           onClose={() => setSelectedPDF(undefined)}
           onDocumentClick={handleDocumentClick}
           onDeleteAttachment={handleDeleteAttachment}
+          bm25Progress={bm25Progress}
         />
       </div>
 

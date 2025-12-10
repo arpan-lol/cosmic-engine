@@ -73,6 +73,7 @@ export const useAttachmentStatus = (attachmentId: string | null) => {
 export const useAttachmentStream = (attachmentId: string | null) => {
   const [streamStatus, setStreamStatus] = useState<StreamStatus | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!attachmentId) {
@@ -115,6 +116,10 @@ export const useAttachmentStream = (attachmentId: string | null) => {
           setStreamStatus(data);
 
           if (data.status === 'completed' || data.status === 'error') {
+            queryClient.invalidateQueries({ 
+              queryKey: ['sessions', undefined, 'attachments'],
+              refetchType: 'active'
+            });
             eventSource.close();
             setIsConnected(false);
           }
@@ -142,7 +147,7 @@ export const useAttachmentStream = (attachmentId: string | null) => {
       });
       setIsConnected(false);
     };
-  }, [attachmentId]);
+  }, [attachmentId, queryClient]);
 
   return { streamStatus, isConnected };
 };
@@ -161,7 +166,10 @@ export const useSessionAttachments = (sessionId: string | null) => {
       const hasProcessing = data?.some((att: any) => 
         !att.metadata?.processed && !att.metadata?.error
       );
-      return hasProcessing ? 2000 : false;
+      const hasBM25Indexing = data?.some((att: any) => 
+        att.bm25indexStatus === 'queued' || att.bm25indexStatus === 'processing'
+      );
+      return (hasProcessing || hasBM25Indexing) ? 2000 : false;
     },
     staleTime: 1000,
     refetchOnMount: true,
@@ -188,4 +196,85 @@ export const useDeleteAttachment = () => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
   });
+};
+
+export const useBM25Progress = (sessionId: string | null, attachments: any[] | undefined) => {
+  const [progressMap, setProgressMap] = useState<Record<string, StreamStatus>>({});
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!sessionId || !attachments) return;
+
+    const indexingAttachments = attachments.filter((att: any) => 
+      att.bm25indexStatus === 'queued' || att.bm25indexStatus === 'processing'
+    );
+
+    if (indexingAttachments.length === 0) {
+      setProgressMap({});
+      return;
+    }
+
+    const eventSources: EventSource[] = [];
+
+    const connectToStream = async (attachmentId: string) => {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
+      
+      let token: string | null = null;
+      try {
+        const tokenResponse = await fetch('/api/auth/token');
+        if (tokenResponse.ok) {
+          const tokenData = await tokenResponse.json();
+          token = tokenData.token;
+        }
+      } catch (error) {
+        console.error('[BM25 Progress] Failed to get token:', error);
+      }
+      
+      const url = new URL(`${API_BASE_URL}/chat/attachments/${attachmentId}/stream`);
+      if (token) {
+        url.searchParams.set('token', token);
+      }
+      
+      const eventSource = new EventSource(url.toString(), { withCredentials: true });
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data: StreamStatus = JSON.parse(event.data);
+          
+          setProgressMap(prev => ({
+            ...prev,
+            [attachmentId]: data
+          }));
+
+          if (data.status === 'completed' || data.status === 'error') {
+            queryClient.invalidateQueries({ 
+              queryKey: ['sessions', sessionId, 'attachments'],
+              refetchType: 'active'
+            });
+            eventSource.close();
+          }
+        } catch (error) {
+          console.error('[BM25 Progress] Error parsing SSE data:', error);
+        }
+      };
+
+      eventSource.onerror = () => {
+        eventSource.close();
+      };
+
+      return eventSource;
+    };
+
+    indexingAttachments.forEach((att: any) => {
+      connectToStream(att.id).then(es => {
+        if (es) eventSources.push(es);
+      });
+    });
+
+    return () => {
+      eventSources.forEach(es => es.close());
+    };
+  }, [sessionId, attachments, queryClient]);
+
+  return progressMap;
 };

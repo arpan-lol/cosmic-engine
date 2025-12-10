@@ -43,6 +43,14 @@ async function processBM25(
       data: { bm25indexStatus: 'processing' },
     });
 
+    sseService.sendProgress(attachmentId, {
+      status: 'processing',
+      step: 'bm25-started',
+      message: `Starting BM25 indexing for ${attachment.filename}...`,
+      progress: 0,
+      phase: 'bm25',
+    });
+
     logger.info('BM25', 'Step 1: Load chunks', {
       attachmentId,
       sessionId,
@@ -56,6 +64,14 @@ async function processBM25(
         `No chunks found in Milvus for attachment: ${attachmentId}`
       );
     }
+
+    sseService.sendProgress(attachmentId, {
+      status: 'processing',
+      step: 'bm25-tokenizing',
+      message: `Tokenizing ${chunks.length} chunks...`,
+      progress: 25,
+      phase: 'bm25',
+    });
 
     logger.info('BM25', 'Step 2: Tokenize and build TF/DF maps', {
       attachmentId,
@@ -105,6 +121,14 @@ async function processBM25(
       sessionId,
     });
 
+    sseService.sendProgress(attachmentId, {
+      status: 'processing',
+      step: 'bm25-indexing',
+      message: 'Building BM25 index...',
+      progress: 50,
+      phase: 'bm25',
+    });
+
     await prisma.bM25IndexMeta.upsert({
       where: { attachmentId },
       create: {
@@ -152,6 +176,14 @@ async function processBM25(
       entryCount: entriesData.length,
     });
 
+    sseService.sendProgress(attachmentId, {
+      status: 'processing',
+      step: 'bm25-storing',
+      message: `Storing ${entriesData.length} index entries...`,
+      progress: 75,
+      phase: 'bm25',
+    });
+
     //clear old entries before inserting new ones
     await prisma.bM25IndexEntry.deleteMany({
       where: { attachmentId },
@@ -175,6 +207,14 @@ async function processBM25(
       },
     });
 
+    sseService.sendProgress(attachmentId, {
+      status: 'completed',
+      step: 'bm25-finished',
+      message: 'BM25 indexing complete!',
+      progress: 100,
+      phase: 'bm25',
+    });
+
     logger.info(
       'BM25',
       `Successfully indexed: ${attachmentId}`,
@@ -196,6 +236,10 @@ async function processBM25(
       },
       timestamp: new Date().toISOString(),
     });
+
+    setTimeout(() => {
+      sseService.closeProgress(attachmentId);
+    }, 1000);
   } catch (error: any) {
     logger.error(
       'BM25',
@@ -204,6 +248,14 @@ async function processBM25(
       { attachmentId, sessionId }
     );
 
+    sseService.sendProgress(attachmentId, {
+      status: 'failed',
+      step: 'bm25-error',
+      message: 'BM25 indexing failed',
+      progress: 0,
+      phase: 'bm25',
+    });
+
     try {
       await prisma.attachment.update({
         where: { id: attachmentId },
@@ -211,6 +263,10 @@ async function processBM25(
       });
     } catch {
     }
+
+    setTimeout(() => {
+      sseService.closeProgress(attachmentId);
+    }, 1000);
 
     throw error;
   }

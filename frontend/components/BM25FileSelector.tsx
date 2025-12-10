@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { FileText, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { api } from '@/lib/api';
@@ -47,25 +48,38 @@ export default function BM25FileSelector({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const indexableAttachments = attachments.filter(
-    (att) => att.metadata?.processed && (!att.bm25indexStatus || att.bm25indexStatus === 'not started')
+  const processedAttachments = useMemo(() => 
+    attachments.filter((att) => att.metadata?.processed),
+    [attachments]
   );
 
-  const [selectedIds, setSelectedIds] = useState<string[]>(() => {
+  const indexableAttachments = useMemo(() => 
+    processedAttachments.filter(
+      (att) => !att.bm25indexStatus || att.bm25indexStatus === 'not started'
+    ),
+    [processedAttachments]
+  );
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(`session-${sessionId}-selected-files`);
       if (stored) {
         try {
           const storedIds = JSON.parse(stored);
           const indexableIds = indexableAttachments.map(att => att.id);
-          return storedIds.filter((id: string) => indexableIds.includes(id));
+          const validIds = storedIds.filter((id: string) => indexableIds.includes(id));
+          setSelectedIds(validIds);
+          if (validIds.length !== storedIds.length) {
+            localStorage.setItem(`session-${sessionId}-selected-files`, JSON.stringify(validIds));
+          }
         } catch (e) {
-          return [];
+          setSelectedIds([]);
         }
       }
     }
-    return [];
-  });
+  }, [sessionId, indexableAttachments]);
 
   const toggleAttachment = (id: string) => {
     if (selectedIds.includes(id)) {
@@ -118,25 +132,22 @@ export default function BM25FileSelector({
     switch (status) {
       case 'completed':
         return (
-          <span className="flex items-center gap-1 text-xs text-green-600">
-            <CheckCircle2 className="h-3 w-3" />
-            Indexed
-          </span>
+          <Badge variant="secondary" className="text-xs">
+            BM25 Indexed
+          </Badge>
         );
       case 'processing':
       case 'queued':
         return (
-          <span className="flex items-center gap-1 text-xs text-yellow-600">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            {status === 'queued' ? 'Queued' : 'Processing'}
-          </span>
+          <Badge variant="outline" className="text-xs">
+            {status === 'queued' ? 'Queued' : 'Indexing...'}
+          </Badge>
         );
       case 'failed':
         return (
-          <span className="flex items-center gap-1 text-xs text-red-600">
-            <AlertCircle className="h-3 w-3" />
+          <Badge variant="destructive" className="text-xs">
             Failed
-          </span>
+          </Badge>
         );
       default:
         return null;
@@ -149,7 +160,7 @@ export default function BM25FileSelector({
         <DialogHeader className="flex-shrink-0">
           <DialogTitle>Select Files for BM25 Indexing</DialogTitle>
           <DialogDescription>
-            Choose which files to index for hybrid search. Only processed files that haven't been indexed yet are shown.
+            Choose which files to index for hybrid search. Already indexed files are shown but disabled.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 overflow-y-auto flex-1 min-h-0">
@@ -178,23 +189,31 @@ export default function BM25FileSelector({
             </Button>
           </div>
 
-          {indexableAttachments.length === 0 ? (
+          {processedAttachments.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No files available for indexing. Files must be processed and not already indexed.
+              No processed files available.
             </div>
           ) : (
             <ScrollArea className="h-[300px] rounded-md border p-4">
               <div className="space-y-3">
-                {indexableAttachments.map((attachment) => (
+                {processedAttachments.map((attachment) => {
+                  const isAlreadyIndexed = attachment.bm25indexStatus === 'completed' || 
+                                          attachment.bm25indexStatus === 'processing' || 
+                                          attachment.bm25indexStatus === 'queued';
+                  const isDisabled = isSubmitting || isAlreadyIndexed;
+                  
+                  return (
                   <div
                     key={attachment.id}
-                    className="flex items-start space-x-3 p-2 rounded hover:bg-muted cursor-pointer"
-                    onClick={() => !isSubmitting && toggleAttachment(attachment.id)}
+                    className={`flex items-start space-x-3 p-2 rounded ${
+                      isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted cursor-pointer'
+                    }`}
+                    onClick={() => !isDisabled && toggleAttachment(attachment.id)}
                   >
                     <Checkbox
                       checked={selectedIds.includes(attachment.id)}
                       onCheckedChange={() => toggleAttachment(attachment.id)}
-                      disabled={isSubmitting}
+                      disabled={isDisabled}
                     />
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center justify-between">
@@ -211,7 +230,8 @@ export default function BM25FileSelector({
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </ScrollArea>
           )}

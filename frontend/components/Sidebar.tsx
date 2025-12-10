@@ -7,6 +7,7 @@ import {
   MessageSquare,
   Plus,
   PanelLeftClose,
+  Loader2,
 } from 'lucide-react'
 import * as React from 'react'
 import { useEffect, useState } from 'react'
@@ -75,6 +76,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const { options, toggleHybridSearch } = useSearchOptions()
   const [showBM25Dialog, setShowBM25Dialog] = useState(false)
+  const [isCheckingBM25, setIsCheckingBM25] = useState(false)
   const [user, setUser] = useState<{
     name: string
     email: string
@@ -99,11 +101,41 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     router.push(`/dashboard/sessions/${result.sessionId}`)
   }
 
-  const handleHybridSearchToggle = (checked: boolean) => {
+  const handleHybridSearchToggle = async (checked: boolean) => {
+    console.log('[Sidebar] Hybrid search toggle clicked, checked:', checked);
+    
     if (checked) {
-      setShowBM25Dialog(true)
+      // Show loader while checking
+      setIsCheckingBM25(true);
+      
+      try {
+        // Check if ALL selected files are BM25 indexed
+        const allCompleted = sessionAttachments?.every(
+          (att: any) => att.bm25indexStatus === 'completed'
+        );
+        
+        const hasAnyFiles = sessionAttachments && sessionAttachments.length > 0;
+        
+        console.log('[Sidebar] All files BM25 completed:', allCompleted, 'Has files:', hasAnyFiles);
+        
+        if (!hasAnyFiles || !allCompleted) {
+          setShowBM25Dialog(true);
+          setIsCheckingBM25(false);
+          // Don't toggle - keep it OFF
+          return;
+        }
+        
+        // All files are indexed, allow toggle
+        toggleHybridSearch();
+        console.log('[Sidebar] Toggled hybrid search ON');
+      } finally {
+        setIsCheckingBM25(false);
+      }
+    } else {
+      // Turning OFF - no validation needed
+      toggleHybridSearch();
+      console.log('[Sidebar] Toggled hybrid search OFF');
     }
-    toggleHybridSearch()
   }
 
   return (
@@ -155,11 +187,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     <Label htmlFor="hybrid-search" className="text-sm cursor-pointer">
                       Hybrid Search
                     </Label>
-                    <Switch
-                      id="hybrid-search"
-                      checked={options.hybridSearch}
-                      onCheckedChange={handleHybridSearchToggle}
-                    />
+                    {isCheckingBM25 ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    ) : (
+                      <Switch
+                        id="hybrid-search"
+                        checked={options.hybridSearch}
+                        onCheckedChange={handleHybridSearchToggle}
+                        disabled={isCheckingBM25}
+                      />
+                    )}
                   </div>
                   <Button
                     variant="outline"

@@ -50,6 +50,7 @@ export class HybridSearchService {
     // "failed" - Indexing failed due to an error
     
       if(dbData.bm25indexStatus !== "completed"){
+        console.log(`[HybridSearch] Attachment ${attachmentId} bm25indexStatus: ${dbData.bm25indexStatus}`);
         throw new ValidationError("All files must be BM25 indexed before using hybrid search!")
       }
 

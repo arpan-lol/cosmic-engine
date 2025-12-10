@@ -57,6 +57,8 @@ export const useStreamMessage = () => {
           };
         }
 
+        console.log('[STREAM] Sending message with body:', JSON.stringify(requestBody, null, 2));
+
         const response = await fetch(
           `${API_BASE_URL}/chat/sessions/${sessionId}/message`,
           {

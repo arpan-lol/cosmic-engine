@@ -69,7 +69,7 @@ export class AttachmentController {
         },
       });
 
-      sseService.sendToAttachment(attachment.id, {
+      sseService.sendProgress(attachment.id, {
         status: 'processing',
         step: 'queued',
         message: `Upload complete, queuing ${file.originalname}...`,
@@ -229,7 +229,7 @@ export class AttachmentController {
         }
       }
 
-      sseService.addClient(attachmentId, res);
+      sseService.addProgressClient(attachmentId, res);
 
       logger.info('AttachmentController', `SSE stream started for attachment: ${attachmentId}`, { userId, sessionId });
     } catch (error) {
