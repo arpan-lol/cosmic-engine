@@ -61,7 +61,7 @@
   
   --foreground: #1a1a1c;
   
-  --background: oklch(0.978 0 0);
+  --background: white;
   --card: oklch(0.992 0.003 41.4);
   --card-foreground: #1a1a1c;
   --popover: oklch(0.992 0.003 41.4);
@@ -92,7 +92,7 @@
   --chart-4: #ffe5a0;
   --chart-5: #ffd980;
   
-  --sidebar: oklch(0.965 0.008 41.4);
+  --sidebar: oklch(0.992 0.003 41.4);
   --sidebar-foreground: #1a1a1c;
   --sidebar-primary: #ffd061;
   --sidebar-primary-foreground: #1a1a1c;
@@ -151,7 +151,7 @@
   --chart-4: #ffe5a0;
   --chart-5: #ffd980;
   
-  --sidebar: oklch(0.12 0 0);
+  --sidebar: oklch(0.15 0 0);
   --sidebar-foreground: oklch(0.98 0 0);
   --sidebar-primary: #ffd061;
   --sidebar-primary-foreground: oklch(0.1 0 0);

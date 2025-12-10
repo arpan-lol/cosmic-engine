@@ -132,6 +132,22 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       embeddingCount: totalChunks,
     });
 
+    await sseService.publishToSession(sessionId, {
+      type: 'notification',
+      scope: 'session',
+      message: `${attachment.filename} processed successfully`,
+      data: {
+        title: 'File Processing Complete',
+        body: [
+          `File: ${attachment.filename}`,
+          `Chunks created: ${totalChunks}`,
+          `Embeddings generated: ${totalChunks}`,
+          `Ready for semantic search`,
+        ],
+      },
+      timestamp: new Date().toISOString(),
+    });
+
     setTimeout(() => {
       sseService.closeAttachment(attachmentId);
     }, 1000);

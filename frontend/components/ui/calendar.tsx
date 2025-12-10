@@ -149,7 +149,7 @@ function Calendar({
           }
 
           return (
-            <ChevronDownIcon className={cn("size-4", className)} {...props} />
+            <ChevronDownIcon className={cn("size-4 hover:cursor-pointer", className)} {...props} />
           )
         },
         DayButton: CalendarDayButton,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useConversation } from '@/hooks/use-conversations';
 import { useStreamMessage } from '@/hooks/use-stream-message';
@@ -8,17 +8,19 @@ import { useAuth } from '@/hooks/use-auth';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSessionAttachments, useDeleteAttachment } from '@/hooks/use-upload';
 import { useSearchOptions } from '@/hooks/use-search-options';
+import { useEngineEvents } from '@/hooks/use-engine-events';
 import ChatMessage from '@/components/ChatMessage';
 import ChatInput from '@/components/ChatInput';
 import FileUploadButton from '@/components/FileUploadButton';
 import AttachmentSelector from '@/components/AttachmentSelector';
 import FilePanel from '@/components/FilePanel';
+import { SystemMessage } from '@/components/SystemMessage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import type { Message } from '@/lib/types';
+import type { Message, EngineEvent } from '@/lib/types';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -60,10 +62,47 @@ export default function ChatSessionPage() {
   console.log('[SESSION] isLoadingAttachments:', isLoadingAttachments);
 
   const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
+  const [engineEvents, setEngineEvents] = useState<EngineEvent[]>([]);
+
+  const handleEngineEvent = useCallback((event: EngineEvent) => {
+    if (event.scope === 'session') {
+      setEngineEvents(prev => [...prev, event]);
+    } else if (event.scope === 'user') {
+      toast(event.message, {
+        description: event.data?.title,
+        duration: 10000,
+      });
+    }
+  }, []);
+
+  useEngineEvents({
+    sessionId,
+    onEvent: handleEngineEvent,
+    onError: (error) => {
+      console.error('[EngineEvents] Connection error:', error);
+    },
+  });
 
   useEffect(() => {
     if (conversation?.messages) {
-      setOptimisticMessages(conversation.messages);
+      const regularMessages: Message[] = [];
+      const systemEvents: EngineEvent[] = [];
+
+      conversation.messages.forEach(msg => {
+        if (msg.role === 'system') {
+          try {
+            const event = JSON.parse(msg.content) as EngineEvent;
+            systemEvents.push(event);
+          } catch (error) {
+            console.error('[Session] Failed to parse system message:', error);
+          }
+        } else {
+          regularMessages.push(msg);
+        }
+      });
+
+      setOptimisticMessages(regularMessages);
+      setEngineEvents(systemEvents);
     }
   }, [conversation?.messages]);
 
@@ -247,7 +286,31 @@ export default function ChatSessionPage() {
     );
   }
 
+  type TimelineItem = 
+    | { type: 'message'; data: Message }
+    | { type: 'event'; data: EngineEvent };
+
   const displayMessages = [...optimisticMessages];
+
+  if (isStreaming && streamedContent) {
+    const lastMessage = displayMessages[displayMessages.length - 1];
+    if (lastMessage && lastMessage.role === 'assistant') {
+      displayMessages[displayMessages.length - 1] = {
+        ...lastMessage,
+        content: streamedContent,
+      };
+    }
+  }
+
+  const timeline: TimelineItem[] = [
+    ...displayMessages.map(msg => ({ type: 'message' as const, data: msg })),
+    ...engineEvents.map(evt => ({ type: 'event' as const, data: evt })),
+  ].sort((a, b) => {
+    const timeA = a.type === 'message' ? a.data.createdAt : a.data.timestamp;
+    const timeB = b.type === 'message' ? b.data.createdAt : b.data.timestamp;
+    return new Date(timeA).getTime() - new Date(timeB).getTime();
+  });
+
   const isLoadingResponse = isStreaming && !streamedContent;
   
   // Check if any attachments are currently being processed
@@ -310,24 +373,39 @@ export default function ChatSessionPage() {
           </CardHeader>
         </Card>
 
-        <div className="flex-1 overflow-y-auto min-h-0" ref={scrollAreaRef}>
+        <div className="flex-1 overflow-y-auto min-h-0 bg-background" ref={scrollAreaRef}>
         <div className="p-4">
-          {displayMessages.length === 0 ? (
+          {timeline.length === 0 ? (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               Start a conversation by sending a message
             </div>
           ) : (
             <div>
-              {displayMessages.map((message, index) => (
-                <ChatMessage 
-                  key={message.id} 
-                  message={message} 
-                  userAvatar={authUser?.picture}
-                  userName={authUser?.name}
-                  isLoading={isLoadingResponse && index === displayMessages.length - 1 && message.role === 'assistant'}
-                  onCitationClick={handleCitationClick}
-                />
-              ))}
+              {timeline.map((item, index) => {
+                if (item.type === 'message') {
+                  const isLastAssistantMessage = 
+                    index === timeline.length - 1 && 
+                    item.data.role === 'assistant';
+                  
+                  return (
+                    <ChatMessage 
+                      key={item.data.id} 
+                      message={item.data} 
+                      userAvatar={authUser?.picture}
+                      userName={authUser?.name}
+                      isLoading={isLoadingResponse && isLastAssistantMessage}
+                      onCitationClick={handleCitationClick}
+                    />
+                  );
+                } else {
+                  return (
+                    <SystemMessage 
+                      key={item.data.timestamp} 
+                      event={item.data} 
+                    />
+                  );
+                }
+              })}
             </div>
           )}
         </div>

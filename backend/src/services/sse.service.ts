@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import prisma from '../prisma/client';
 
 interface AttachmentClient {
   res: Response;
@@ -13,14 +14,20 @@ interface SessionClient {
 
 export interface EngineEvent {
   type: 'notification' | 'error';
+  scope: 'session' | 'user';
   sessionId?: string;
-  data: any;
+  message: string;
+  data?: {
+    title: string;
+    body: string[];
+  };
   timestamp: string;
 }
 
 class SSEService {
   private attachmentClients: Map<string, AttachmentClient[]> = new Map();
   private sessionClients: Map<string, SessionClient[]> = new Map();
+  private keepAliveIntervals: Map<string, NodeJS.Timeout> = new Map();
 
   private setupSSEHeaders(res: Response) {
     const origin = process.env.FRONTEND_ORIGIN || 'https://cosmicengine.arpantaneja.dev';
@@ -123,6 +130,29 @@ class SSEService {
       timestamp: new Date().toISOString(),
     });
 
+    if (!this.keepAliveIntervals.has(clientKey)) {
+      const interval = setInterval(() => {
+        const currentClients = this.sessionClients.get(clientKey);
+        if (currentClients && currentClients.length > 0) {
+          currentClients.forEach(client => {
+            try {
+              res.write(':keep-alive\n\n');
+            } catch (error) {
+              console.error(`[EventStream] Keep-alive failed for ${clientKey}`);
+            }
+          });
+        } else {
+          const keepAlive = this.keepAliveIntervals.get(clientKey);
+          if (keepAlive) {
+            clearInterval(keepAlive);
+            this.keepAliveIntervals.delete(clientKey);
+          }
+        }
+      }, 30000);
+      
+      this.keepAliveIntervals.set(clientKey, interval);
+    }
+
     res.on('close', () => {
       this.removeSessionClient(userId, sessionId, res);
     });
@@ -137,6 +167,13 @@ class SSEService {
     
     if (filtered.length === 0) {
       this.sessionClients.delete(clientKey);
+      
+      const keepAlive = this.keepAliveIntervals.get(clientKey);
+      if (keepAlive) {
+        clearInterval(keepAlive);
+        this.keepAliveIntervals.delete(clientKey);
+      }
+      
       console.log(`[EventStream] No more clients for session: ${sessionId}`);
     } else {
       this.sessionClients.set(clientKey, filtered);
@@ -144,19 +181,22 @@ class SSEService {
     }
   }
 
-  publishToSession(sessionId: string, event: EngineEvent) {
+  async publishToSession(sessionId: string, event: EngineEvent) {
     const allClients = Array.from(this.sessionClients.entries());
     let sentCount = 0;
+
+    const eventWithTimestamp = {
+      ...event,
+      scope: 'session' as const,
+      sessionId,
+      timestamp: event.timestamp || new Date().toISOString(),
+    };
 
     allClients.forEach(([clientKey, clients]) => {
       const [, clientSessionId] = clientKey.split(':');
       if (clientSessionId === sessionId) {
         clients.forEach(client => {
-          const success = this.sendSSE(client.res, {
-            ...event,
-            sessionId,
-            timestamp: event.timestamp || new Date().toISOString(),
-          });
+          const success = this.sendSSE(client.res, eventWithTimestamp);
           if (success) {
             sentCount++;
           } else {
@@ -169,20 +209,33 @@ class SSEService {
     if (sentCount > 0) {
       console.log(`[EventStream] Published ${event.type} event to ${sentCount} client(s) for session ${sessionId}`);
     }
+
+    prisma.chat.create({
+      data: {
+        sessionId,
+        role: 'system',
+        content: JSON.stringify(eventWithTimestamp),
+      },
+    }).catch((err: any) => {
+      console.error(`[EventStream] Failed to persist event to DB:`, err);
+    });
   }
 
   publishToUser(userId: number, event: EngineEvent) {
     const allClients = Array.from(this.sessionClients.entries());
     let sentCount = 0;
 
+    const eventWithTimestamp = {
+      ...event,
+      scope: 'user' as const,
+      timestamp: event.timestamp || new Date().toISOString(),
+    };
+
     allClients.forEach(([clientKey, clients]) => {
       const [clientUserId] = clientKey.split(':');
       if (parseInt(clientUserId) === userId) {
         clients.forEach(client => {
-          const success = this.sendSSE(client.res, {
-            ...event,
-            timestamp: event.timestamp || new Date().toISOString(),
-          });
+          const success = this.sendSSE(client.res, eventWithTimestamp);
           if (success) {
             sentCount++;
           } else {

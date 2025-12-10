@@ -143,8 +143,40 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
+        {sessionId && (
+          <SidebarGroup>
+            <Accordion type="single" collapsible className="w-full" defaultValue="search-strategies">
+              <AccordionItem value="search-strategies" className="border-none">
+                <AccordionTrigger className="py-2 hover:no-underline">
+                  <SidebarGroupLabel className="px-0">Search Strategies</SidebarGroupLabel>
+                </AccordionTrigger>
+                <AccordionContent className="pb-2 space-y-2">
+                  <div className="flex items-center justify-between py-2">
+                    <Label htmlFor="hybrid-search" className="text-sm cursor-pointer">
+                      Hybrid Search
+                    </Label>
+                    <Switch
+                      id="hybrid-search"
+                      checked={options.hybridSearch}
+                      onCheckedChange={handleHybridSearchToggle}
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setShowBM25Dialog(true)}
+                  >
+                    Index Files for BM25
+                  </Button>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </SidebarGroup>
+        )}
+
         <SidebarGroup>
-          <SidebarGroupLabel className="flex items-center justify-between">
+          <SidebarGroupLabel className="flex items-center justify-between px-0">
             <span>Conversations</span>
             <Button
               variant="ghost"
@@ -188,38 +220,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </ScrollArea>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {sessionId && (
-          <SidebarGroup>
-            <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="search-strategies" className="border-none">
-                <AccordionTrigger className="py-2 px-2 hover:no-underline">
-                  <SidebarGroupLabel>Search Strategies</SidebarGroupLabel>
-                </AccordionTrigger>
-                <AccordionContent className="px-2 pb-2 space-y-2">
-                  <div className="flex items-center justify-between py-2">
-                    <Label htmlFor="hybrid-search" className="text-sm cursor-pointer">
-                      Hybrid Search
-                    </Label>
-                    <Switch
-                      id="hybrid-search"
-                      checked={options.hybridSearch}
-                      onCheckedChange={handleHybridSearchToggle}
-                    />
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => setShowBM25Dialog(true)}
-                  >
-                    Index Files for BM25
-                  </Button>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </SidebarGroup>
-        )}
       </SidebarContent>
       {user && (
         <SidebarFooter>

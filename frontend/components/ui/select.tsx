@@ -44,7 +44,7 @@ function SelectTrigger({
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <ChevronDownIcon className="size-4 opacity-50" />
+        <ChevronDownIcon className="size-4 opacity-50 hover:cursor-pointer" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   )
@@ -166,7 +166,7 @@ function SelectScrollDownButton({
       )}
       {...props}
     >
-      <ChevronDownIcon className="size-4" />
+      <ChevronDownIcon className="size-4 hover:cursor-pointer" />
     </SelectPrimitive.ScrollDownButton>
   )
 }

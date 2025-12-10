@@ -84,7 +84,7 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
               {pdfAttachments.map((att) => (
                 <Card
                   key={att.id}
-                  className="p-3 hover:bg-muted/50 transition-colors"
+                  className="p-3 hover:bg-muted/50 transition-colors mb-2"
                 >
                   <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4 text-muted-foreground" />

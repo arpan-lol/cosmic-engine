@@ -3,6 +3,7 @@ import { logger } from './logger.util';
 import { ProcessingError } from '../types/errors';
 import { Chunk } from 'src/services/chunking.service';
 import { SearchService } from 'src/services/milvus';
+import { sseService } from '../services/sse.service';
 
 function tokenize(text: string): string[] {
   return text
@@ -179,6 +180,22 @@ async function processBM25(
       `Successfully indexed: ${attachmentId}`,
       { attachmentId, sessionId }
     );
+
+    await sseService.publishToSession(sessionId, {
+      type: 'notification',
+      scope: 'session',
+      message: `${attachment.filename} indexed for keyword search`,
+      data: {
+        title: 'BM25 Index Complete',
+        body: [
+          `File: ${attachment.filename}`,
+          `Total chunks indexed: ${totalDocs}`,
+          `Unique terms: ${Object.keys(dfMap).length}`,
+          `Ready for hybrid search`,
+        ],
+      },
+      timestamp: new Date().toISOString(),
+    });
   } catch (error: any) {
     logger.error(
       'BM25',

@@ -25,6 +25,18 @@ export interface Message {
   attachments?: Attachment[];
 }
 
+export interface EngineEvent {
+  type: 'notification' | 'error';
+  scope: 'session' | 'user';
+  sessionId?: string;
+  message: string;
+  data?: {
+    title: string;
+    body: string[];
+  };
+  timestamp: string;
+}
+
 export interface Attachment {
   id: string;
   messageId?: string;

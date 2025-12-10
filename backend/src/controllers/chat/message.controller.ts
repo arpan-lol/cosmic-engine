@@ -122,8 +122,11 @@ export class MessageController {
         );
         sseService.publishToSession(sessionId, {
           type: 'error',
-          data: { error: errorMessage },
+          scope: 'session',
+          message: errorMessage,
           timestamp: new Date().toISOString(),
+        }).catch((err: any) => {
+          logger.error('MessageController', 'Failed to publish error event', err);
         });
       }
 
@@ -146,8 +149,11 @@ export class MessageController {
         );
         sseService.publishToSession(sessionId, {
           type: 'error',
-          data: { error: errorMessage },
+          scope: 'session',
+          message: errorMessage,
           timestamp: new Date().toISOString(),
+        }).catch((err: any) => {
+          logger.error('MessageController', 'Failed to publish error event', err);
         });
         res.end();
       }
