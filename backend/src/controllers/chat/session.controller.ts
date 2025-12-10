@@ -72,6 +72,7 @@ export class SessionController {
         where: { id, userId },
         include: {
           chats: {
+            where: { role: { not: 'system' } },
             orderBy: { createdAt: 'asc' },
             include: {
               attachments: true,

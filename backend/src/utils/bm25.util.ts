@@ -42,14 +42,6 @@ async function processBM25(
       data: { bm25indexStatus: 'processing' },
     });
 
-    await prisma.chat.create({
-      data: {
-        sessionId,
-        role: 'system',
-        content: `🔍 Started BM25 indexing for ${attachment.filename}`,
-      },
-    });
-
     logger.info('BM25', 'Step 1: Load chunks', {
       attachmentId,
       sessionId,

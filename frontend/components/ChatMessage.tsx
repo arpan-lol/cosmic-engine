@@ -70,7 +70,6 @@ function parseCitations(text: string): (string | Citation)[] {
 
 export default function ChatMessage({ message, userAvatar, userName, isLoading, onCitationClick }: ChatMessageProps) {
   const isUser = message.role === 'user';
-  const isSystem = message.role === 'system';
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -165,11 +164,10 @@ export default function ChatMessage({ message, userAvatar, userName, isLoading, 
       className={cn(
         'mb-4',
         isUser && 'flex gap-3 items-start justify-end',
-        !isUser && !isSystem && 'flex flex-col gap-2',
-        isSystem && 'flex justify-center'
+        !isUser && 'flex flex-col gap-2'
       )}
     >
-      {!isUser && !isSystem && (
+      {!isUser && (
         <>
           <div className="flex gap-3 items-start">
             <div className="h-8 w-8 flex-shrink-0">
@@ -213,7 +211,7 @@ export default function ChatMessage({ message, userAvatar, userName, isLoading, 
         </>
       )}
 
-      {!isUser && !isSystem && !isLoading && message.content && (
+      {!isUser && !isLoading && message.content && (
         <div className="ml-11">
           <Button
             variant="ghost"
@@ -297,14 +295,6 @@ export default function ChatMessage({ message, userAvatar, userName, isLoading, 
             <AvatarFallback>{userName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
           </Avatar>
         </>
-      )}
-
-      {isSystem && (
-        <Card className="bg-muted/50 max-w-[70%] border-0 shadow-none">
-          <CardContent className="p-3 py-2">
-            <div className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{message.content}</div>
-          </CardContent>
-        </Card>
       )}
     </div>
   );

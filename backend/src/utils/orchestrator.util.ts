@@ -29,14 +29,6 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
 
     logger.info('Orchestrator', `Processing: ${attachment.filename}`, { attachmentId, sessionId });
 
-    await prisma.chat.create({
-      data: {
-        sessionId,
-        role: 'system',
-        content: `📤 Started processing ${attachment.filename}`,
-      },
-    });
-
     sseService.sendToAttachment(attachmentId, {
       status: 'processing',
       step: 'started',
@@ -102,14 +94,6 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     }
 
     logger.info('Orchestrator', `Stream processing completed: ${totalChunks} chunks`, { attachmentId, sessionId, totalChunks });
-
-    await prisma.chat.create({
-      data: {
-        sessionId,
-        role: 'system',
-        content: `📄 Processed ${attachment.filename}: ${totalChunks} chunks • ${totalChunks} vectors created`,
-      },
-    });
 
     logger.info('Orchestrator', 'Step 5: Building index and loading collection', { attachmentId, sessionId });
     sseService.sendToAttachment(attachmentId, {

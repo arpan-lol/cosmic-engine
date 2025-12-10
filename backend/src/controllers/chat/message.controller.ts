@@ -29,6 +29,7 @@ export class MessageController {
         where: { id: sessionId, userId },
         include: {
           chats: {
+            where: { role: { not: 'system' } },
             orderBy: { createdAt: 'asc' },
             take: 20,
           },
