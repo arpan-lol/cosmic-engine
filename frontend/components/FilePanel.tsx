@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FileText, X, ArrowLeft, Trash2 } from 'lucide-react';
+import { FileText, X, ArrowLeft, Trash2, ExternalLink } from 'lucide-react';
 import { EngineEvent } from '@/lib/types';
 import LogsPanel from './LogsPanel';
+import ChunkViewer from './ChunkViewer';
 
 const PDFViewer = dynamic(() => import('./PDFViewer'), {
   loading: () => <div>Loading PDF...</div>,
@@ -39,6 +40,8 @@ interface FilePanelProps {
 
 export default function FilePanel({ attachments, selectedFile, onClose, onDocumentClick, onDeleteAttachment, bm25Progress, logs = [], sessionId }: FilePanelProps) {
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [chunkViewerOpen, setChunkViewerOpen] = useState(false);
+  const [selectedAttachment, setSelectedAttachment] = useState<{ id: string; filename: string } | null>(null);
 
 
   useEffect(() => {
@@ -48,6 +51,11 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
       setCurrentPage(1);
     }
   }, [selectedFile?.targetPage, selectedFile?.url]);
+
+  const handleViewChunks = (attachment: Attachment) => {
+    setSelectedAttachment({ id: attachment.id, filename: attachment.filename });
+    setChunkViewerOpen(true);
+  };
 
   const pdfAttachments = attachments.filter(
     (att) => {
@@ -114,6 +122,19 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
                         {(att.size / 1024).toFixed(1)} KB
                       </p>
                     </div>
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewChunks(att);
+                      }}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+
                     <Button
                       variant="ghost"
                       size="icon"
@@ -125,6 +146,7 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
+
                   </div>
                 </Card>
               ))}
@@ -132,6 +154,15 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
           </CardContent>
         </Card>
         <LogsPanel logs={logs} isDocumentOpen={false} sessionId={sessionId} />
+        {selectedAttachment && (
+          <ChunkViewer
+            open={chunkViewerOpen}
+            onOpenChange={setChunkViewerOpen}
+            sessionId={sessionId}
+            attachmentId={selectedAttachment.id}
+            filename={selectedAttachment.filename}
+          />
+        )}
       </div>
     );
   }
