@@ -23,7 +23,7 @@ router.get('/google', (req, res) => {
   res.redirect(url);
 });
 
-router.get('/google/callback', asyncHandler(async (req, res) => {
+router.get('/google/callback', asyncHandler(async (req: AuthRequest, res: Response) => {
   const code = req.query.code as string;
   if (!code) {
     logger.error('Auth', 'Missing authorization code');
@@ -88,7 +88,7 @@ router.get('/google/callback', asyncHandler(async (req, res) => {
   }
 }));
 
-router.post('/guest', asyncHandler(async (req, res) => {
+router.post('/guest', asyncHandler(async (req: AuthRequest, res: Response) => {
   try {
     let guestUser = await prisma.user.findUnique({
       where: { email: 'guest@cosmicengine' }
@@ -123,7 +123,7 @@ router.post('/guest', asyncHandler(async (req, res) => {
   }
 }));
 
-router.post('/refresh', asyncHandler(async (req, res) => {
+router.post('/refresh', asyncHandler(async (req: AuthRequest, res: Response) => {
   const authHeader = req.headers.authorization as string | undefined;
   let oldToken: string | undefined;
   if (authHeader?.startsWith('Bearer ')) {

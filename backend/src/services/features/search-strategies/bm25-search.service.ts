@@ -6,18 +6,26 @@ export class BM25Search {
     attachmentId: string,
     query: string,
     topK: number
-  ): Promise<Array<{ chunkIndex: number; score: number }>> {
+  ): Promise<{
+    data: Array<{ chunkIndex: number; score: number }>;
+    rows: any[];
+    scores: Record<number, number>;
+  }> {
 
     const tokens = tokenize(query);
 
-    if (tokens.length === 0) return [];
+    if (tokens.length === 0) {
+      return { data: [], rows: [], scores: {} };
+    }
 
     // 1) get meta
     const meta = await prisma.bM25IndexMeta.findUnique({
       where: { attachmentId },
     });
 
-    if (!meta) return [];
+    if (!meta) {
+      return { data: [], rows: [], scores: {} };
+    }
 
     const { totalDocs, avgChunkLength } = meta;
 
@@ -49,12 +57,14 @@ export class BM25Search {
       scores[row.chunkIndex] = (scores[row.chunkIndex] || 0) + score;
     }
 
-    return Object.entries(scores)
+    const data = Object.entries(scores)
       .map(([chunkIndex, score]) => ({
         chunkIndex: Number(chunkIndex),
         score,
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, topK);
+
+    return { data, rows, scores };
   }
 }

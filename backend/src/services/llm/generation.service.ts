@@ -5,6 +5,7 @@ import { estimatePromptTokens } from '../../utils/token-estimator.util';
 import { logger } from '../../utils/logger.util';
 import { isGeminiError, parseGeminiError, ProcessingError } from '../../types/errors';
 import { RetrievalOptions } from '../../types/chat.types';
+import { sseService } from '../sse.service';
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GOOGLE_GENAI_API_KEY,
@@ -125,6 +126,20 @@ export class GenerationService {
     try {
       const enhancedContexts = await RetrievalService.getContext(sessionId, query, attachmentIds, options);
       
+      await sseService.publishToSession(sessionId, {
+      type: 'notification',
+      scope: 'session',
+      message: 'retrieval-complete',
+      showInChat: false,
+      data: {
+        title: 'Retrieved context',
+        body: enhancedContexts.map(ctx =>
+          `${ctx.filename} • chunk ${ctx.chunkIndex} • page ${ctx.pageNumber ?? '-'}`
+        )
+      },
+      timestamp: new Date().toISOString()
+    });
+
       //TODO: remove debugging karne ke baad
       if (attachmentIds && attachmentIds.length > 0) {
         console.log('[CHUNKS] Retrieved chunks for attachments:');
@@ -160,6 +175,19 @@ export class GenerationService {
 
       const maxIterations = 10;
       let iterationCount = 0;
+
+      await sseService.publishToSession(sessionId, {
+        type: 'notification',
+        scope: 'session',
+        message: 'generation-started',
+        showInChat: false,
+        data: {
+          title: 'Started generating response',
+          body: [`Query: ${query}`]
+        },
+        timestamp: new Date().toISOString()
+      });
+
 
       while (iterationCount < maxIterations) {
         iterationCount++;
@@ -203,6 +231,17 @@ export class GenerationService {
 
           logger.info('Generation', `Executing tool: ${name}`, { url: args.url, sessionId });
           const toolResponse = await toolFunctions[name](args.url as string);
+          await sseService.publishToSession(sessionId, {
+            type: 'notification',
+            scope: 'session',
+            message: 'tool-response',
+            showInChat: false,
+            data: {
+              title: `Tool executed: ${name}`,
+              body: [`Response length: ${toolResponse.length}`]
+            },
+            timestamp: new Date().toISOString()
+          });
 
           contents.push({
             role: 'user' as const,
@@ -226,6 +265,18 @@ export class GenerationService {
           parts: [{ text: accumulatedText }],
         });
 
+        await sseService.publishToSession(sessionId, {
+          type: 'notification',
+          scope: 'session',
+          message: 'generation-complete',
+          showInChat: false,
+          data: {
+            title: 'Response complete',
+            body: [`Length: ${accumulatedText.length} chars`]
+          },
+          timestamp: new Date().toISOString()
+        });
+
         return;
       }
 
@@ -233,6 +284,19 @@ export class GenerationService {
       yield 'Maximum processing iterations reached. Please try rephrasing your question.';
     } catch (error) {
       logger.error('Generation', 'Error streaming response', error instanceof Error ? error : undefined, { sessionId });
+
+      await sseService.publishToSession(sessionId, {
+        type: 'success',
+        scope: 'session',
+        message: 'generation-error',
+        showInChat: false,
+        data: {
+          title: 'Generation error',
+          body: [error instanceof Error ? error.message : String(error)]
+        },
+        timestamp: new Date().toISOString()
+      });
+
 
       if (isGeminiError(error)) {
         throw parseGeminiError(error);

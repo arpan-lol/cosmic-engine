@@ -3,6 +3,8 @@ import { dynamicTopK } from '../../config/rag.config';
 import { RetrievalOptions } from '../../types/chat.types';
 import { HybridSearchService } from '../features/search-strategies/hybrid-search.service';
 import { AppError } from 'src/types/errors';
+import { sseService } from '../sse.service';
+import { logger } from '@zilliz/milvus2-sdk-node';
 
 export interface EnhancedContext {
   content: string;
@@ -30,9 +32,40 @@ export class RetrievalService {
         return await HybridSearchService.search(sessionId, query, attachmentIds);
       }
 
-      return await this.vectorSearch(sessionId, query, attachmentIds);
+      const ctx = await this.vectorSearch(sessionId, query, attachmentIds);
+
+      await sseService.publishToSession(sessionId, {
+        type: 'success',
+        scope: 'session',
+        message: 'retrieval-complete',
+        showInChat: false,
+        data: {
+          title: 'Retrieved vector contexts',
+          body: [
+            `Total chunks: ${ctx.length}`,
+            ...ctx.slice(0, 5).map(c => `${c.filename} • chunk ${c.chunkIndex}`)
+          ],
+        },
+        timestamp: new Date().toISOString(),
+      });
+
+      return ctx;
     } catch (error) {
       console.error(`[Retrieval] Error getting context for session ${sessionId}:`, error);
+      logger.error(`[Retrieval] Error getting context for session ${sessionId}:`, error);
+      
+      await sseService.publishToSession(sessionId, {
+        type: 'notification',
+        scope: 'session',
+        message: 'retrieval-error',
+        showInChat: false,
+        data: {
+          title: 'Retrieval failed',
+          body: [error instanceof Error ? error.message : String(error)],
+        },
+        timestamp: new Date().toISOString(),
+      });
+
       throw error;
     }
   }

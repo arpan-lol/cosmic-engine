@@ -12,7 +12,7 @@ import { processBM25 } from './bm25.util';
 interface OrchestrationJob {
   attachmentId: string;
   userId: number;
-  sessionId: string; 
+  sessionId: string;
 }
 
 async function processFile(attachmentId: string, userId: number, sessionId: string): Promise<void> {
@@ -26,6 +26,23 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     if (!attachment) {
       throw new ProcessingError(`Attachment not found: ${attachmentId}`);
     }
+
+    await sseService.publishToSession(sessionId, {
+      type: 'notification',
+      scope: 'session',
+      message: 'File processing started',
+      showInChat: false,
+      attachmentId,
+      data: {
+        title: `Processing ${attachment.filename}`,
+        body: [
+          `Attachment ID: ${attachmentId}`,
+          `Session: ${sessionId}`,
+          `Starting ingestion & embedding pipeline`
+        ]
+      },
+      timestamp: new Date().toISOString(),
+    });
 
     logger.info('Orchestrator', `Processing: ${attachment.filename}`, { attachmentId, sessionId });
 
@@ -89,6 +106,24 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
           step: 'embedding',
           message: `Processing vectors (${storedCount} stored)...`,
           progress: newProgress,
+        });
+      }
+
+      if (storedCount % 200 === 0) {
+        await sseService.publishToSession(sessionId, {
+          type: 'notification',
+          scope: 'session',
+          message: 'embedding-progress',
+          showInChat: false,
+          attachmentId,
+          data: {
+            title: `Embedding progress`,
+            body: [
+              `Stored embeddings: ${storedCount}`,
+              `Approx. ${Math.round((storedCount / totalChunks) * 100)}% of file`
+            ]
+          },
+          timestamp: new Date().toISOString(),
         });
       }
     }
