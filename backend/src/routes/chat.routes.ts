@@ -4,7 +4,7 @@ import { ChatController } from '../controllers/chat';
 import { EventsController } from '../controllers/events.controller';
 import { upload } from '../config/upload';
 import { asyncHandler } from '../utils/asyncHandler.util';
-import { BM25Controller } from 'src/controllers/bm25.controllers';
+import { BM25Controller } from 'src/controllers/bm25.controller';
 
 const router = Router();
 

@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types/express.js';
-import { HealthCheck } from '../utils/healthcheck.util';
+import { HealthCheck } from '../utils/healthcheck.util.js';
 import { ValidationError, NotFoundError, UnauthorizedError } from 'src/types/errors.js';
 import prisma from 'src/prisma/client.js';
 import { jobQueue } from '../queue/index.js';

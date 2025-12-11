@@ -273,6 +273,19 @@ export class AttachmentController {
         where: { id: attachmentId },
       });
 
+    await sseService.publishToSession(sessionId, {
+      type: 'notification',
+      scope: 'session',
+      message: 'File Deleted',
+      showInChat: false,
+      attachmentId,
+      data: {
+        title: `${attachment.filename} permanently deleted!`,
+        body: []
+      },
+      timestamp: new Date().toISOString(),
+    });
+
       logger.info('AttachmentController', `Attachment deleted: ${attachmentId}`, { attachmentId, sessionId, userId });
       return res.status(200).json({ success: true, message: 'Attachment deleted successfully' });
     } catch (error) {

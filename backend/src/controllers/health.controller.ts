@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types/express.js';
-import { HealthCheck } from '../utils/healthcheck.util';
+import { HealthCheck } from '../utils/healthcheck.util.js';
 
 class HealthController {
   /**
