@@ -9,6 +9,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { EngineEvent } from '@/lib/types';
 import { AlertCircle, CheckCircle2, Info, ExternalLink } from 'lucide-react';
 import ChunkViewer from './ChunkViewer';
+import { ImperativePanelHandle } from 'react-resizable-panels';
 
 interface LogsPanelProps {
   logs: EngineEvent[];
@@ -17,16 +18,19 @@ interface LogsPanelProps {
 }
 
 export default function LogsPanel({ logs, isDocumentOpen, sessionId }: LogsPanelProps) {
-  const [panelSize, setPanelSize] = useState(30);
+  const [panelSize, setPanelSize] = useState(100);
   const logsEndRef = useRef<HTMLDivElement>(null);
+  const logsPanelRef = useRef<ImperativePanelHandle>(null);
   const [chunkViewerOpen, setChunkViewerOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<EngineEvent | null>(null);
 
   useEffect(() => {
-    if (isDocumentOpen) {
-      setPanelSize(10);
-    } else {
-      setPanelSize(30);
+    if (logsPanelRef.current) {
+      if (isDocumentOpen) {
+        logsPanelRef.current.resize(10);
+      } else {
+        logsPanelRef.current.resize(100);
+      }
     }
   }, [isDocumentOpen]);
 
@@ -54,10 +58,13 @@ export default function LogsPanel({ logs, isDocumentOpen, sessionId }: LogsPanel
         <ResizablePanel defaultSize={100 - panelSize} className="pointer-events-none" />
         <ResizableHandle withHandle className="pointer-events-auto bg-border" />
         <ResizablePanel 
+          ref={logsPanelRef}
           defaultSize={panelSize}
           minSize={10}
           maxSize={70}
           className="pointer-events-auto"
+          collapsedSize={10}
+          onResize={(size) => setPanelSize(size)}
         >
           <Card className="h-full flex flex-col rounded-none border-0 border-t overflow-hidden bg-background">
             <CardHeader className="px-4 py- flex-shrink-0">

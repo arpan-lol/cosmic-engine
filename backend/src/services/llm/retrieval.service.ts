@@ -37,13 +37,13 @@ export class RetrievalService {
       await sseService.publishToSession(sessionId, {
         type: 'success',
         scope: 'session',
-        message: 'retrieval-complete',
+        message: 'vector-search-complete',
         showInChat: false,
         data: {
-          title: 'Retrieved vector contexts',
+          title: 'Vector search complete',
           body: [
-            `Total chunks: ${ctx.length}`,
-            ...ctx.slice(0, 5).map(c => `${c.filename} • chunk ${c.chunkIndex}`)
+            `Found ${ctx.length} relevant chunks`,
+            ...ctx.slice(0, 3).map(c => `${c.filename} • chunk ${c.chunkIndex + 1}`)
           ],
         },
         timestamp: new Date().toISOString(),

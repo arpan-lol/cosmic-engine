@@ -126,19 +126,21 @@ export class GenerationService {
     try {
       const enhancedContexts = await RetrievalService.getContext(sessionId, query, attachmentIds, options);
       
-      await sseService.publishToSession(sessionId, {
-      type: 'notification',
-      scope: 'session',
-      message: 'retrieval-complete',
-      showInChat: false,
-      data: {
-        title: 'Retrieved context',
-        body: enhancedContexts.map(ctx =>
-          `${ctx.filename} • chunk ${ctx.chunkIndex} • page ${ctx.pageNumber ?? '-'}`
-        )
-      },
-      timestamp: new Date().toISOString()
-    });
+      if (!options?.bm25) {
+        await sseService.publishToSession(sessionId, {
+          type: 'notification',
+          scope: 'session',
+          message: 'retrieval-complete',
+          showInChat: false,
+          data: {
+            title: 'Retrieved context',
+            body: enhancedContexts.map(ctx =>
+              `${ctx.filename} • chunk ${ctx.chunkIndex + 1} • page ${ctx.pageNumber ?? '-'}`
+            )
+          },
+          timestamp: new Date().toISOString()
+        });
+      }
 
       //TODO: remove debugging karne ke baad
       if (attachmentIds && attachmentIds.length > 0) {

@@ -80,7 +80,7 @@ export class HybridSearchService {
         // publish an interim event for this attachment with concise info
         try {
           const vecPreview = (vecHits || []).slice(0, 3).map((h: any) =>
-            `Chunk ${h.chunkIndex}: ${(h.score ?? 0).toFixed(3)}${h.filename ? ` (${h.filename})` : ''}`
+            `Chunk ${h.chunkIndex + 1}: ${(h.score ?? 0).toFixed(3)}${h.filename ? ` (${h.filename})` : ''}`
           );
 
           const bmTerms = (bmData.rows || []).slice(0, 5).map((r: any) =>
@@ -89,7 +89,7 @@ export class HybridSearchService {
 
           const bmScores = Object.entries(bmData.scores || {})
             .slice(0, 5)
-            .map(([chunkIndex, score]) => `Chunk ${chunkIndex}: ${(score as number).toFixed(3)}`);
+            .map(([chunkIndex, score]) => `Chunk ${Number(chunkIndex) + 1}: ${(score as number).toFixed(3)}`);
 
           const body: string[] = [
             `Attachment: ${att.filename ?? attachmentId}`,
@@ -98,7 +98,7 @@ export class HybridSearchService {
             '---',
             'Top BM25 terms:',
             ...bmTerms,
-            'Top BM25 chunk scores:',
+            'Top BM25 chunk scores (raw, unnormalized):',
             ...bmScores
           ];
 
@@ -215,9 +215,9 @@ export class HybridSearchService {
       // publish the hybrid-ranking summary before hydrating
       try {
         const rankingBody: string[] = [
-          `Top ${topHits.length} hybrid-ranked chunks:`,
+          `Top ${topHits.length} hybrid-ranked chunks (scores: 0.0-1.0):`,
           ...topHits.map((h, idx) =>
-            `${idx + 1}. ${h.filename ?? h.attachmentId} - chunk ${h.chunkIndex} - score ${(h.finalScore ?? 0).toFixed(4)}`
+            `${idx + 1}. ${h.filename ?? h.attachmentId} - chunk ${h.chunkIndex + 1} - score ${(h.finalScore ?? 0).toFixed(4)}`
           )
         ];
 
@@ -270,7 +270,11 @@ export class HybridSearchService {
           showInChat: false,
           data: {
             title: 'Hybrid search complete',
-            body: [`Retrieved ${validContexts.length} context chunks`, `Query: ${query}`]
+            body: [
+              `Retrieved ${validContexts.length} context chunks`,
+              `Query: ${query}`,
+              `Score range: 0.0-1.0 (70% vector + 30% BM25)`
+            ]
           },
           timestamp: new Date().toISOString()
         });
