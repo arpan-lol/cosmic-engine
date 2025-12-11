@@ -41,6 +41,4 @@ router.delete('/attachments/:attachmentId', asyncHandler(ChatController.deleteAt
 
 router.post('/sessions/:id/chunks', asyncHandler(ChatController.getChunks));
 
-router.post('/sessions/:id/search', asyncHandler(ChatController.searchSession));
-
 export default router;

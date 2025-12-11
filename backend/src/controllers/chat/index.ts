@@ -1,7 +1,6 @@
 import { SessionController } from './session.controller';
 import { MessageController } from './message.controller';
 import { AttachmentController } from './attachment.controller';
-import { SearchController } from './search.controller';
 import { ChunksController } from './serve-chunks.controller';
 
 export const ChatController = {
@@ -21,9 +20,6 @@ export const ChatController = {
   streamAttachmentStatus: AttachmentController.streamAttachmentStatus,
   deleteAttachment: AttachmentController.deleteAttachment,
 
-  // Search methods
-  searchSession: SearchController.searchSession,
-
   // Chunks methods
   getChunks: ChunksController.getChunks,
 };
@@ -31,5 +27,4 @@ export const ChatController = {
 export { SessionController } from './session.controller';
 export { MessageController } from './message.controller';
 export { AttachmentController } from './attachment.controller';
-export { SearchController } from './search.controller';
 export { ChunksController } from './serve-chunks.controller';
