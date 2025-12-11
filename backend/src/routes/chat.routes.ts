@@ -39,6 +39,8 @@ router.get('/attachments/:attachmentId/status', asyncHandler(ChatController.getA
 router.get('/attachments/:attachmentId/stream', corsMiddleware, asyncHandler(ChatController.streamAttachmentStatus));
 router.delete('/attachments/:attachmentId', asyncHandler(ChatController.deleteAttachment));
 
+router.post('/sessions/:id/chunks', asyncHandler(ChatController.getChunks));
+
 router.post('/sessions/:id/search', asyncHandler(ChatController.searchSession));
 
 export default router;

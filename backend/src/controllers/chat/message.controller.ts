@@ -135,6 +135,7 @@ export class MessageController {
           type: 'error',
           scope: 'session',
           message: errorMessage,
+          showInChat: false,
           timestamp: new Date().toISOString(),
         }).catch((err: any) => {
           logger.error('MessageController', 'Failed to publish error event', err);
@@ -162,6 +163,7 @@ export class MessageController {
           type: 'error',
           scope: 'session',
           message: errorMessage,
+          showInChat: false,
           timestamp: new Date().toISOString(),
         }).catch((err: any) => {
           logger.error('MessageController', 'Failed to publish error event', err);

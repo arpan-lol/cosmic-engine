@@ -7,6 +7,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FileText, X, ArrowLeft, Trash2 } from 'lucide-react';
+import { EngineEvent } from '@/lib/types';
+import LogsPanel from './LogsPanel';
 
 const PDFViewer = dynamic(() => import('./PDFViewer'), {
   loading: () => <div>Loading PDF...</div>,
@@ -31,9 +33,11 @@ interface FilePanelProps {
   onDocumentClick?: (attachment: Attachment) => void;
   onDeleteAttachment?: (attachmentId: string) => void;
   bm25Progress?: Record<string, any>;
+  logs?: EngineEvent[];
+  sessionId: string;
 }
 
-export default function FilePanel({ attachments, selectedFile, onClose, onDocumentClick, onDeleteAttachment, bm25Progress }: FilePanelProps) {
+export default function FilePanel({ attachments, selectedFile, onClose, onDocumentClick, onDeleteAttachment, bm25Progress, logs = [], sessionId }: FilePanelProps) {
   const [currentPage, setCurrentPage] = useState<number>(1);
 
 
@@ -56,28 +60,32 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
 
   if (!selectedFile && pdfAttachments.length === 0) {
     return (
-      <Card className="h-full rounded-none border-0 border-l">
-        <CardHeader>
-          <CardTitle className="text-lg">Documents</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-            <FileText className="h-12 w-12 mb-4 opacity-50" />
-            <p className="text-sm text-center">No PDF documents available</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="relative h-full">
+        <Card className="h-full rounded-none border-0 border-l">
+          <CardHeader>
+            <CardTitle className="text-lg">Documents</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+              <FileText className="h-12 w-12 mb-4 opacity-50" />
+              <p className="text-sm text-center">No PDF documents available</p>
+            </div>
+          </CardContent>
+        </Card>
+        <LogsPanel logs={logs} isDocumentOpen={false} sessionId={sessionId} />
+      </div>
     );
   }
 
   if (!selectedFile) {
     return (
-      <Card className="h-full rounded-none border-0 border-l">
-        <CardHeader>
-          <CardTitle className="text-lg">Documents ({pdfAttachments.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[600px]">
+      <div className="relative h-full">
+        <Card className="h-full rounded-none border-0 border-l">
+          <CardHeader>
+            <CardTitle className="text-lg">Documents ({pdfAttachments.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[600px]">
               {pdfAttachments.map((att) => (
                 <Card
                   key={att.id}
@@ -123,31 +131,36 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
             </ScrollArea>
           </CardContent>
         </Card>
+        <LogsPanel logs={logs} isDocumentOpen={false} sessionId={sessionId} />
+      </div>
     );
   }
 
   return (
-  <Card className="h-full flex flex-col overflow-hidden rounded-none border-0 border-l gap-0">
-      <CardHeader className="flex-shrink-0 pb-0">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex-1 min-w-0">
-            <CardTitle className="text-lg truncate">{selectedFile.filename}</CardTitle>
+    <div className="relative h-full">
+      <Card className="h-full flex flex-col overflow-hidden rounded-none border-0 border-l gap-0">
+        <CardHeader className="flex-shrink-0 pb-0">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-lg truncate">{selectedFile.filename}</CardTitle>
+            </div>
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="flex-1 overflow-hidden p-3 pt-0 min-h-0">
-        <PDFViewer
-          fileUrl={selectedFile.url}
-          currentPage={currentPage}
-          onPageChange={setCurrentPage}
-        />
-      </CardContent>
-    </Card>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-hidden p-3 pt-0 min-h-0">
+          <PDFViewer
+            fileUrl={selectedFile.url}
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+          />
+        </CardContent>
+      </Card>
+      <LogsPanel logs={logs} isDocumentOpen={true} sessionId={sessionId} />
+    </div>
   );
 }

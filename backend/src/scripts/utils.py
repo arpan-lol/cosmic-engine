@@ -185,6 +185,75 @@ def split_content_into_chunks(
     return chunks
 
 
+def inject_page_markers_into_markdown(markdown_content: str, file_path: str) -> str:
+    """
+    Inject page markers into PDF markdown content for better page tracking.
+    Uses PyPDF2 to extract text page by page and find page boundaries in the markdown.
+    """
+    if not file_path.lower().endswith('.pdf'):
+        return markdown_content
+    
+    print(f"🔍 Attempting to inject page markers for PDF: {file_path}")
+    
+    try:
+        with open(file_path, "rb") as file:
+            pdf_reader = PyPDF2.PdfReader(file)
+            total_pages = len(pdf_reader.pages)
+            
+            print(f"📄 PDF has {total_pages} pages")
+            
+            if total_pages == 0:
+                return markdown_content
+            
+            page_markers = []
+            current_search_pos = 0
+            
+            for page_num in range(total_pages):
+                page_text = pdf_reader.pages[page_num].extract_text()
+                
+                if not page_text or not page_text.strip():
+                    print(f"⚠️ Page {page_num + 1} has no extractable text")
+                    continue
+                
+                first_words = ' '.join(page_text.split()[:20])
+                
+                if not first_words.strip():
+                    continue
+                
+                match_pos = markdown_content.find(first_words[:100], current_search_pos)
+                
+                if match_pos != -1:
+                    page_markers.append((match_pos, page_num + 1))
+                    current_search_pos = match_pos + len(first_words)
+                    print(f"✓ Matched page {page_num + 1} at position {match_pos}")
+                else:
+                    print(f"✗ Could not match page {page_num + 1}")
+            
+            if not page_markers:
+                print(f"⚠️ No page markers could be matched for {file_path}")
+                return markdown_content
+            
+            result = []
+            last_pos = 0
+            
+            for pos, page_num in sorted(page_markers):
+                result.append(markdown_content[last_pos:pos])
+                result.append(f"<!-- Page {page_num} -->\n")
+                last_pos = pos
+            
+            result.append(markdown_content[last_pos:])
+            
+            final_content = ''.join(result)
+            print(f"✅ Injected {len(page_markers)} page markers into PDF markdown")
+            return final_content
+            
+    except Exception as e:
+        print(f"⚠️ Could not inject page markers: {e}")
+        import traceback
+        traceback.print_exc()
+        return markdown_content
+
+
 def get_pdf_page_count(file_path: str) -> Optional[int]:
     """Get the number of pages in a PDF file."""
     try:

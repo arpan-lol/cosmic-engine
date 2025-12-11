@@ -41,9 +41,13 @@ export class ChunkingService {
         const endIndex = Math.min(chunkSize, buffer.length);
         let chunkText = buffer.slice(0, endIndex);
 
-        const pageMatch = chunkText.match(/<!-- Slide number: (\d+) -->|^# Sheet (\d+)/m);
+        const pageMatch = chunkText.match(/<!-- Page (\d+) -->|<!-- Slide number: (\d+) -->|^# Sheet (\d+)/m);
         if (pageMatch) {
-          currentPageNumber = parseInt(pageMatch[1] || pageMatch[2], 10);
+          const newPageNumber = parseInt(pageMatch[1] || pageMatch[2] || pageMatch[3], 10);
+          if (newPageNumber !== currentPageNumber) {
+            currentPageNumber = newPageNumber;
+            console.log(`[Chunking] Detected page marker: Page ${currentPageNumber}`);
+          }
         }
 
         if (endIndex === chunkSize && buffer.length > chunkSize) {
@@ -73,8 +77,12 @@ export class ChunkingService {
         }
 
         const actualLength = chunkText.length;
-        buffer = buffer.slice(Math.max(actualLength - overlap, 1));
-        globalPosition += actualLength - overlap;
+        const slideAmount = Math.max(actualLength - overlap, 0);
+        if (slideAmount === 0) {
+          break;
+        }
+        buffer = buffer.slice(slideAmount);
+        globalPosition += slideAmount;
 
         if (buffer.length < chunkSize && i + SEGMENT_SIZE < markdown.length) {
           break;

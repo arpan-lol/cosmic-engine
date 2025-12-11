@@ -90,6 +90,10 @@ export class StorageService {
       vector: embedding.vector,
     }));
 
+    if (embeddings.length > 0 && embeddings[0].metadata?.pageNumber) {
+      console.log(`[Milvus] Sample metadata - pageNumber: ${embeddings[0].metadata.pageNumber}, chunk: ${embeddings[0].chunkIndex}`);
+    }
+
     await client.insert({
       collection_name: collectionName,
       data: data,

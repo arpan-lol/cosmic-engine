@@ -19,7 +19,6 @@ import BM25ProgressCard from '@/components/BM25ProgressCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import type { Message, EngineEvent } from '@/lib/types';
 import { toast } from 'sonner';
@@ -39,7 +38,6 @@ export default function ChatSessionPage() {
   const router = useRouter();
   const sessionId = params.sessionId as string;
   const queryClient = useQueryClient();
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [uploadedAttachments, setUploadedAttachments] = useState<string[]>([]);
   const [selectedContextIds, setSelectedContextIds] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
@@ -65,11 +63,15 @@ export default function ChatSessionPage() {
 
   const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
   const [engineEvents, setEngineEvents] = useState<EngineEvent[]>([]);
+  const [allLogs, setAllLogs] = useState<EngineEvent[]>([]);
   const [flashTrigger, setFlashTrigger] = useState(0);
 
   const handleEngineEvent = useCallback((event: EngineEvent) => {
     if (event.scope === 'session') {
-      setEngineEvents(prev => [...prev, event]);
+      setAllLogs(prev => [...prev, event]);
+      if (event.showInChat) {
+        setEngineEvents(prev => [...prev, event]);
+      }
     } else if (event.scope === 'user') {
       toast(event.message, {
         description: event.data?.title,
@@ -90,12 +92,16 @@ export default function ChatSessionPage() {
     if (conversation?.messages) {
       const regularMessages: Message[] = [];
       const systemEvents: EngineEvent[] = [];
+      const logs: EngineEvent[] = [];
 
       conversation.messages.forEach(msg => {
         if (msg.role === 'system') {
           try {
             const event = JSON.parse(msg.content) as EngineEvent;
-            systemEvents.push(event);
+            logs.push(event);
+            if (event.showInChat) {
+              systemEvents.push(event);
+            }
           } catch (error) {
             console.error('[Session] Failed to parse system message:', error);
           }
@@ -106,14 +112,9 @@ export default function ChatSessionPage() {
 
       setOptimisticMessages(regularMessages);
       setEngineEvents(systemEvents);
+      setAllLogs(logs);
     }
   }, [conversation?.messages]);
-
-  useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
-    }
-  }, [optimisticMessages, streamedContent]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -400,43 +401,45 @@ export default function ChatSessionPage() {
           </CardHeader>
         </Card>
 
-        <div className="flex-1 overflow-y-auto min-h-0 bg-background" ref={scrollAreaRef}>
-        <div className="p-4">
-          {timeline.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              Start a conversation by sending a message
-            </div>
-          ) : (
-            <div>
-              {timeline.map((item, index) => {
-                if (item.type === 'message') {
-                  const isLastAssistantMessage = 
-                    index === timeline.length - 1 && 
-                    item.data.role === 'assistant';
-                  
-                  return (
-                    <ChatMessage 
-                      key={item.data.id} 
-                      message={item.data} 
-                      userAvatar={authUser?.picture}
-                      userName={authUser?.name}
-                      isLoading={isLoadingResponse && isLastAssistantMessage}
-                      onCitationClick={handleCitationClick}
-                    />
-                  );
-                } else {
-                  return (
-                    <SystemMessage 
-                      key={item.data.timestamp} 
-                      event={item.data} 
-                    />
-                  );
-                }
-              })}
-            </div>
-          )}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ScrollArea className="h-full bg-background">
+            <div className="p-4">
+            {timeline.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                Start a conversation by sending a message
+              </div>
+            ) : (
+              <div>
+                {timeline.map((item, index) => {
+                  if (item.type === 'message') {
+                    const isLastAssistantMessage = 
+                      index === timeline.length - 1 && 
+                      item.data.role === 'assistant';
+                    
+                    return (
+                      <ChatMessage 
+                        key={item.data.id} 
+                        message={item.data} 
+                        userAvatar={authUser?.picture}
+                        userName={authUser?.name}
+                        isLoading={isLoadingResponse && isLastAssistantMessage}
+                        onCitationClick={handleCitationClick}
+                      />
+                    );
+                  } else {
+                    return (
+                      <SystemMessage 
+                        key={item.data.timestamp} 
+                        event={item.data} 
+                      />
+                    );
+                  }
+                })}
+              </div>
+            )}
+          </div>
+        </ScrollArea>
         </div>
-      </div>
 
       <Card className="mt-0 bg-background flex-shrink-0 border-0 border-t rounded-none">
         <CardContent className="p-2 space-y-2">{error && (
@@ -520,6 +523,8 @@ export default function ChatSessionPage() {
           onDocumentClick={handleDocumentClick}
           onDeleteAttachment={handleDeleteAttachment}
           bm25Progress={bm25Progress}
+          logs={allLogs}
+          sessionId={sessionId}
         />
       </div>
 

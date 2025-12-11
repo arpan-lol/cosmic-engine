@@ -133,14 +133,15 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     });
 
     await sseService.publishToSession(sessionId, {
-      type: 'notification',
+      type: 'success',
       scope: 'session',
       message: `${attachment.filename} processed successfully`,
+      showInChat: true,
+      attachmentId,
+      actionType: 'view-chunks',
       data: {
         title: 'File Processing Complete',
         body: [
-          `File: ${attachment.filename}`,
-          `Chunks created: ${totalChunks}`,
           `Embeddings generated: ${totalChunks}`,
           `Ready for semantic search`,
         ],

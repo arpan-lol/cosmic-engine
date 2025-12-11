@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Any
 import time
 import os
 from pathlib import Path
-from utils import process_url_with_markitdown, split_content_into_chunks, GeminiClientWrapper
+from utils import process_url_with_markitdown, split_content_into_chunks, GeminiClientWrapper, inject_page_markers_into_markdown
 from markitdown import MarkItDown
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -272,11 +272,13 @@ async def process_file_endpoint(request: FilePathRequest):
         result = md.convert(file_path)
         markdown_content = result.text_content
         
+        is_pdf = file_path.lower().endswith('.pdf')
+        if is_pdf:
+            markdown_content = inject_page_markers_into_markdown(markdown_content, file_path)
+        
         processing_time = time.time() - start_time
         content_length = len(markdown_content)
 
-        # Determine if it's a PDF for chunking
-        is_pdf = file_path.lower().endswith('.pdf')
         chunks = split_content_into_chunks(markdown_content, is_pdf=is_pdf)
 
         print(f"✅ Successfully processed: {content_length:,} characters, {len(chunks)} chunks")

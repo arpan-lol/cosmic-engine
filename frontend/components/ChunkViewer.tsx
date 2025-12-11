@@ -1,0 +1,164 @@
+'use client';
+
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+
+interface Chunk {
+  id: string;
+  content: string;
+  index: number;
+}
+
+interface ChunkViewerProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  sessionId: string;
+  attachmentId: string;
+  filename?: string;
+}
+
+async function fetchChunks(sessionId: string, attachmentId: string): Promise<Chunk[]> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
+  const response = await fetch(`${apiUrl}/chat/sessions/${sessionId}/chunks`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({ attachmentId }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch chunks');
+  }
+
+  const data = await response.json();
+  return data.chunks.map((chunk: any, index: number) => ({
+    id: chunk.id || `chunk-${index}`,
+    content: chunk.content,
+    index: index + 1,
+  }));
+}
+
+export default function ChunkViewer({ open, onOpenChange, sessionId, attachmentId, filename }: ChunkViewerProps) {
+  const [selectedChunkIndex, setSelectedChunkIndex] = useState<number | null>(null);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      setSelectedChunkIndex(null);
+    }
+    onOpenChange(newOpen);
+  };
+
+  const { data: chunks, isLoading, error } = useQuery({
+    queryKey: ['chunks', sessionId, attachmentId],
+    queryFn: () => fetchChunks(sessionId, attachmentId),
+    enabled: open,
+  });
+
+  const selectedChunk = selectedChunkIndex !== null && chunks ? chunks[selectedChunkIndex - 1] : null;
+
+  const handleNext = () => {
+    if (selectedChunkIndex !== null && chunks && selectedChunkIndex < chunks.length) {
+      setSelectedChunkIndex(selectedChunkIndex + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (selectedChunkIndex !== null && selectedChunkIndex > 1) {
+      setSelectedChunkIndex(selectedChunkIndex - 1);
+    }
+  };
+
+  const handleBack = () => {
+    setSelectedChunkIndex(null);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="truncate">
+            {selectedChunk 
+              ? `Chunk ${selectedChunk.index} of ${chunks?.length}` 
+              : `Document Chunks${filename ? ` - ${filename}` : ''}`
+            }
+          </DialogTitle>
+        </DialogHeader>
+
+        {isLoading && (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {error && (
+          <div className="flex items-center justify-center h-64 text-destructive">
+            Failed to load chunks. Please try again.
+          </div>
+        )}
+
+        {!isLoading && !error && chunks && (
+          <>
+            {selectedChunk ? (
+              <div className="flex flex-col gap-4 flex-1 min-h-0">
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={handleBack}>
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+                  <div className="flex-1" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePrev}
+                    disabled={selectedChunkIndex === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNext}
+                    disabled={selectedChunkIndex === chunks.length}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+                <ScrollArea className="flex-1 border rounded-md overflow-auto">
+                  <div className="p-4">
+                    <pre className="text-xs font-mono whitespace-pre-wrap break-words">
+                      {selectedChunk.content}
+                    </pre>
+                  </div>
+                </ScrollArea>
+              </div>
+            ) : (
+              <ScrollArea className="h-[400px]">
+                <div className="grid grid-cols-10 gap-3 p-4">
+                  {chunks.map((chunk) => (
+                    <Button
+                      key={chunk.id}
+                      variant="outline"
+                      className="h-12 w-12 p-0"
+                      onClick={() => setSelectedChunkIndex(chunk.index)}
+                    >
+                      {chunk.index}
+                    </Button>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

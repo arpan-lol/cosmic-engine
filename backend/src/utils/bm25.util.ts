@@ -222,13 +222,15 @@ async function processBM25(
     );
 
     await sseService.publishToSession(sessionId, {
-      type: 'notification',
+      type: 'success',
       scope: 'session',
       message: `${attachment.filename} indexed for keyword search`,
+      showInChat: true,
+      attachmentId,
+      actionType: 'view-chunks',
       data: {
         title: 'BM25 Index Complete',
         body: [
-          `File: ${attachment.filename}`,
           `Total chunks indexed: ${totalDocs}`,
           `Unique terms: ${Object.keys(dfMap).length}`,
           `Ready for hybrid search`,

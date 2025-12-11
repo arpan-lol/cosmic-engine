@@ -26,10 +26,13 @@ export interface Message {
 }
 
 export interface EngineEvent {
-  type: 'notification' | 'error';
+  type: 'notification' | 'success' | 'error';
   scope: 'session' | 'user';
   sessionId?: string;
   message: string;
+  showInChat: boolean;
+  attachmentId?: string;
+  actionType?: 'view-chunks';
   data?: {
     title: string;
     body: string[];

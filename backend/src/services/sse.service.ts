@@ -13,10 +13,13 @@ interface SessionClient {
 }
 
 export interface EngineEvent {
-  type: 'notification' | 'error';
+  type: 'notification' | 'success' | 'error';
   scope: 'session' | 'user';
   sessionId?: string;
   message: string;
+  showInChat: boolean;
+  attachmentId?: string;
+  actionType?: 'view-chunks';
   data?: {
     title: string;
     body: string[];
@@ -210,17 +213,15 @@ class SSEService {
       console.log(`[EventStream] Published ${event.type} event to ${sentCount} client(s) for session ${sessionId}`);
     }
 
-    if (event.type === 'notification') {
-      prisma.chat.create({
-        data: {
-          sessionId,
-          role: 'system',
-          content: JSON.stringify(eventWithTimestamp),
-        },
-      }).catch((err: any) => {
-        console.error(`[EventStream] Failed to persist event to DB:`, err);
-      });
-    }
+    prisma.chat.create({
+      data: {
+        sessionId,
+        role: 'system',
+        content: JSON.stringify(eventWithTimestamp),
+      },
+    }).catch((err: any) => {
+      console.error(`[EventStream] Failed to persist event to DB:`, err);
+    });
   }
 
   publishToUser(userId: number, event: EngineEvent) {
