@@ -20,7 +20,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
 
   try {
     const attachment = await prisma.attachment.findUnique({
-      where: { id: attachmentId },
+      where: { id: attachmentId }
     });
 
     if (!attachment) {
@@ -41,7 +41,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
           `Starting ingestion & embedding pipeline`
         ]
       },
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString()
     });
 
     logger.info('Orchestrator', `Processing: ${attachment.filename}`, { attachmentId, sessionId });
@@ -50,17 +50,17 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       status: 'processing',
       step: 'started',
       message: `Processing ${attachment.filename}...`,
-      progress: 0,
+      progress: 0
     });
 
-    // Step 0: Initialize collection for each session
     logger.info('Orchestrator', 'Step 0: Initializing vector store', { attachmentId, sessionId });
     sseService.sendProgress(attachmentId, {
       status: 'processing',
       step: 'initialization',
       message: 'Initializing vector store...',
-      progress: 10,
+      progress: 10
     });
+
     const collectionName = CollectionService.generateCName(sessionId);
     await CollectionService.initializeCollection(collectionName);
 
@@ -69,23 +69,31 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       status: 'processing',
       step: 'ingestion',
       message: 'Preprocessing',
-      progress: 25,
+      progress: 25
     });
+
     const markdown = await IngestionService.convertToMarkdown(attachment.url);
 
-
-    // Step 2-4: Stream-based processing (chunking, embedding, storage)
     logger.info('Orchestrator', 'Steps 2-4: Stream processing chunks', { attachmentId, sessionId, markdownLength: markdown.length });
+
     sseService.sendProgress(attachmentId, {
       status: 'processing',
       step: 'chunking',
       message: `Chunking ${markdown.length} characters`,
-      progress: 40,
+      progress: 40
     });
 
+    const chunkSize = 1000;
+    const overlap = 200;
+
+    const estimatedTotalChunks = Math.max(
+      1,
+      Math.ceil((markdown.length - overlap) / (chunkSize - overlap))
+    );
+
     const chunkStream = ChunkingService.chunkContentStream(markdown, {
-      chunkSize: 1000,
-      overlap: 200,
+      chunkSize,
+      overlap
     });
 
     const embeddingStream = EmbeddingService.generateEmbeddingsStream(chunkStream);
@@ -94,22 +102,38 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     let totalChunks = 0;
     let lastProgress = 40;
     let lastReportedCount = 0;
-    
+
     for await (const storedCount of storageStream) {
       totalChunks = storedCount;
-      const newProgress = Math.min(40 + Math.floor((storedCount / 100) * 40), 80);
+
+      const embeddingProgress = storedCount / estimatedTotalChunks;
+
+      const newProgress = Math.min(
+        80,
+        40 + Math.floor(embeddingProgress * 40)
+      );
+
       if (newProgress > lastProgress || storedCount - lastReportedCount >= 50) {
         lastProgress = newProgress;
         lastReportedCount = storedCount;
+
         sseService.sendProgress(attachmentId, {
           status: 'processing',
           step: 'embedding',
           message: `Processing vectors (${storedCount} stored)...`,
-          progress: newProgress,
+          progress: newProgress
         });
       }
 
-      if (storedCount % 200 === 0) {
+      let lastMilestone = 0;
+      const milestone = Math.floor(storedCount / 100);
+
+      if (milestone > lastMilestone) {
+        lastMilestone = milestone;
+
+        let estimatedPercent = Math.round(embeddingProgress * 100);
+        if (estimatedPercent >= 100) estimatedPercent = 99;
+
         await sseService.publishToSession(sessionId, {
           type: 'notification',
           scope: 'session',
@@ -120,10 +144,10 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
             title: `Embedding progress`,
             body: [
               `Stored embeddings: ${storedCount}`,
-              `Approx. ${Math.round((storedCount / totalChunks) * 100)}% of file`
+              `Approximate progress: ${estimatedPercent}%`
             ]
           },
-          timestamp: new Date().toISOString(),
+          timestamp: new Date().toISOString()
         });
       }
     }
@@ -131,16 +155,16 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     logger.info('Orchestrator', `Stream processing completed: ${totalChunks} chunks`, { attachmentId, sessionId, totalChunks });
 
     logger.info('Orchestrator', 'Step 5: Building index and loading collection', { attachmentId, sessionId });
+
     sseService.sendProgress(attachmentId, {
       status: 'processing',
       step: 'indexing',
       message: 'Building search index...',
-      progress: 85,
+      progress: 85
     });
+
     await CollectionService.buildIndexAndLoad(collectionName);
 
-
-    // Step 6: Update attachment metadata
     await prisma.attachment.update({
       where: { id: attachmentId },
       data: {
@@ -151,20 +175,20 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
           chunkCount: totalChunks,
           embeddingCount: totalChunks,
           markdownLength: markdown.length,
-          sessionId,
-        },
-      },
+          sessionId
+        }
+      }
     });
 
     logger.info('Orchestrator', `Successfully processed: ${attachmentId}`, { attachmentId, sessionId, totalChunks });
-    
+
     sseService.sendProgress(attachmentId, {
       status: 'completed',
       step: 'finished',
       message: `Successfully processed! (${totalChunks} chunks)`,
       progress: 100,
       chunkCount: totalChunks,
-      embeddingCount: totalChunks,
+      embeddingCount: totalChunks
     });
 
     await sseService.publishToSession(sessionId, {
@@ -178,10 +202,10 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
         title: 'File Processing Complete',
         body: [
           `Embeddings generated: ${totalChunks}`,
-          `Ready for semantic search`,
-        ],
+          `Ready for semantic search`
+        ]
       },
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString()
     });
 
     setTimeout(() => {
@@ -192,7 +216,6 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     logger.error('Orchestrator', `Error processing ${attachmentId}`, error instanceof Error ? error : undefined, { attachmentId, sessionId });
 
     let userMessage = 'Processing failed! Please try again later.';
-    
     if (error?.shouldExposeToClient && error?.clientMessage) {
       userMessage = error.clientMessage;
     }
@@ -201,7 +224,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       status: 'failed',
       step: 'error',
       message: userMessage,
-      progress: 0,
+      progress: 0
     });
 
     try {
@@ -211,13 +234,11 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
           metadata: {
             processed: false,
             error: error instanceof Error ? error.message : 'Unknown error',
-            failedAt: new Date().toISOString(),
-          },
-        },
+            failedAt: new Date().toISOString()
+          }
+        }
       });
-    } catch (updateError) {
-      logger.error('Orchestrator', 'Failed to update error status', updateError instanceof Error ? updateError : undefined, { attachmentId });
-    }
+    } catch {}
 
     setTimeout(() => {
       sseService.closeProgress(attachmentId);
