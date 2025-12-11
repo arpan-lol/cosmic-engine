@@ -14,7 +14,7 @@ export interface CookieOptions {
 const defaultOptions: CookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'none',
+  sameSite: 'lax',
   path: '/',
   maxAge: 12 * 60 * 60,
   domain: process.env.NODE_ENV === 'production' ? '.arpantaneja.dev' : undefined,
