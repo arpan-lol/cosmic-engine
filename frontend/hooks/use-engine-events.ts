@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { EngineEvent } from '@/lib/types';
+import { toast } from 'sonner';
 
 interface UseEngineEventsOptions {
   sessionId: string;
@@ -25,13 +26,27 @@ export function useEngineEvents({ sessionId, onEvent, onError }: UseEngineEvents
 
     let isCleaningUp = false;
 
-    const connect = () => {
+    const connect = async () => {
       if (isCleaningUp) return;
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.cosmicengine.arpantaneja.dev';
-      const url = `${apiUrl}/chat/sessions/${sessionId}/events`;
+      
+      let token: string | null = null;
+      try {
+        const tokenResponse = await fetch('/api/auth/token');
+        if (tokenResponse.ok) {
+          const data = await tokenResponse.json();
+          token = data.token;
+        }
+      } catch (error) {
+        console.error('[EngineEvents] Failed to get token:', error);
+      }
 
-      console.log('[EngineEvents] Connecting to event stream:', url);
+      const url = token 
+        ? `${apiUrl}/chat/sessions/${sessionId}/events?token=${encodeURIComponent(token)}`
+        : `${apiUrl}/chat/sessions/${sessionId}/events`;
+
+      console.log('[EngineEvents] Connecting to event stream:', url.replace(/token=[^&]+/, 'token=***'));
 
       const eventSource = new EventSource(url, {
         withCredentials: true,
@@ -78,6 +93,12 @@ export function useEngineEvents({ sessionId, onEvent, onError }: UseEngineEvents
           
           console.log(`[EngineEvents] Will reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1}/${maxRetries})`);
           
+          if (reconnectAttemptsRef.current === 0) {
+            toast.error('Connection to server lost. Reconnecting...', {
+              duration: 5000,
+            });
+          }
+          
           reconnectTimeoutRef.current = setTimeout(() => {
             if (!isCleaningUp) {
               reconnectAttemptsRef.current++;
@@ -86,6 +107,9 @@ export function useEngineEvents({ sessionId, onEvent, onError }: UseEngineEvents
           }, delay);
         } else {
           console.error('[EngineEvents] Max reconnection attempts reached');
+          toast.error('Failed to connect to server. Please refresh the page.', {
+            duration: 5000,
+          });
           onErrorRef.current?.(new Error('Max reconnection attempts reached'));
         }
       };

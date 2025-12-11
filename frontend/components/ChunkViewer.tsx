@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 
 interface Chunk {
   id: string;
@@ -23,15 +24,7 @@ interface ChunkViewerProps {
 }
 
 async function fetchChunks(sessionId: string, attachmentId: string): Promise<Chunk[]> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
-  const response = await fetch(`${apiUrl}/chat/sessions/${sessionId}/chunks`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-    body: JSON.stringify({ attachmentId }),
-  });
+  const response = await api.post(`/chat/sessions/${sessionId}/chunks`, { attachmentId });
 
   if (!response.ok) {
     throw new Error('Failed to fetch chunks');
