@@ -16,6 +16,7 @@ export const useStreamMessage = () => {
         attachmentIds?: string[];
         documentIds?: string[];
         bm25?: boolean;
+        rrf?: boolean;
         onToken?: (token: string) => void;
         onComplete?: (messageId: string) => void;
         onError?: (error: string) => void;

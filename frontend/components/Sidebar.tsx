@@ -74,9 +74,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const createConversation = useCreateConversation()
   const router = useRouter()
   const pathname = usePathname()
-  const { options, toggleHybridSearch } = useSearchOptions()
+  const { options, toggleHybridSearch, toggleRrfSearch } = useSearchOptions()
   const [showBM25Dialog, setShowBM25Dialog] = useState(false)
   const [isCheckingBM25, setIsCheckingBM25] = useState(false)
+  const [isCheckingRRF, setIsCheckingRRF] = useState(false)
   const [user, setUser] = useState<{
     name: string
     email: string
@@ -138,6 +139,38 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
   }
 
+  const handleRrfSearchToggle = async (checked: boolean) => {
+    console.log('[Sidebar] RRF search toggle clicked, checked:', checked);
+    
+    if (checked) {
+      setIsCheckingRRF(true);
+      
+      try {
+        const allCompleted = sessionAttachments?.every(
+          (att: any) => att.bm25indexStatus === 'completed'
+        );
+        
+        const hasAnyFiles = sessionAttachments && sessionAttachments.length > 0;
+        
+        console.log('[Sidebar] All files BM25 completed:', allCompleted, 'Has files:', hasAnyFiles);
+        
+        if (!hasAnyFiles || !allCompleted) {
+          setShowBM25Dialog(true);
+          setIsCheckingRRF(false);
+          return;
+        }
+        
+        toggleRrfSearch();
+        console.log('[Sidebar] Toggled RRF search ON');
+      } finally {
+        setIsCheckingRRF(false);
+      }
+    } else {
+      toggleRrfSearch();
+      console.log('[Sidebar] Toggled RRF search OFF');
+    }
+  }
+
   return (
     <>
       {state === 'collapsed' && (
@@ -195,6 +228,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         checked={options.hybridSearch}
                         onCheckedChange={handleHybridSearchToggle}
                         disabled={isCheckingBM25}
+                      />
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between py-2">
+                    <Label htmlFor="rrf-search" className="text-sm cursor-pointer">
+                      Reciprocal Rank Fusion (RRF)
+                    </Label>
+                    {isCheckingRRF ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    ) : (
+                      <Switch
+                        id="rrf-search"
+                        checked={options.rrfSearch}
+                        onCheckedChange={handleRrfSearchToggle}
+                        disabled={isCheckingRRF}
                       />
                     )}
                   </div>

@@ -4,10 +4,12 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 
 export interface SearchOptions {
   hybridSearch: boolean;
+  rrfSearch: boolean;
 }
 
 const DEFAULT_OPTIONS: SearchOptions = {
   hybridSearch: false,
+  rrfSearch: false,
 };
 
 const STORAGE_KEY = 'cosmic-engine-search-options';
@@ -82,11 +84,21 @@ export function useSearchOptions() {
     store.setOptions({ hybridSearch: false });
   };
 
+  const toggleRrfSearch = () => {
+    store.setOptions({ rrfSearch: !store.getOptions().rrfSearch });
+  };
+
+  const disableRrfSearch = () => {
+    store.setOptions({ rrfSearch: false });
+  };
+
   return {
     options,
     updateOptions,
     toggleHybridSearch,
     disableHybridSearch,
+    toggleRrfSearch,
+    disableRrfSearch,
     isLoaded: true, // Always loaded with sync external store
   };
 }
