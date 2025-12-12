@@ -136,7 +136,7 @@ export class GenerationService {
             title: 'Retrieved context',
             body: enhancedContexts.map(ctx =>
               // `${ctx.filename} • chunk ${ctx.chunkIndex + 1} • page ${ctx.pageNumber ?? '-'}`
-              `${ctx.filename} • chunk ${ctx.chunkIndex + 1}`
+              `${ctx.filename} • chunk ${ctx.chunkIndex}`
             )
           },
           timestamp: new Date().toISOString()

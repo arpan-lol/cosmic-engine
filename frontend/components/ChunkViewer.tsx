@@ -34,7 +34,7 @@ async function fetchChunks(sessionId: string, attachmentId: string): Promise<Chu
   return data.chunks.map((chunk: any, index: number) => ({
     id: chunk.id || `chunk-${index}`,
     content: chunk.content,
-    index: index + 1,
+    index: index
   }));
 }
 
@@ -54,16 +54,19 @@ export default function ChunkViewer({ open, onOpenChange, sessionId, attachmentI
     enabled: open,
   });
 
-  const selectedChunk = selectedChunkIndex !== null && chunks ? chunks[selectedChunkIndex - 1] : null;
+  const selectedChunk =
+    selectedChunkIndex !== null && chunks
+      ? chunks[selectedChunkIndex]
+      : null;
 
   const handleNext = () => {
-    if (selectedChunkIndex !== null && chunks && selectedChunkIndex < chunks.length) {
+    if (selectedChunkIndex !== null && chunks && selectedChunkIndex < chunks.length - 1) {
       setSelectedChunkIndex(selectedChunkIndex + 1);
     }
   };
 
   const handlePrev = () => {
-    if (selectedChunkIndex !== null && selectedChunkIndex > 1) {
+    if (selectedChunkIndex !== null && selectedChunkIndex > 0) {
       setSelectedChunkIndex(selectedChunkIndex - 1);
     }
   };
@@ -78,7 +81,7 @@ export default function ChunkViewer({ open, onOpenChange, sessionId, attachmentI
         <DialogHeader>
           <DialogTitle className="truncate">
             {selectedChunk 
-              ? `Chunk ${selectedChunk.index} of ${chunks?.length}` 
+              ? `Chunk ${selectedChunk.index} of ${chunks?.length!-1}`
               : `Document Chunks${filename ? ` - ${filename}` : ''}`
             }
           </DialogTitle>
@@ -110,7 +113,7 @@ export default function ChunkViewer({ open, onOpenChange, sessionId, attachmentI
                     variant="outline"
                     size="sm"
                     onClick={handlePrev}
-                    disabled={selectedChunkIndex === 1}
+                    disabled={selectedChunkIndex === 0}
                   >
                     <ChevronLeft className="h-4 w-4 mr-1" />
                     Previous
@@ -119,7 +122,7 @@ export default function ChunkViewer({ open, onOpenChange, sessionId, attachmentI
                     variant="outline"
                     size="sm"
                     onClick={handleNext}
-                    disabled={selectedChunkIndex === chunks.length}
+                    disabled={selectedChunkIndex === chunks.length - 1}
                   >
                     Next
                     <ChevronRight className="h-4 w-4 ml-1" />

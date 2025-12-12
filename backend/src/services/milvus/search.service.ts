@@ -43,7 +43,7 @@ export class SearchService {
         content: result.content,
         attachmentId: result.metadata?.attachmentId || 'unknown',
         filename: result.metadata?.filename || 'unknown',
-        chunkIndex: result.chunk_index || 0,
+        chunkIndex: Number(result.chunk_index) || 0,
         pageNumber: result.metadata?.pageNumber,
         score: result.score,
         metadata: result.metadata,

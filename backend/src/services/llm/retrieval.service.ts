@@ -48,7 +48,7 @@ export class RetrievalService {
           title: 'Vector search complete',
           body: [
             `Found ${ctx.length} relevant chunks`,
-            ...ctx.slice(0, 3).map(c => `${c.filename} • chunk ${c.chunkIndex + 1}`)
+            ...ctx.slice(0, 3).map(c => `${c.filename} • chunk ${c.chunkIndex}`)
           ],
         },
         timestamp: new Date().toISOString(),
