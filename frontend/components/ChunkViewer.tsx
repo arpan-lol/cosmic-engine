@@ -81,7 +81,7 @@ export default function ChunkViewer({ open, onOpenChange, sessionId, attachmentI
         <DialogHeader>
           <DialogTitle className="truncate">
             {selectedChunk 
-              ? `Chunk ${selectedChunk.index} of ${chunks?.length!-1}`
+              ? `Chunk ${selectedChunk.index} of ${(chunks?.length ?? 0) - 1}`
               : `Document Chunks${filename ? ` - ${filename}` : ''}`
             }
           </DialogTitle>
