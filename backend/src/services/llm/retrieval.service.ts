@@ -2,7 +2,7 @@ import { SearchService, SearchResult } from '../milvus';
 import { dynamicTopK } from '../../config/rag.config';
 import { RetrievalOptions } from '../../types/chat.types';
 import { HybridSearchService } from '../features/search-strategies/hybrid-search.service';
-import { AppError } from 'src/types/errors';
+import { ReciprocalRankFusionService } from '../features/search-strategies/reciprocal-rank-fusion.service';
 import { sseService } from '../sse.service';
 import { logger } from '@zilliz/milvus2-sdk-node';
 
@@ -25,6 +25,11 @@ export class RetrievalService {
       if (!attachmentIds || attachmentIds.length === 0) {
         console.log(`[Retrieval] No attachments specified, returning empty context`);
         return [];
+      }
+
+      if (options?.rrf) {
+        console.log('[Retrieval] Using RRF fusion for retrieval');
+        return await ReciprocalRankFusionService.search(sessionId, query, attachmentIds);
       }
 
       if (options?.bm25) {
@@ -103,4 +108,3 @@ export class RetrievalService {
     }));
   }
 }
-
