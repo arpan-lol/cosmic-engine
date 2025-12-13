@@ -209,10 +209,6 @@ class SSEService {
       }
     });
 
-    if (sentCount > 0) {
-      console.log(`[EventStream] Published ${event.type} event to ${sentCount} client(s) for session ${sessionId}`);
-    }
-
     prisma.chat.create({
       data: {
         sessionId,
@@ -247,10 +243,6 @@ class SSEService {
         });
       }
     });
-
-    if (sentCount > 0) {
-      console.log(`[EventStream] Published ${event.type} event to ${sentCount} client(s) for user ${userId}`);
-    }
   }
 
   closeSession(sessionId: string) {

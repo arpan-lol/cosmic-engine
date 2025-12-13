@@ -59,7 +59,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const createConversation = useCreateConversation()
   const router = useRouter()
   const pathname = usePathname()
-  const { options, toggleHybridSearch, toggleRrfSearch } = useSearchOptions()
+  const { options, toggleHybridSearch, toggleRrfSearch, toggleKeywordCaching } = useSearchOptions()
   const [showBM25Dialog, setShowBM25Dialog] = useState(false)
   const [isCheckingBM25, setIsCheckingBM25] = useState(false)
   const [isCheckingRRF, setIsCheckingRRF] = useState(false)
@@ -162,31 +162,32 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
         <SidebarContent>
           {sessionId && (
-            <SidebarGroup>
-              <Accordion type="single" collapsible className="w-full" defaultValue="search-strategies">
-                <AccordionItem value="search-strategies" className="border-none">
-                  <AccordionTrigger className="py-2 hover:no-underline">
-                    <SidebarGroupLabel className="px-0">Search Strategies</SidebarGroupLabel>
-                  </AccordionTrigger>
+            <>
+              <SidebarGroup>
+                <Accordion type="single" collapsible className="w-full" defaultValue="search-strategies">
+                  <AccordionItem value="search-strategies" className="border-none">
+                    <AccordionTrigger className="py-2 hover:no-underline">
+                      <SidebarGroupLabel className="px-0">Search Strategies</SidebarGroupLabel>
+                    </AccordionTrigger>
 
-                  <AccordionContent className="pb-2 space-y-2">
+                    <AccordionContent className="pb-2 space-y-2">
 
-                    {/* HYBRID SEARCH */}
-                    <div className="flex items-center justify-between py-2">
-                      <div className="flex items-center gap-1.5">
-                        <Label htmlFor="hybrid-search" className="text-sm cursor-pointer">
-                          Hybrid Search
-                        </Label>
+                      {/* HYBRID SEARCH */}
+                      <div className="flex items-center justify-between py-2">
+                        <div className="flex items-center gap-1.5">
+                          <Label htmlFor="hybrid-search" className="text-sm cursor-pointer">
+                            Hybrid Search
+                          </Label>
 
-                        <HoverCard>
-                          <HoverCardTrigger asChild>
-                            <CircleHelp className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer" />
-                          </HoverCardTrigger>
-                          <HoverCardContent className="w-80">
-                            <div className="prose prose-invert text-sm">
-                            <div className="prose prose-invert text-sm whitespace-pre-wrap">
-                              <ReactMarkdown>
-                                {`
+                          <HoverCard>
+                            <HoverCardTrigger asChild>
+                              <CircleHelp className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer" />
+                            </HoverCardTrigger>
+                            <HoverCardContent className="w-80">
+                              <div className="prose prose-invert text-sm">
+                              <div className="prose prose-invert text-sm whitespace-pre-wrap">
+                                <ReactMarkdown>
+                                  {`
 ### Hybrid Search
 Combines semantic similarity **(vector search)** and keyword relevance **(BM25)**.
 
@@ -194,89 +195,89 @@ Combines semantic similarity **(vector search)** and keyword relevance **(BM25)*
  • BM25 boosts important terms  
  • Helps retrieve both precise and context-rich chunks  
 `}
-                              </ReactMarkdown>
-                            </div>
-                            </div>
-                          </HoverCardContent>
-                        </HoverCard>
+                                </ReactMarkdown>
+                              </div>
+                              </div>
+                            </HoverCardContent>
+                          </HoverCard>
+                        </div>
+
+                        {isCheckingBM25 ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        ) : (
+                          <Switch
+                            id="hybrid-search"
+                            checked={options.hybridSearch}
+                            onCheckedChange={handleHybridSearchToggle}
+                          />
+                        )}
                       </div>
 
-                      {isCheckingBM25 ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      ) : (
-                        <Switch
-                          id="hybrid-search"
-                          checked={options.hybridSearch}
-                          onCheckedChange={handleHybridSearchToggle}
-                        />
-                      )}
-                    </div>
+                      {/* RRF */}
 
-                    {/* RRF */}
+                      <div className="flex items-center justify-between py-2">
+                        <div className="flex items-center gap-1.5">
+                          <Label htmlFor="rrf-search" className="text-sm cursor-pointer">
+                            Reciprocal Rank Fusion (RRF)
+                          </Label>
 
-                    <div className="flex items-center justify-between py-2">
-                      <div className="flex items-center gap-1.5">
-                        <Label htmlFor="rrf-search" className="text-sm cursor-pointer">
-                          Reciprocal Rank Fusion (RRF)
-                        </Label>
-
-                        <HoverCard>
-                          <HoverCardTrigger asChild>
-                            <CircleHelp className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer" />
-                          </HoverCardTrigger>
-                          <HoverCardContent className="w-80">
-                            <div className="prose prose-invert text-sm whitespace-pre-wrap">
-                              <ReactMarkdown>
-                                {`
+                          <HoverCard>
+                            <HoverCardTrigger asChild>
+                              <CircleHelp className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer" />
+                            </HoverCardTrigger>
+                            <HoverCardContent className="w-80">
+                              <div className="prose prose-invert text-sm whitespace-pre-wrap">
+                                <ReactMarkdown>
+                                  {`
  Reciprocal Rank Fusion (RRF) is a simple, powerful scoring method used to combine results from multiple search systems: like BM25 + embeddings + hybrid models - into one ranked list. 
  
- RRF says: “If multiple systems rank a document highly, even if their scores differ, boost it heavily.” 
+ RRF says: "If multiple systems rank a document highly, even if their scores differ, boost it heavily." 
  
  Instead of using raw scores (which may not be comparable), it uses rank positions only.
   `}
-                              </ReactMarkdown>
-                            </div>
-                          </HoverCardContent>
-                        </HoverCard>
+                                </ReactMarkdown>
+                              </div>
+                            </HoverCardContent>
+                          </HoverCard>
+                        </div>
+
+                        {isCheckingRRF ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        ) : (
+                          <Switch
+                            id="rrf-search"
+                            checked={options.rrfSearch}
+                            onCheckedChange={handleRrfSearchToggle}
+                          />
+                        )}
                       </div>
 
-                      {isCheckingRRF ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      ) : (
-                        <Switch
-                          id="rrf-search"
-                          checked={options.rrfSearch}
-                          onCheckedChange={handleRrfSearchToggle}
-                        />
-                      )}
-                    </div>
 
+                      <div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full flex items-center justify-between h-11"
+                          onClick={() => setShowBM25Dialog(true)}
+                        >
+                          <span>Index Files for BM25</span>
 
-                    <div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full flex items-center justify-between h-11"
-                        onClick={() => setShowBM25Dialog(true)}
-                      >
-                        <span>Index Files for BM25</span>
-
-                        <HoverCard>
-                          <HoverCardTrigger asChild>
-                            <span
-                              className="ml-3 flex items-center justify-center h-5 w-5 rounded-full hover:bg-muted/20"
-                              aria-hidden
-                            >
-                              <CircleHelp
-                                size={14}
-                                className="text-muted-foreground hover:text-primary cursor-help"
-                              />
-                            </span>
-                          </HoverCardTrigger>
- <HoverCardContent className="w-80">
-                            <div className="prose prose-invert text-sm whitespace-pre-wrap">
-                              <ReactMarkdown>
-                                {`
+                          <HoverCard>
+                            <HoverCardTrigger asChild>
+                              <span
+                                className="ml-3 flex items-center justify-center h-5 w-5 rounded-full hover:bg-muted/20"
+                                aria-hidden
+                              >
+                                <CircleHelp
+                                  size={14}
+                                  className="text-muted-foreground hover:text-primary cursor-help"
+                                />
+                              </span>
+                            </HoverCardTrigger>
+   <HoverCardContent className="w-80">
+                              <div className="prose prose-invert text-sm whitespace-pre-wrap">
+                                <ReactMarkdown>
+                                  {`
 ### BM25 Indexing
 
 BM25 indexing extracts **keywords** and **term statistics** so the system can
@@ -287,18 +288,61 @@ BM25 indexing extracts **keywords** and **term statistics** so the system can
 
 Before Hybrid Search or RRF can run, each file must be indexed with BM25.
 `}
-                              </ReactMarkdown>
-                            </div>
-                          </HoverCardContent>
-                        </HoverCard>
-                      </Button>
+                                </ReactMarkdown>
+                              </div>
+                            </HoverCardContent>
+                          </HoverCard>
+                        </Button>
+                      </div>
+
+
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </SidebarGroup>
+
+              {/* Cache Section */}
+              <SidebarGroup>
+                <SidebarGroupLabel className="flex items-center justify-between px-0">
+                  <span>Cache</span>
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <div className="flex items-center justify-between py-2 px-2">
+                    <div className="flex items-center gap-1.5">
+                      <Label htmlFor="keyword-caching" className="text-sm cursor-pointer">
+                        Keyword Caching
+                      </Label>
+
+                      <HoverCard>
+                        <HoverCardTrigger asChild>
+                          <CircleHelp className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer" />
+                        </HoverCardTrigger>
+                        <HoverCardContent className="w-80">
+                          <div className="prose prose-invert text-sm whitespace-pre-wrap">
+                            <ReactMarkdown>
+                              {`
+### Keyword Caching
+
+Caches Query, options and the generated response.
+
+ • Reduces computation time for repeated queries
+ • Speeds up search response times
+`}
+                            </ReactMarkdown>
+                          </div>
+                        </HoverCardContent>
+                      </HoverCard>
                     </div>
 
-
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </SidebarGroup>
+                    <Switch
+                      id="keyword-caching"
+                      checked={options.caching}
+                      onCheckedChange={toggleKeywordCaching}
+                    />
+                  </div>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </>
           )}
 
           {/* Conversations Section */}

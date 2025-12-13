@@ -9,6 +9,7 @@ import { GenerationService } from '../../services/llm/generation.service';
 import { logger } from '../../utils/logger.util';
 import { sseService } from '../../services/sse.service';
 import { UnauthorizedError, NotFoundError, ValidationError, ProcessingError } from '../../types/errors';
+import { buildQueryCacheKey, QueryCacheService } from 'src/services/features/caching/cache.service';
 
 export class MessageController {
   static async message(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
@@ -17,10 +18,12 @@ export class MessageController {
       throw new UnauthorizedError();
     }
 
+    console.log(`REQUEST BODY: ${req.body}`)
+
     const { id: sessionId } = req.params;
     const { content, attachmentIds, options }: SendMessageRequest = req.body;
 
-    console.log('[MESSAGE] Received request body:', JSON.stringify({ content: content?.substring(0, 50), attachmentIds, options }, null, 2));
+    console.log('[CACHE] cachingEnabled:', options?.caching, options)
 
     if (!content?.trim()) {
       throw new ValidationError('Message content is required');
@@ -81,6 +84,65 @@ export class MessageController {
 
       let fullResponse = '';
 
+      const cachingEnabled = options?.caching === true
+
+      let cacheKey: string | null = null
+
+      if (cachingEnabled) {
+        cacheKey = buildQueryCacheKey({
+          sessionId,
+          query: content.trim(),
+          attachmentIds: attachmentIds ?? [],
+          options,
+        })
+
+        const cachedAssistant = await QueryCacheService.getCachedResponse(cacheKey)
+
+        if (cachedAssistant) {
+          await sseService.publishToSession(sessionId, {
+            type: 'success',
+            scope: 'session',
+            message: 'query-cache-hit',
+            showInChat: false,
+            data: {
+              title: 'Cached response',
+              body: ['Reusing a previously generated answer'],
+            },
+            timestamp: new Date().toISOString(),
+          })
+
+          const text = cachedAssistant.content || ''
+
+          for (const chunk of text.match(/.{1,30}/g) || []) {
+            res.write(`data: ${JSON.stringify({ type: 'token', content: chunk })}\n\n`)
+          }
+
+          const replayed = await prisma.chat.create({
+            data: {
+              sessionId,
+              role: 'assistant',
+              content: text,
+              tokens: cachedAssistant.tokens,
+            },
+          })
+
+          res.write(
+            `data: ${JSON.stringify({ type: 'done', messageId: replayed.id })}\n\n`
+          )
+
+          res.end()
+          return
+        }
+
+        await QueryCacheService.recordRequest({
+          cacheKey,
+          sessionId,
+          query: content.trim(),
+          attachmentIds: attachmentIds ?? [],
+          options,
+        })
+      }
+
       try {
         const stream = GenerationService.streamResponse(
           sessionId,
@@ -104,6 +166,10 @@ export class MessageController {
             tokens: fullResponse.length,
           },
         });
+
+        if (cachingEnabled && cacheKey) {
+          await QueryCacheService.attachAssistantMessage(cacheKey, assistantMessage.id)
+        }
 
         res.write(
           `data: ${JSON.stringify({ type: 'done', messageId: assistantMessage.id })}\n\n`

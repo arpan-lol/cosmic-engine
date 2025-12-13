@@ -83,3 +83,21 @@ model BM25IndexEntry {
   @@index([attachmentId, term])
   @@index([attachmentId, chunkIndex])
 }
+
+model QueryRequestCache {
+  id           String   @id @default(cuid())
+
+  cacheKey     String   @unique
+  sessionId    String
+
+  query        String
+  attachments  String[]        
+  options      Json           
+
+  assistantMessageId String?
+
+  createdAt    DateTime @default(now())
+  lastSeenAt   DateTime @updatedAt
+
+  @@index([sessionId])
+}

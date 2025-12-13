@@ -143,15 +143,6 @@ export class GenerationService {
         });
       }
 
-      //TODO: remove debugging karne ke baad
-      if (attachmentIds && attachmentIds.length > 0) {
-        console.log('[CHUNKS] Retrieved chunks for attachments:');
-        for (const attachmentId of attachmentIds) {
-          const chunksForAttachment = enhancedContexts.filter(ctx => ctx.attachmentId === attachmentId);
-          console.log(`\n[CHUNKS] Attachment ${attachmentId}:`);
-          console.log(chunksForAttachment);
-        }
-      }
       
       const systemPromptWithContext = buildPrompt('', enhancedContexts, []);
       const contextStrings = enhancedContexts.map((ctx) => ctx.content);

@@ -1,6 +1,7 @@
 export interface RetrievalOptions {
   bm25?: boolean;
   rrf?: boolean;
+  caching?: boolean;
 }
 
 export interface CreateSessionRequest {
