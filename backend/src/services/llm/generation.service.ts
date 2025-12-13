@@ -280,7 +280,7 @@ export class GenerationService {
       logger.error('Generation', 'Error streaming response', error instanceof Error ? error : undefined, { sessionId });
 
       await sseService.publishToSession(sessionId, {
-        type: 'success',
+        type: 'error',
         scope: 'session',
         message: 'generation-error',
         showInChat: false,
@@ -297,6 +297,60 @@ export class GenerationService {
       }
 
       throw new ProcessingError('Failed to stream response');
+    }
+  }
+
+  static async generate(params: {
+    systemPrompt?: string
+    userPrompt: string
+    temperature?: number
+    maxTokens?: number
+  }): Promise<string> {
+    const {
+      systemPrompt,
+      userPrompt,
+      temperature = 0.5,
+      maxTokens = 200,
+    } = params
+
+    try {
+      const contents: Content[] = []
+
+      if (systemPrompt) {
+        contents.push({
+          role: 'user' as const,
+          parts: [{ text: systemPrompt }],
+        })
+      }
+
+      contents.push({
+        role: 'user' as const,
+        parts: [{ text: userPrompt }],
+      })
+
+      const result = await ai.models.generateContent({
+        model: MODEL,
+        contents,
+        config: {
+          temperature,
+          maxOutputTokens: maxTokens,
+        },
+      })
+
+      const text =
+        result.candidates?.[0]?.content?.parts
+          ?.map(p => p.text)
+          .filter(Boolean)
+          .join('') ?? ''
+
+      return text.trim()
+    } catch (error) {
+      logger.error(
+        'Generation',
+        'generate() failed',
+        error instanceof Error ? error : undefined
+      )
+      throw error
     }
   }
 }

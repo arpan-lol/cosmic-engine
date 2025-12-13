@@ -2,6 +2,10 @@ export interface RetrievalOptions {
   bm25?: boolean;
   rrf?: boolean;
   caching?: boolean;
+  queryExpansion?: {
+    enabled: boolean
+    temperature: number
+  }
 }
 
 export interface CreateSessionRequest {

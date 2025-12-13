@@ -45,12 +45,22 @@ import {
 } from '@/components/ui/accordion'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { Slider } from "@/components/ui/slider"
 import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card'
 import ReactMarkdown from 'react-markdown'
+
+const EXPANSION_STYLES = [
+  { label: 'Conservative', value: 'conservative' },
+  { label: 'Moderate', value: 'moderate' },
+  { label: 'Aggressive', value: 'aggressive' },
+] as const
+
+type ExpansionStyle = typeof EXPANSION_STYLES[number]['value']
+
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { toggleSidebar, state } = useSidebar()
@@ -59,7 +69,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const createConversation = useCreateConversation()
   const router = useRouter()
   const pathname = usePathname()
-  const { options, toggleHybridSearch, toggleRrfSearch, toggleKeywordCaching } = useSearchOptions()
+const {
+  options,
+  updateOptions,
+  toggleHybridSearch,
+  toggleRrfSearch,
+  toggleKeywordCaching,
+} = useSearchOptions()
   const [showBM25Dialog, setShowBM25Dialog] = useState(false)
   const [isCheckingBM25, setIsCheckingBM25] = useState(false)
   const [isCheckingRRF, setIsCheckingRRF] = useState(false)
@@ -342,6 +358,101 @@ Caches Query, options and the generated response.
                   </div>
                 </SidebarGroupContent>
               </SidebarGroup>
+
+              {/* ================= VAGUE QUERIES ================= */}
+              <SidebarGroup>
+                <SidebarGroupLabel className="px-0">
+                  Vague Queries
+                </SidebarGroupLabel>
+
+                <SidebarGroupContent className="space-y-3">
+
+                  {/* Query Expansion Toggle */}
+                  <div className="flex items-center justify-between py-2 px-2">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-sm cursor-pointer">
+                        Query Expansion
+                      </Label>
+
+                      <HoverCard>
+                        <HoverCardTrigger asChild>
+                          <CircleHelp className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer" />
+                        </HoverCardTrigger>
+                        <HoverCardContent className="w-80">
+                          <div className="prose prose-invert text-sm whitespace-pre-wrap">
+                            <ReactMarkdown>
+                              {`
+### Query Expansion
+
+Expands short or vague queries with related terms before search.
+
+ • Uses an LLM
+ • Response time is increased
+
+Recommended for short or ambiguous queries.
+`}
+                            </ReactMarkdown>
+                          </div>
+                        </HoverCardContent>
+                      </HoverCard>
+                    </div>
+
+                    <Switch
+                      checked={options.queryExpansion?.enabled ?? false}
+                      onCheckedChange={(enabled) =>
+                        updateOptions({
+                          queryExpansion: enabled
+                            ? {
+                              enabled: true,
+                              temperature: options.queryExpansion?.temperature ?? 0.5,
+                            }
+                            : undefined,
+                        })
+                      }
+                    />
+                  </div>
+
+                  {/* Temperature Slider */}
+                  {options.queryExpansion?.enabled && (
+                    <div className="px-2 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Temperature</span>
+                        <span className="text-xs text-muted-foreground">
+                          {(() => {
+                            const t = options.queryExpansion.temperature
+                            if (t <= 0.3) return 'Conservative'
+                            if (t <= 0.5) return 'Moderate'
+                            if (t <= 0.7) return 'Aggressive'
+                            return '🔥'
+                          })()}
+                        </span>
+                      </div>
+
+                      <Slider
+                        className='hover:cursor-pointer'
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        value={[options.queryExpansion.temperature]}
+                        onValueChange={([v]) =>
+                          updateOptions({
+                            queryExpansion: {
+                              enabled: true,
+                              temperature: Number(v.toFixed(2)),
+                            },
+                          })
+                        }
+                      />
+
+                      <div className="text-xs text-muted-foreground text-right">
+                        {(options.queryExpansion?.temperature ?? 0.5).toFixed(2)}
+                      </div>
+                    </div>
+                  )}
+
+                </SidebarGroupContent>
+              </SidebarGroup>
+
             </>
           )}
 

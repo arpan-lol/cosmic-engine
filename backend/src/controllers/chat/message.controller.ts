@@ -10,6 +10,7 @@ import { logger } from '../../utils/logger.util';
 import { sseService } from '../../services/sse.service';
 import { UnauthorizedError, NotFoundError, ValidationError, ProcessingError } from '../../types/errors';
 import { buildQueryCacheKey, QueryCacheService } from 'src/services/features/caching/cache.service';
+import { QueryExpansionService } from 'src/services/features/vague-questions/query-expansion.service';
 
 export class MessageController {
   static async message(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
@@ -22,6 +23,12 @@ export class MessageController {
 
     const { id: sessionId } = req.params;
     const { content, attachmentIds, options }: SendMessageRequest = req.body;
+
+    if (options?.queryExpansion?.enabled) {
+      if (typeof options.queryExpansion.temperature !== 'number' || isNaN(options.queryExpansion.temperature)) {
+        options.queryExpansion.temperature = 0.5;
+      }
+    }
 
     console.log('[CACHE] cachingEnabled:', options?.caching, options)
 
@@ -144,9 +151,30 @@ export class MessageController {
       }
 
       try {
+        let retrievalQuery = content.trim()
+
+        if (options?.queryExpansion?.enabled) {
+          retrievalQuery = await QueryExpansionService.expand(retrievalQuery, attachmentIds ? attachmentIds : undefined, options.queryExpansion)
+
+          await sseService.publishToSession(sessionId, {
+            type: 'notification',
+            scope: 'session',
+            message: 'query-expanded',
+            showInChat: false,
+            data: {
+              title: 'Query expanded',
+              body: [
+                `Original: ${content.trim()}`,
+                `Expanded: ${retrievalQuery}`,
+              ],
+            },
+            timestamp: new Date().toISOString(),
+          })
+        }
+
         const stream = GenerationService.streamResponse(
           sessionId,
-          content.trim(),
+          retrievalQuery,
           conversationHistory,
           attachmentIds,
           options
@@ -169,6 +197,19 @@ export class MessageController {
 
         if (cachingEnabled && cacheKey) {
           await QueryCacheService.attachAssistantMessage(cacheKey, assistantMessage.id)
+          await sseService.publishToSession(sessionId, {
+            type: 'notification',
+            scope: 'session',
+            message: 'saved-to-cache',
+            showInChat: false,
+            data: {
+              title: 'Cached response',
+              body: [
+                'type: keyword',
+              ],
+            },
+            timestamp: new Date().toISOString(),
+          })
         }
 
         res.write(

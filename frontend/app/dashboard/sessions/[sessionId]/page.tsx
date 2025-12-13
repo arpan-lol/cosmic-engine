@@ -185,16 +185,12 @@ export default function ChatSessionPage() {
 
     setOptimisticMessages(prev => [...prev, userMsg, assistantMsg]);
 
-    console.log('[SESSION] searchOptions.hybridSearch =', searchOptions.hybridSearch);
-    console.log('[SESSION] Sending message with bm25 =', searchOptions.hybridSearch);
-    console.log('[SESSION] searchOptions.rrfSearch =', searchOptions.rrfSearch);
-    console.log('[SESSION] searchOptions.caching =', searchOptions.caching);
-
     await sendMessage(sessionId, content, {
       attachmentIds: selectedContextIds.length > 0 ? selectedContextIds : undefined,
       bm25: searchOptions.hybridSearch,
       rrf: searchOptions.rrfSearch,
       caching: searchOptions.caching,
+      queryExpansion: searchOptions.queryExpansion,
       onComplete: () => {
         queryClient.invalidateQueries({ queryKey: ['conversations', sessionId] });
         setTimeout(() => reset(), 100);

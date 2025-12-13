@@ -6,6 +6,10 @@ export interface SearchOptions {
   hybridSearch: boolean;
   rrfSearch: boolean;
   caching: boolean;
+queryExpansion?: {
+  enabled: boolean
+  temperature: number
+  }
 }
 
 const DEFAULT_OPTIONS: SearchOptions = {
