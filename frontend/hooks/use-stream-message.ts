@@ -17,6 +17,7 @@ export const useStreamMessage = () => {
         documentIds?: string[];
         bm25?: boolean;
         rrf?: boolean;
+        caching?: boolean;
         onToken?: (token: string) => void;
         onComplete?: (messageId: string) => void;
         onError?: (error: string) => void;
@@ -52,10 +53,11 @@ export const useStreamMessage = () => {
           documentIds: options?.documentIds,
         };
 
-        if (options?.bm25 !== undefined) {
-          requestBody.options = {
-            bm25: options.bm25,
-          };
+        if (options?.bm25 !== undefined || options?.rrf !== undefined || options?.caching !== undefined) {
+          requestBody.options = {};
+          if (options.bm25 !== undefined) requestBody.options.bm25 = options.bm25;
+          if (options.rrf !== undefined) requestBody.options.rrf = options.rrf;
+          if (options.caching !== undefined) requestBody.options.caching = options.caching;
         }
 
         console.log('[STREAM] Sending message with body:', JSON.stringify(requestBody, null, 2));
