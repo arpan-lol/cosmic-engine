@@ -1,19 +1,15 @@
 'use client';
 
-import {
-  MessageSquare,
-  Plus,
-  PanelLeftClose,
-  Loader2,
-  CircleHelp,
-} from 'lucide-react';
+import { PanelLeftClose } from 'lucide-react';
 import * as React from 'react';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import BM25FileSelector from './BM25FileSelector';
-import { ConversationItem } from './sidebar/ConversationItem';
 import { SearchToggle } from './sidebar/SearchToggle';
+import { SearchStrategies } from './sidebar/SearchStrategies';
+import { VagueQueries } from './sidebar/VagueQueries';
+import { ConversationsList } from './sidebar/ConversationsList';
 
 import { NavUser } from '@/components/NavUser';
 import {
@@ -22,7 +18,6 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
   SidebarGroup,
   SidebarGroupLabel,
@@ -38,7 +33,6 @@ import {
 } from '@/hooks/use-conversations';
 import { useSessionAttachments } from '@/hooks/use-upload';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -57,42 +51,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from '@/components/ui/hover-card';
-import ReactMarkdown from 'react-markdown';
-
-const HYBRID_SEARCH_HELP = `
-### Hybrid Search
-Combines semantic similarity **(vector search)** and keyword relevance **(BM25)**.
-
- • Vector search understands meaning  
- • BM25 boosts important terms  
- • Helps retrieve both precise and context-rich chunks  
-`;
-
-const RRF_SEARCH_HELP = `
-Reciprocal Rank Fusion (RRF) is a simple, powerful scoring method used to combine results from multiple search systems: like BM25 + embeddings + hybrid models - into one ranked list.
-
-RRF says: "If multiple systems rank a document highly, even if their scores differ, boost it heavily."
-
-Instead of using raw scores (which may not be comparable), it uses rank positions only.
-`;
-
-const BM25_INDEXING_HELP = `
-### BM25 Indexing
-
-BM25 indexing extracts **keywords** and **term statistics** so the system can perform keyword-based searches.
-
- • Essential for Hybrid Search and RRF  
- • One-time processing per file  
- • Enables fast keyword matching  
-`;
 
 const KEYWORD_CACHING_HELP = `
 ### Keyword Caching
@@ -102,17 +60,6 @@ Stores recent query results to avoid redundant processing.
  • Faster responses for repeated queries  
  • Reduces LLM API calls  
  • Clears when session ends  
-`;
-
-const QUERY_EXPANSION_HELP = `
-### Query Expansion
-
-Expands short or vague queries with related terms before search.
-
- • Uses an LLM
- • Response time is increased
-
-Recommended for short or ambiguous queries.
 `;
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -305,196 +252,48 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarContent>
           {sessionId && (
             <>
-              <SidebarGroup>
-                <Accordion
-                  type="single"
-                  collapsible
-                  className="w-full"
-                  defaultValue="search-strategies"
-                >
-                  <AccordionItem value="search-strategies" className="border-none">
-                    <AccordionTrigger className="py-2 hover:no-underline">
-                      <SidebarGroupLabel className="px-0">Search Strategies</SidebarGroupLabel>
-                    </AccordionTrigger>
-
-                    <AccordionContent className="pb-2 space-y-2">
-                      <SearchToggle
-                        id="hybrid-search"
-                        label="Hybrid Search"
-                        helpText={HYBRID_SEARCH_HELP}
-                        checked={options.hybridSearch}
-                        onCheckedChange={handleHybridSearchToggle}
-                        isLoading={isCheckingBM25}
-                      />
-
-                      <SearchToggle
-                        id="rrf-search"
-                        label="Reciprocal Rank Fusion (RRF)"
-                        helpText={RRF_SEARCH_HELP}
-                        checked={options.rrfSearch}
-                        onCheckedChange={handleRrfSearchToggle}
-                        isLoading={isCheckingRRF}
-                      />
-
-                      <div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full flex items-center justify-between h-11"
-                          onClick={() => setShowBM25Dialog(true)}
-                        >
-                          <span>Index Files for BM25</span>
-                          <HoverCard>
-                            <HoverCardTrigger asChild>
-                              <span
-                                className="ml-3 flex items-center justify-center h-5 w-5 rounded-full hover:bg-muted/20"
-                                aria-hidden
-                              >
-                                <CircleHelp
-                                  size={14}
-                                  className="text-muted-foreground hover:text-primary cursor-help"
-                                />
-                              </span>
-                            </HoverCardTrigger>
-                            <HoverCardContent className="w-80">
-                              <div className="prose prose-invert text-sm whitespace-pre-wrap">
-                                <ReactMarkdown>{BM25_INDEXING_HELP}</ReactMarkdown>
-                              </div>
-                            </HoverCardContent>
-                          </HoverCard>
-                        </Button>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              </SidebarGroup>
+              <SearchStrategies
+                options={options}
+                onHybridSearchToggle={handleHybridSearchToggle}
+                onRrfSearchToggle={handleRrfSearchToggle}
+                onBM25ButtonClick={() => setShowBM25Dialog(true)}
+                isCheckingBM25={isCheckingBM25}
+                isCheckingRRF={isCheckingRRF}
+              />
 
               <SidebarGroup>
-                <SidebarGroupLabel>Keyword Caching</SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SearchToggle
-                    id="keyword-caching"
-                    label="Enable Caching"
-                    helpText={KEYWORD_CACHING_HELP}
-                    checked={options.caching}
-                    onCheckedChange={toggleKeywordCaching}
-                  />
-                </SidebarGroupContent>
-              </SidebarGroup>
-
-              <SidebarGroup>
-                <SidebarGroupLabel className="px-0">Vague Queries</SidebarGroupLabel>
+                <SidebarGroupLabel className="px-0">Caching</SidebarGroupLabel>
                 <SidebarGroupContent className="space-y-3">
-                  <div className="flex items-center justify-between py-2 px-2">
-                    <div className="flex items-center gap-1.5">
-                      <Label className="text-sm cursor-pointer">Query Expansion</Label>
-                      <HoverCard>
-                        <HoverCardTrigger asChild>
-                          <CircleHelp className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer" />
-                        </HoverCardTrigger>
-                        <HoverCardContent className="w-80">
-                          <div className="prose prose-invert text-sm whitespace-pre-wrap">
-                            <ReactMarkdown>{QUERY_EXPANSION_HELP}</ReactMarkdown>
-                          </div>
-                        </HoverCardContent>
-                      </HoverCard>
-                    </div>
-                    <Switch
-                      checked={options.queryExpansion?.enabled ?? false}
-                      onCheckedChange={(enabled) =>
-                        updateOptions({
-                          queryExpansion: enabled
-                            ? {
-                                enabled: true,
-                                temperature: options.queryExpansion?.temperature ?? 0.5,
-                              }
-                            : undefined,
-                        })
-                      }
+                  <div className="px-2">
+                    <SearchToggle
+                      id="keyword-caching"
+                      label="Keyword caching"
+                      helpText={KEYWORD_CACHING_HELP}
+                      checked={options.caching}
+                      onCheckedChange={toggleKeywordCaching}
                     />
                   </div>
-
-                  {options.queryExpansion?.enabled && (
-                    <div className="px-2 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">Temperature</span>
-                        <span className="text-xs text-muted-foreground">
-                          {(() => {
-                            const t = options.queryExpansion.temperature;
-                            if (t <= 0.3) return 'Conservative';
-                            if (t <= 0.5) return 'Moderate';
-                            if (t <= 0.7) return 'Aggressive';
-                            return '🔥';
-                          })()}
-                        </span>
-                      </div>
-                      <Slider
-                        className="hover:cursor-pointer"
-                        min={0}
-                        max={1}
-                        step={0.01}
-                        value={[options.queryExpansion.temperature]}
-                        onValueChange={([v]) =>
-                          updateOptions({
-                            queryExpansion: {
-                              enabled: true,
-                              temperature: Number(v.toFixed(2)),
-                            },
-                          })
-                        }
-                      />
-                      <div className="text-xs text-muted-foreground text-right">
-                        {(options.queryExpansion?.temperature ?? 0.5).toFixed(2)}
-                      </div>
-                    </div>
-                  )}
                 </SidebarGroupContent>
               </SidebarGroup>
+
+              <VagueQueries options={options} onOptionsUpdate={updateOptions} />
             </>
           )}
 
-          <SidebarGroup>
-            <SidebarGroupLabel className="flex items-center justify-between px-0">
-              <span>Conversations</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-5 w-5"
-                onClick={handleCreateConversation}
-                disabled={createConversation.isPending}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <ScrollArea className="h-[400px]">
-                <SidebarMenu>
-                    {isLoading && (
-                      <div className="px-2 py-1 text-sm text-muted-foreground">Loading...</div>
-                    )}
-                    {conversations?.map((conversation) => (
-                      <ConversationItem
-                        key={conversation.id}
-                        conversation={conversation}
-                        isEditing={editingConversationId === conversation.id}
-                        editingTitle={editingTitle}
-                        onEditStart={handleEditTitle}
-                        onEditSave={handleSaveTitle}
-                        onEditCancel={handleCancelEdit}
-                        onEditChange={setEditingTitle}
-                        onDelete={handleDeleteConversation}
-                        isDeleting={deleteConversation.isPending}
-                      />
-                    ))}
-                    {!isLoading && conversations?.length === 0 && (
-                      <div className="px-2 py-1 text-sm text-muted-foreground">
-                        No conversations yet
-                      </div>
-                    )}
-                </SidebarMenu>
-              </ScrollArea>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          <ConversationsList
+            conversations={conversations || []}
+            isLoading={isLoading}
+            editingConversationId={editingConversationId}
+            editingTitle={editingTitle}
+            onCreateConversation={handleCreateConversation}
+            onEditStart={handleEditTitle}
+            onEditSave={handleSaveTitle}
+            onEditCancel={handleCancelEdit}
+            onEditChange={setEditingTitle}
+            onDelete={handleDeleteConversation}
+            isCreating={createConversation.isPending}
+            isDeleting={deleteConversation.isPending}
+          />
         </SidebarContent>
 
         {user && (

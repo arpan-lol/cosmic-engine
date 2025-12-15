@@ -96,6 +96,7 @@ export class SessionController {
         updatedAt: session.updatedAt,
         messages: session.chats.map((msg) => ({
           id: msg.id,
+          sessionId: msg.sessionId,
           role: msg.role as 'user' | 'assistant' | 'system',
           content: msg.content,
           tokens: msg.tokens || undefined,

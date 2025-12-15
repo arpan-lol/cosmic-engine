@@ -151,6 +151,7 @@ export default function FileUploadButton({
         multiple
       />
       <Button
+        id="file-upload-button"
         variant="outline"
         onClick={handleButtonClick}
         disabled={uploadFile.isPending || hasAnyUploading || hasAnyProcessing}

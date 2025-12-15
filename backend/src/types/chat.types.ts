@@ -70,6 +70,7 @@ export interface SessionDetails {
 
 export interface MessageDetails {
   id: string;
+  sessionId: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   attachments: AttachmentDetails[];

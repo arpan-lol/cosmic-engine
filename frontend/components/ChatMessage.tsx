@@ -1,17 +1,19 @@
 'use client';
 
-import { Message } from '@/lib/types';
+import { useState, memo } from 'react';
+import Image from 'next/image';
+import { Loader2, Copy, Check, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import type { Message } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Paperclip, Loader2, FileText, Copy, Check } from 'lucide-react';
-import { useState } from 'react';
-import Image from 'next/image';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkBreaks from 'remark-breaks';
-import rehypeHighlight from 'rehype-highlight';
+import { formatMessageTime, formatMessageDateTime, getDateTimeAttribute } from '@/lib/date-utils';
+import { areAttachmentsEqual } from '@/lib/message-utils';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { MessageContent } from '@/components/MessageContent';
+import { AttachmentList } from '@/components/AttachmentList';
 import 'highlight.js/styles/github-dark.css';
 
 interface ChatMessageProps {
@@ -20,144 +22,42 @@ interface ChatMessageProps {
   userName?: string;
   isLoading?: boolean;
   onCitationClick?: (filename: string, page?: number) => void;
+  onAttachmentClick?: (filename: string) => void;
 }
 
-interface Citation {
-  text: string;
-  filename: string;
-  pages: number[];
-}
+const AVATAR_SIZE = 32;
+const AVATAR_SIZE_CLASS = 'h-8 w-8';
+const COPY_SUCCESS_DURATION = 2000;
 
-function parseCitations(text: string): (string | Citation)[] {
-  const citationRegex = /\[SOURCE:\s*([^\|\]]+?)\s*\|\s*([^\]]+)\]/gi;
-  const parts: (string | Citation)[] = [];
-  let lastIndex = 0;
-  let match;
-
-  while ((match = citationRegex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.substring(lastIndex, match.index));
-    }
-
-    const filename = match[1].trim();
-    const pagesText = match[2].trim();
-    
-    const pageNumbers: number[] = [];
-    const numberMatches = pagesText.matchAll(/\d+/g);
-    for (const numMatch of numberMatches) {
-      pageNumbers.push(parseInt(numMatch[0], 10));
-    }
-
-    parts.push({
-      text: match[0],
-      filename,
-      pages: pageNumbers.length > 0 ? pageNumbers : [1],
-    });
-
-    lastIndex = match.index + match[0].length;
-    
-    if (lastIndex < text.length && /[.,;:!?]/.test(text[lastIndex])) {
-      lastIndex++;
-    }
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(text.substring(lastIndex));
-  }
-
-  return parts;
-}
-
-export default function ChatMessage({ message, userAvatar, userName, isLoading, onCitationClick }: ChatMessageProps) {
+function ChatMessageComponent({ message, userAvatar, userName, isLoading, onCitationClick, onAttachmentClick }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(message.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (!message?.content) {
+      toast.error('No content to copy');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setCopyError(false);
+      setTimeout(() => setCopied(false), COPY_SUCCESS_DURATION);
+    } catch (error) {
+      console.error('Failed to copy message:', {
+        error,
+        messageId: message.id,
+        contentLength: message.content?.length,
+      });
+      setCopyError(true);
+      toast.error('Failed to copy message to clipboard');
+      setTimeout(() => setCopyError(false), COPY_SUCCESS_DURATION);
+    }
   };
 
-  const renderContentWithCitations = (content: string) => {
-    const parts = parseCitations(content);
-    
-    return parts.map((part, index) => {
-      if (typeof part === 'string') {
-        return <ReactMarkdown
-          key={index}
-          remarkPlugins={[remarkGfm, remarkBreaks]}
-          rehypePlugins={[rehypeHighlight]}
-          components={{
-            code: ({ node, inline, className, children, ...props }: any) => (
-              inline ? (
-                <code className="bg-muted px-1 py-0.5 rounded text-sm" {...props}>
-                  {children}
-                </code>
-              ) : (
-                <code className={className} {...props}>
-                  {children}
-                </code>
-              )
-            ),
-            pre: ({ children, ...props }: any) => (
-              <pre className="bg-muted p-4 rounded-lg overflow-x-auto" {...props}>
-                {children}
-              </pre>
-            ),
-            a: ({ children, ...props }: any) => (
-              <a className="text-primary hover:underline" target="_blank" rel="noopener noreferrer" {...props}>
-                {children}
-              </a>
-            ),
-            table: ({ children, ...props }: any) => (
-              <div className="overflow-x-auto">
-                <table className="border-collapse border border-border" {...props}>
-                  {children}
-                </table>
-              </div>
-            ),
-            th: ({ children, ...props }: any) => (
-              <th className="border border-border px-4 py-2 bg-muted" {...props}>
-                {children}
-              </th>
-            ),
-            td: ({ children, ...props }: any) => (
-              <td className="border border-border px-4 py-2" {...props}>
-                {children}
-              </td>
-            ),
-          }}
-        >
-          {part}
-        </ReactMarkdown>;
-      } else {
-        const isPDF = part.filename.toLowerCase().endsWith('.pdf');
-        
-        if (!isPDF) {
-          return null;
-        }
-        
-        const firstPage = part.pages[0];
-        const displayText = part.pages.length > 1 
-          ? `${part.filename.split('.')[0]} (${part.pages.length} refs)` 
-          : `${part.filename.split('.')[0]} - p.${firstPage}`;
-        
-        return (
-          <Button
-            key={index}
-            variant="outline"
-            size="sm"
-            className="inline-flex items-center gap-1 mx-1 h-6 text-xs"
-            onClick={() => onCitationClick?.(part.filename, firstPage)}
-            title={`${part.filename}${part.pages.length > 1 ? ` (Pages: ${part.pages.join(', ')})` : ` - Page ${firstPage}`}`}
-          >
-            <FileText className="h-3 w-3" />
-            {displayText}
-          </Button>
-        );
-      }
-    });
-  };
+  const hasValidDate = message?.createdAt && !isNaN(new Date(message.createdAt).getTime());
 
   return (
     <div
@@ -170,68 +70,63 @@ export default function ChatMessage({ message, userAvatar, userName, isLoading, 
       {!isUser && (
         <>
           <div className="flex gap-3 items-start">
-            <div className="h-8 w-8 flex-shrink-0">
-              <Image src="/logo.png" alt="AI" width={28} height={28} className="h-8 w-8" />
+            <div className={cn(AVATAR_SIZE_CLASS, 'flex-shrink-0')} aria-hidden="true">
+              <Image 
+                src="/logo.png" 
+                alt="AI Assistant" 
+                width={AVATAR_SIZE} 
+                height={AVATAR_SIZE} 
+                className={AVATAR_SIZE_CLASS}
+                priority
+              />
             </div>
             <Card className="max-w-[80%] border-0 shadow-none bg-muted/50">
               <CardContent className="p-3">
                 {isLoading ? (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm">Thinking...</span>
+                  <div className="flex items-center gap-2 text-muted-foreground" role="status" aria-live="polite" aria-busy="true">
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    <span className="text-sm">Generating response...</span>
                   </div>
                 ) : (
-                  <div className="prose prose-sm dark:prose-invert max-w-none animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    {renderContentWithCitations(message.content)}
-                  </div>
+                  <ErrorBoundary>
+                    <div className="prose prose-sm dark:prose-invert max-w-none break-words">
+                      <MessageContent content={message.content} onCitationClick={onCitationClick} />
+                    </div>
+                  </ErrorBoundary>
                 )}
 
-                <div
-                  className="text-xs mt-2 text-muted-foreground"
-                  title={new Date(message.createdAt).toLocaleString('en-US', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: true
-                  })}
-                >
-                  {new Date(message.createdAt).toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    hour12: true
-                  })}
-                </div>
+                {hasValidDate && (
+                  <div className="flex items-center justify-between mt-5">
+                    {!isLoading && message?.content && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-4 w-4 p-0 text-muted-foreground hover:text-foreground"
+                        onClick={handleCopy}
+                        aria-label={copyError ? 'Failed to copy' : copied ? 'Message copied to clipboard' : 'Copy message to clipboard'}
+                      >
+                        {copyError ? (
+                          <AlertCircle className="h-3 w-3" aria-hidden="true" />
+                        ) : copied ? (
+                          <Check className="h-3 w-3" aria-hidden="true" />
+                        ) : (
+                          <Copy className="h-3 w-3" aria-hidden="true" />
+                        )}
+                      </Button>
+                    )}
+                    <time
+                      className="text-xs text-muted-foreground"
+                      dateTime={getDateTimeAttribute(message.createdAt)}
+                      title={formatMessageDateTime(message.createdAt)}
+                    >
+                      {formatMessageTime(message.createdAt)}
+                    </time>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
         </>
-      )}
-
-      {!isUser && !isLoading && message.content && (
-        <div className="ml-11">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs"
-            onClick={handleCopy}
-          >
-            {copied ? (
-              <>
-                <Check className="h-3 w-3 mr-1" />
-                Copied
-              </>
-            ) : (
-              <>
-                <Copy className="h-3 w-3 mr-1" />
-                Copy
-              </>
-            )}
-          </Button>
-        </div>
       )}
 
       {isUser && (
@@ -242,60 +137,50 @@ export default function ChatMessage({ message, userAvatar, userName, isLoading, 
               'bg-primary text-primary-foreground'
             )}
           >
-            <CardContent className="p-3">
-              <div className="whitespace-pre-wrap break-words">{message.content}</div>
-              
-              {message.attachments && message.attachments.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  {message.attachments.map((attachment) => (
-                    <div
-                      key={attachment.id}
-                      className="flex items-center gap-2 text-sm p-2 rounded border border-primary-foreground/20"
-                    >
-                      <Paperclip className="h-4 w-4" />
-                      <a
-                        href={attachment.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:underline truncate"
-                      >
-                        {attachment.filename}
-                      </a>
-                      <span className="text-xs text-primary-foreground/60">
-                        ({(attachment.size / 1024).toFixed(1)} KB)
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div
-                className="text-xs mt-2 text-primary-foreground/60"
-                title={new Date(message.createdAt).toLocaleString('en-US', {
-                  weekday: 'long',
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  hour12: true
-                })}
-              >
-                {new Date(message.createdAt).toLocaleTimeString('en-US', {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true
-                })}
+            <CardContent className="p-3 space-y-2">
+              <div className="whitespace-pre-wrap break-words">
+                {message?.content || <span className="italic opacity-60">No message content</span>}
               </div>
+              
+              <AttachmentList attachments={message.attachments} onAttachmentClick={onAttachmentClick} />
+
+              {hasValidDate && (
+                <time
+                  className="text-xs text-primary-foreground/60 block"
+                  dateTime={getDateTimeAttribute(message.createdAt)}
+                  title={formatMessageDateTime(message.createdAt)}
+                >
+                  {formatMessageTime(message.createdAt)}
+                </time>
+              )}
             </CardContent>
           </Card>
-          <Avatar className="h-8 w-8 flex-shrink-0">
+          <Avatar className={cn(AVATAR_SIZE_CLASS, 'flex-shrink-0')}>
             <AvatarImage src={userAvatar} alt={userName || 'User'} />
-            <AvatarFallback>{userName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+            <AvatarFallback>
+              {userName?.charAt(0).toUpperCase() || 'U'}
+            </AvatarFallback>
           </Avatar>
         </>
       )}
     </div>
   );
 }
+
+const ChatMessage = memo(ChatMessageComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.message?.id === nextProps.message?.id &&
+    prevProps.message?.content === nextProps.message?.content &&
+    prevProps.message?.createdAt === nextProps.message?.createdAt &&
+    prevProps.isLoading === nextProps.isLoading &&
+    prevProps.userAvatar === nextProps.userAvatar &&
+    prevProps.userName === nextProps.userName &&
+    prevProps.onCitationClick === nextProps.onCitationClick &&
+    prevProps.onAttachmentClick === nextProps.onAttachmentClick &&
+    areAttachmentsEqual(prevProps.message?.attachments, nextProps.message?.attachments)
+  );
+});
+
+ChatMessage.displayName = 'ChatMessage';
+
+export default ChatMessage;

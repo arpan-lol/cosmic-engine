@@ -3,13 +3,10 @@ import { buildQEPrompt } from '../../llm/prompts/query-expansion.prompt'
 import { logger } from '../../../utils/logger.util'
 import prisma from 'src/prisma/client'
 
-type ExpansionStyle = 'conservative' | 'moderate' | 'aggressive'
-
-const STYLE_TO_TEMPERATURE: Record<ExpansionStyle, number> = {
-  conservative: 0.3,
-  moderate: 0.5,
-  aggressive: 0.7,
-}
+const MIN_QUERY_LENGTH_FOR_EXPANSION = 3
+const MAX_QUERY_LENGTH_FOR_EXPANSION = 200
+const DEFAULT_TEMPERATURE = 0.5
+const DEFAULT_MAX_TOKENS = 300
 
 export class QueryExpansionService {
   static async expand(
@@ -17,7 +14,7 @@ export class QueryExpansionService {
     attachmentIds?: string[],
     options?: {
       enabled?: boolean
-      expansionStyle?: ExpansionStyle
+      temperature?: number
       maxExpansionLength?: number
     }
   ): Promise<string> {
@@ -25,10 +22,20 @@ export class QueryExpansionService {
       return query
     }
 
-    const temperature =
-      STYLE_TO_TEMPERATURE[options.expansionStyle ?? 'moderate']
+    const trimmedQuery = query.trim()
+    
+    if (trimmedQuery.length < MIN_QUERY_LENGTH_FOR_EXPANSION) {
+      logger.warn('[QueryExpansion]', 'Query too short for expansion', { queryLength: trimmedQuery.length })
+      return query
+    }
 
-    const maxTokens = options.maxExpansionLength ?? 200
+    if (trimmedQuery.length > MAX_QUERY_LENGTH_FOR_EXPANSION) {
+      logger.info('[QueryExpansion]', 'Query already detailed, skipping expansion', { queryLength: trimmedQuery.length })
+      return query
+    }
+
+    const temperature = options.temperature ?? DEFAULT_TEMPERATURE
+    const maxTokens = options.maxExpansionLength ?? DEFAULT_MAX_TOKENS
 
     try {
       const attachmentsPromise =
@@ -47,7 +54,7 @@ export class QueryExpansionService {
 
       const response = await GenerationService.generate({
         systemPrompt,
-        userPrompt: query,
+        userPrompt: trimmedQuery,
         temperature,
         maxTokens,
       })
@@ -56,15 +63,32 @@ export class QueryExpansionService {
 
       if (!expanded) {
         logger.warn('[QueryExpansion]', 'Empty expansion, falling back', {
-          query,
+          query: trimmedQuery,
+        })
+        return query
+      }
+
+      if (expanded.length < trimmedQuery.length * 0.8) {
+        logger.warn('[QueryExpansion]', 'Expansion shorter than original, falling back', {
+          original: trimmedQuery,
+          expanded,
+        })
+        return query
+      }
+
+      if (expanded.toLowerCase() === trimmedQuery.toLowerCase()) {
+        logger.info('[QueryExpansion]', 'Expansion identical to original, using original', {
+          query: trimmedQuery,
         })
         return query
       }
 
       logger.info('[QueryExpansion] Expanded query', JSON.stringify({
-        original: query,
+        original: trimmedQuery,
         expanded,
         temperature,
+        originalLength: trimmedQuery.length,
+        expandedLength: expanded.length,
         attachments: attachments.map(a => a.filename),
       }))
 
