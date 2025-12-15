@@ -137,7 +137,7 @@ export const useAttachmentStream = (attachmentId: string | null) => {
       return eventSource;
     };
 
-    let eventSourcePromise = connectToStream();
+    const eventSourcePromise = connectToStream();
 
     return () => {
       eventSourcePromise.then((eventSource) => {
@@ -191,7 +191,7 @@ export const useDeleteAttachment = () => {
 
       return await response.json();
     },
-    onSuccess: (_, attachmentId) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },

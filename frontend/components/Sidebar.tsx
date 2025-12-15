@@ -45,12 +45,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useSearchOptions } from '@/hooks/use-search-options';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 
 const KEYWORD_CACHING_HELP = `
 ### Keyword Caching

@@ -9,7 +9,7 @@ interface CitationButtonProps {
   onCitationClick?: (filename: string, page: number) => void;
 }
 
-export function CitationButton({ citation, index, onCitationClick }: CitationButtonProps) {
+export function CitationButton({ citation, onCitationClick }: CitationButtonProps) {
   const extension = getFileExtension(citation.filename);
   const isPDF = extension === 'pdf';
   const filenameWithoutExt = getFilenameWithoutExtension(citation.filename);

@@ -1,7 +1,6 @@
 'use client'
 
 import { MoreVertical } from 'lucide-react'
-import Image from 'next/image'
 
 import {
   DropdownMenu,
@@ -13,7 +12,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import {
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'

@@ -1,5 +1,3 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
-
 interface RequestConfig extends RequestInit {
   skipAuth?: boolean;
 }
@@ -63,7 +61,7 @@ class ApiClient {
     return null;
   }
 
-  private subscribeTokenRefresh(callback: (token: string) => void) {
+  private subscribeTokenRefresh(callback: (_token: string) => void) {
     this.refreshSubscribers.push(callback);
   }
 
@@ -100,7 +98,7 @@ class ApiClient {
       }
     } else {
       return new Promise((resolve, reject) => {
-        this.subscribeTokenRefresh(async (newToken: string) => {
+        this.subscribeTokenRefresh(async () => {
           try {
             const response = await this.request(url, {
               ...config,

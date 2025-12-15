@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import {  useSyncExternalStore } from 'react';
 
 export interface SearchOptions {
   hybridSearch: boolean;

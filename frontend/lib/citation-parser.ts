@@ -1,4 +1,4 @@
-import type { ContentSegment, Citation } from './citation-types';
+import type { ContentSegment } from './citation-types';
 
 const CITATION_REGEX = /\[SOURCE:\s*([^\|\]]+?)\s*\|\s*([^\]]+)\]/gi;
 

@@ -5,7 +5,7 @@ import { useUploadFile, useAttachmentStatus, useAttachmentStream, useSessionAtta
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
-import { Paperclip, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Paperclip, XCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface FileUploadButtonProps {
@@ -51,7 +51,7 @@ export default function FileUploadButton({
         }
       });
     }
-  }, [sessionAttachments]);
+  }, [sessionAttachments, uploadingFiles, setUploadingFiles]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);

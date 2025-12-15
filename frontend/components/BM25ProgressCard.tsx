@@ -19,7 +19,7 @@ interface BM25ProgressCardProps {
   progressData: StreamStatus;
 }
 
-export default function BM25ProgressCard({ attachmentId, filename, progressData }: BM25ProgressCardProps) {
+export default function BM25ProgressCard({ filename, progressData }: BM25ProgressCardProps) {
   const isProcessing = progressData.status === 'connected' || progressData.status === 'processing';
   const isCompleted = progressData.status === 'completed';
   const hasError = progressData.status === 'error';

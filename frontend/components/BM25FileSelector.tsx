@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { api } from '@/lib/api';
 
@@ -74,7 +74,7 @@ export default function BM25FileSelector({
           if (validIds.length !== storedIds.length) {
             localStorage.setItem(`session-${sessionId}-selected-files`, JSON.stringify(validIds));
           }
-        } catch (e) {
+        } catch {
           setSelectedIds([]);
         }
       }

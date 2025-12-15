@@ -69,7 +69,7 @@ export function useEngineEvents({ sessionId, onEvent, onError }: UseEngineEvents
         }
       };
 
-      eventSource.onerror = (error) => {
+      eventSource.onerror = () => {
         console.error('[EngineEvents] Connection error, readyState:', eventSource.readyState);
         
         if (eventSource.readyState === EventSource.CLOSED) {

@@ -151,7 +151,7 @@ export default function ChatSessionPage() {
         setSelectedContextIds(validIds);
       }
     }
-  }, [sessionAttachments]);
+  }, [sessionAttachments, selectedContextIds]);
 
   useEffect(() => {
     
