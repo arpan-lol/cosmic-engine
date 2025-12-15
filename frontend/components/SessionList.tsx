@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useConversations, useCreateConversation, useDeleteConversation } from '@/hooks/use-conversations';
+import { useConversations, useCreateConversation, useDeleteConversation, useUpdateConversationTitle } from '@/hooks/use-conversations';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, MessageSquare, Loader2 } from 'lucide-react';
+import { Trash2, Plus, MessageSquare, Loader2, Pencil, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -25,14 +25,48 @@ export default function SessionList() {
   const [newConversationTitle, setNewConversationTitle] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
+  const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
   const { data: conversations, isLoading } = useConversations();
   const createConversation = useCreateConversation();
   const deleteConversation = useDeleteConversation();
+  const updateTitle = useUpdateConversationTitle();
 
   const handleCreateConversation = async () => {
     const result = await createConversation.mutateAsync(newConversationTitle || undefined);
     setNewConversationTitle('');
     router.push(`/dashboard/sessions/${result.sessionId}`);
+  };
+
+  const handleEditTitle = (sessionId: string, currentTitle: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingConversationId(sessionId);
+    setEditingTitle(currentTitle || '');
+  };
+
+  const handleSaveTitle = async (sessionId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    
+    if (!editingTitle.trim()) {
+      toast.error('Title cannot be empty');
+      return;
+    }
+
+    try {
+      await updateTitle.mutateAsync({ sessionId, title: editingTitle.trim() });
+      setEditingConversationId(null);
+      setEditingTitle('');
+      toast.success('Title updated successfully');
+    } catch (error) {
+      console.error('Failed to update title:', error);
+      toast.error('Failed to update title. Please try again.');
+    }
+  };
+
+  const handleCancelEdit = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEditingConversationId(null);
+    setEditingTitle('');
   };
 
   const handleDeleteConversation = (sessionId: string, e: React.MouseEvent) => {
@@ -66,11 +100,11 @@ export default function SessionList() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>New Conversation</CardTitle>
-          <CardDescription>Start a new conversation</CardDescription>
-        </CardHeader>
+        <Card>
+          <CardHeader>
+            <CardTitle>New Conversation</CardTitle>
+            <CardDescription>Start a new conversation</CardDescription>
+          </CardHeader>
         <CardContent>
           <div className="flex gap-2">
             <Input
@@ -100,17 +134,49 @@ export default function SessionList() {
               {conversations?.map((conversation) => (
                 <Card
                   key={conversation.id}
-                  className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
+                  className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors group"
                   onClick={() => handleSelectConversation(conversation.id)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 flex-1">
-                        <MessageSquare className="h-5 w-5 text-muted-foreground" />
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <MessageSquare className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-medium truncate">
-                            {conversation.title || 'Untitled Conversation'}
-                          </h3>
+                          {editingConversationId === conversation.id ? (
+                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              <Input
+                                value={editingTitle}
+                                onChange={(e) => setEditingTitle(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleSaveTitle(conversation.id);
+                                  if (e.key === 'Escape') handleCancelEdit();
+                                }}
+                                className="h-8"
+                                autoFocus
+                                maxLength={100}
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 flex-shrink-0"
+                                onClick={(e) => handleSaveTitle(conversation.id, e)}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 flex-shrink-0"
+                                onClick={handleCancelEdit}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <h3 className="font-medium truncate">
+                              {conversation.title || 'Untitled Conversation'}
+                            </h3>
+                          )}
                           <p 
                             className="text-sm text-muted-foreground"
                             title={new Date(conversation.createdAt).toLocaleString('en-US', {
@@ -138,14 +204,27 @@ export default function SessionList() {
                           )}
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => handleDeleteConversation(conversation.id, e)}
-                        disabled={deleteConversation.isPending}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {editingConversationId !== conversation.id && (
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => handleEditTitle(conversation.id, conversation.title || '', e)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => handleDeleteConversation(conversation.id, e)}
+                            disabled={deleteConversation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

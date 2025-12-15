@@ -1,4 +1,5 @@
 import { GenerationService } from '../../llm/generation.service'
+import { buildQEPrompt } from '../../llm/prompts/query-expansion.prompt'
 import { logger } from '../../../utils/logger.util'
 import prisma from 'src/prisma/client'
 
@@ -40,17 +41,9 @@ export class QueryExpansionService {
 
       const attachments = await attachmentsPromise
 
-      const attachmentContext =
-        attachments.length > 0
-          ? `The query may be related to the following document names:\n${attachments
-              .map(a => `- ${a.filename}`)
-              .join('\n')}\n\n`
-          : ''
-
-      const systemPrompt =
-        `You are a query expansion expert.
-Expand the following query by adding related terms, synonyms, and contextual details that preserve the original intent. ${attachmentContext}
-Return only the expanded query without explanations.`
+      const systemPrompt = buildQEPrompt(
+        attachments.map(a => a.filename)
+      )
 
       const response = await GenerationService.generate({
         systemPrompt,
@@ -58,8 +51,6 @@ Return only the expanded query without explanations.`
         temperature,
         maxTokens,
       })
-
-      console.log('ANKJADN', response)
 
       const expanded = response?.trim()
 

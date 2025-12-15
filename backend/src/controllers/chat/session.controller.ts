@@ -4,6 +4,8 @@ import prisma from '../../prisma/client';
 import {
   CreateSessionRequest,
   CreateSessionResponse,
+  UpdateSessionRequest,
+  UpdateSessionResponse,
   SessionDetails,
 } from '../../types/chat.types';
 import { CollectionService } from '../../services/milvus';
@@ -22,12 +24,14 @@ export class SessionController {
         data: {
           userId,
           title: title || 'New Chat',
+          titleSource: title ? 'USER_PROVIDED' : 'DEFAULT',
         },
       });
 
       const response: CreateSessionResponse = {
         sessionId: session.id,
         title: session.title || undefined,
+        titleSource: session.titleSource,
         createdAt: session.createdAt,
       };
 
@@ -87,6 +91,7 @@ export class SessionController {
       const response: SessionDetails = {
         id: session.id,
         title: session.title || undefined,
+        titleSource: session.titleSource,
         createdAt: session.createdAt,
         updatedAt: session.updatedAt,
         messages: session.chats.map((msg) => ({
@@ -147,6 +152,55 @@ export class SessionController {
       logger.error('SessionController', 'Error deleting session', error instanceof Error ? error : undefined, { userId, sessionId: id });
       if (error instanceof NotFoundError) throw error;
       next(new ProcessingError('Failed to delete session'));
+    }
+  }
+
+  static async updateSession(req: AuthRequest, res: Response, next: NextFunction): Promise<Response | void> {
+    const userId = req.user?.userId;
+    if (!userId) throw new UnauthorizedError();
+
+    const { id } = req.params;
+    const { title }: UpdateSessionRequest = req.body;
+
+    if (!title || title.trim().length === 0) {
+      next(new ProcessingError('Title is required'));
+      return;
+    }
+
+    if (title.length > 100) {
+      next(new ProcessingError('Title must be 100 characters or less'));
+      return;
+    }
+
+    try {
+      const existingSession = await prisma.session.findUnique({
+        where: { id, userId },
+      });
+
+      if (!existingSession) {
+        throw new NotFoundError('Session not found');
+      }
+
+      const updatedSession = await prisma.session.update({
+        where: { id },
+        data: {
+          title: title.trim(),
+          titleSource: 'USER_EDITED',
+        },
+      });
+
+      const response: UpdateSessionResponse = {
+        id: updatedSession.id,
+        title: updatedSession.title!,
+        titleSource: updatedSession.titleSource,
+        updatedAt: updatedSession.updatedAt,
+      };
+
+      return res.status(200).json(response);
+    } catch (error) {
+      logger.error('SessionController', 'Error updating session', error instanceof Error ? error : undefined, { userId, sessionId: id });
+      if (error instanceof NotFoundError) throw error;
+      next(new ProcessingError('Failed to update session'));
     }
   }
 }

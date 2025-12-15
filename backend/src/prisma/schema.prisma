@@ -7,6 +7,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum TitleSource {
+  USER_PROVIDED
+  USER_EDITED
+  AI_GENERATED
+  DEFAULT
+}
+
 model User {
   id           Int       @id @default(autoincrement())
   googleId     String?   @unique
@@ -21,13 +28,14 @@ model User {
 }
 
 model Session {
-  id        String   @id @default(uuid())
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title     String?
-  chats     Chat[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String      @id @default(uuid())
+  userId      Int
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String?
+  titleSource TitleSource @default(DEFAULT)
+  chats       Chat[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 }
 
 model Chat {

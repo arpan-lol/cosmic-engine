@@ -1,3 +1,5 @@
+export type TitleSource = 'USER_PROVIDED' | 'USER_EDITED' | 'AI_GENERATED' | 'DEFAULT';
+
 export interface RetrievalOptions {
   bm25?: boolean;
   rrf?: boolean;
@@ -15,6 +17,7 @@ export interface CreateSessionRequest {
 export interface CreateSessionResponse {
   sessionId: string;
   title?: string;
+  titleSource: TitleSource;
   createdAt: Date;
 }
 
@@ -45,9 +48,21 @@ export interface UploadFileResponse {
   url: string;
 }
 
+export interface UpdateSessionRequest {
+  title: string;
+}
+
+export interface UpdateSessionResponse {
+  id: string;
+  title: string;
+  titleSource: TitleSource;
+  updatedAt: Date;
+}
+
 export interface SessionDetails {
   id: string;
   title?: string;
+  titleSource: TitleSource;
   createdAt: Date;
   updatedAt: Date;
   messages: MessageDetails[];

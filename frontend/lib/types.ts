@@ -26,7 +26,7 @@ export interface Message {
 }
 
 export interface EngineEvent {
-  type: 'notification' | 'success' | 'error';
+  type: 'notification' | 'success' | 'error' | 'title-update';
   scope: 'session' | 'user';
   sessionId?: string;
   message: string;
@@ -37,6 +37,7 @@ export interface EngineEvent {
     title: string;
     body: string[];
   };
+  newTitle?: string;
   timestamp: string;
 }
 

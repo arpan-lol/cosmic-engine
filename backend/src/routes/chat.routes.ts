@@ -27,6 +27,7 @@ router.use(authenticateJWT);
 router.post('/sessions', asyncHandler(ChatController.createSession));
 router.get('/sessions', asyncHandler(ChatController.getSessions));
 router.get('/sessions/:id', asyncHandler(ChatController.getSessionById));
+router.patch('/sessions/:id', asyncHandler(ChatController.updateSession));
 router.delete('/sessions/:id', asyncHandler(ChatController.deleteSession));
 
 router.get('/sessions/:id/events', corsMiddleware, asyncHandler(EventsController.streamSessionEvents));

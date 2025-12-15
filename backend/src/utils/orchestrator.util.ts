@@ -5,6 +5,8 @@ import { ChunkingService } from '../services/chunking.service';
 import { EmbeddingService } from '../services/embedding.service';
 import { CollectionService, StorageService } from '../services//milvus';
 import { sseService } from '../services/sse.service';
+import { GenerationService } from '../services/llm/generation.service';
+import { TITLE_PROMPT, buildTitlePrompt } from '../services/llm/prompts/title.prompt';
 import { logger } from './logger.util';
 import { ProcessingError } from '../types/errors';
 import { processBM25 } from './bm25.util';
@@ -13,6 +15,11 @@ interface OrchestrationJob {
   attachmentId: string;
   userId: number;
   sessionId: string;
+}
+
+interface TitleGenerationJob {
+  sessionId: string;
+  firstUserMessage: string;
 }
 
 async function processFile(attachmentId: string, userId: number, sessionId: string): Promise<void> {
@@ -263,6 +270,122 @@ export function Orchestrator() {
     logger.info('Orchestrator', 'Processing BM25 indexing job', { attachmentId, userId, sessionId });
     await processBM25(attachmentId, userId, sessionId);
     logger.info('Orchestrator', 'BM25 indexing job completed', { attachmentId });
+  });
+
+  jobQueue.registerHandler('generate-title', async (data: TitleGenerationJob) => {
+    const { sessionId, firstUserMessage } = data;
+    logger.info('Orchestrator', 'Processing title generation job', { sessionId });
+
+    try {
+      const session = await prisma.session.findUnique({
+        where: { id: sessionId },
+        include: {
+          chats: {
+            include: {
+              attachments: true
+            },
+            take: 1
+          }
+        }
+      });
+
+      if (!session) {
+        logger.warn('Orchestrator', 'Session not found for title generation', { sessionId });
+        return;
+      }
+
+      if (session.titleSource === 'USER_EDITED') {
+        logger.info('Orchestrator', 'Skipping title generation - user has manually edited title', { sessionId });
+        return;
+      }
+
+      const fileNames = session.chats[0]?.attachments?.map(att => att.filename) || [];
+      
+      logger.info('Orchestrator', 'Generating title with context', { 
+        sessionId, 
+        messageLength: firstUserMessage.length,
+        fileCount: fileNames.length,
+        fileNames 
+      });
+
+      const generatedTitle = await GenerationService.generate({
+        systemPrompt: TITLE_PROMPT,
+        userPrompt: buildTitlePrompt(firstUserMessage, fileNames),
+        temperature: 0.7,
+        maxTokens: 50
+      });
+
+      logger.info('Orchestrator', 'LLM returned title', { 
+        sessionId, 
+        rawTitle: generatedTitle,
+        rawTitleLength: generatedTitle.length 
+      });
+
+      const cleanTitle = generatedTitle.trim().replace(/^["']|["']$/g, '').substring(0, 100);
+      
+      logger.info('Orchestrator', 'Title after cleaning', { 
+        sessionId, 
+        cleanTitle,
+        cleanTitleLength: cleanTitle.length 
+      });
+
+      if (!cleanTitle) {
+        logger.warn('Orchestrator', 'Empty title after cleaning, using fallback', { 
+          sessionId, 
+          rawTitle: generatedTitle 
+        });
+        
+        await prisma.session.update({
+          where: { id: sessionId },
+          data: {
+            title: 'New Chat',
+            titleSource: 'DEFAULT'
+          }
+        });
+        return;
+      }
+
+      await prisma.session.update({
+        where: { id: sessionId },
+        data: {
+          title: cleanTitle,
+          titleSource: 'AI_GENERATED'
+        }
+      });
+
+      logger.info('Orchestrator', 'Title updated in database', { sessionId, title: cleanTitle });
+
+      await sseService.publishToSession(sessionId, {
+        type: 'title-update',
+        scope: 'session',
+        message: 'Title updated',
+        showInChat: false,
+        newTitle: cleanTitle,
+        data: {
+          title: 'Conversation Title Generated',
+          body: [
+            `Title: "${cleanTitle}"`,
+            fileNames.length > 0 ? `Based on ${fileNames.length} document${fileNames.length !== 1 ? 's' : ''}` : 'Based on conversation content'
+          ]
+        },
+        timestamp: new Date().toISOString()
+      });
+
+      logger.info('Orchestrator', 'Title generated successfully', { sessionId, title: cleanTitle });
+
+    } catch (error: any) {
+      logger.error('Orchestrator', 'Error generating title', error instanceof Error ? error : undefined, { sessionId });
+
+      try {
+        await prisma.session.update({
+          where: { id: sessionId },
+          data: {
+            title: 'New Chat',
+            titleSource: 'DEFAULT'
+          }
+        });
+      } catch {}
+    }
   });
 
   logger.info('Orchestrator', 'File processor ready');

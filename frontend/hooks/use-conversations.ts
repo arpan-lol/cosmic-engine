@@ -50,3 +50,35 @@ export const useDeleteConversation = () => {
     },
   });
 };
+
+export const useUpdateConversationTitle = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ sessionId, title }: { sessionId: string; title: string }) => {
+      const response = await api.patch(`/chat/sessions/${sessionId}`, { title });
+      return await response.json();
+    },
+    onMutate: async ({ sessionId, title }) => {
+      await queryClient.cancelQueries({ queryKey: ['conversations'] });
+      
+      const previousConversations = queryClient.getQueryData(['conversations']);
+      
+      queryClient.setQueryData(['conversations'], (old: Conversation[] | undefined) =>
+        old?.map(conv => 
+          conv.id === sessionId ? { ...conv, title } : conv
+        )
+      );
+      
+      return { previousConversations };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousConversations) {
+        queryClient.setQueryData(['conversations'], context.previousConversations);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+};

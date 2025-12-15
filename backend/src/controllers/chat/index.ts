@@ -8,6 +8,7 @@ export const ChatController = {
   createSession: SessionController.createSession,
   getSessions: SessionController.getSessions,
   getSessionById: SessionController.getSessionById,
+  updateSession: SessionController.updateSession,
   deleteSession: SessionController.deleteSession,
 
   // Message methods

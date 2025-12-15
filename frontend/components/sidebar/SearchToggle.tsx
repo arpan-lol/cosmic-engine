@@ -1,0 +1,50 @@
+'use client';
+
+import { CircleHelp, Loader2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import ReactMarkdown from 'react-markdown';
+
+interface SearchToggleProps {
+  id: string;
+  label: string;
+  helpText: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  isLoading?: boolean;
+}
+
+export function SearchToggle({
+  id,
+  label,
+  helpText,
+  checked,
+  onCheckedChange,
+  isLoading = false
+}: SearchToggleProps) {
+  return (
+    <div className="flex items-center justify-between py-2">
+      <div className="flex items-center gap-1.5">
+        <Label htmlFor={id} className="text-sm cursor-pointer">
+          {label}
+        </Label>
+        <HoverCard>
+          <HoverCardTrigger asChild>
+            <CircleHelp className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer" />
+          </HoverCardTrigger>
+          <HoverCardContent className="w-80">
+            <div className="prose prose-invert text-sm whitespace-pre-wrap">
+              <ReactMarkdown>{helpText}</ReactMarkdown>
+            </div>
+          </HoverCardContent>
+        </HoverCard>
+      </div>
+      {isLoading ? (
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      ) : (
+        <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} />
+      )}
+    </div>
+  );
+}

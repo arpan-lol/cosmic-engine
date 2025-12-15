@@ -65,8 +65,30 @@ export default function ChatSessionPage() {
   const [engineEvents, setEngineEvents] = useState<EngineEvent[]>([]);
   const [allLogs, setAllLogs] = useState<EngineEvent[]>([]);
   const [flashTrigger, setFlashTrigger] = useState(0);
+  const [displayTitle, setDisplayTitle] = useState('');
+  const [isTypingTitle, setIsTypingTitle] = useState(false);
 
   const handleEngineEvent = useCallback((event: EngineEvent) => {
+    if (event.type === 'title-update' && event.newTitle) {
+      setIsTypingTitle(true);
+      let currentIndex = 0;
+      const targetTitle = event.newTitle;
+      
+      const typeInterval = setInterval(() => {
+        currentIndex++;
+        setDisplayTitle(targetTitle.slice(0, currentIndex));
+        
+        if (currentIndex >= targetTitle.length) {
+          clearInterval(typeInterval);
+          setIsTypingTitle(false);
+          queryClient.invalidateQueries({ queryKey: ['conversation', sessionId] });
+          queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        }
+      }, 50);
+      
+      return;
+    }
+
     if (event.scope === 'session') {
       setAllLogs(prev => [...prev, event]);
       if (event.showInChat) {
@@ -78,7 +100,7 @@ export default function ChatSessionPage() {
         duration: 10000,
       });
     }
-  }, []);
+  }, [sessionId, queryClient]);
 
   useEngineEvents({
     sessionId,
@@ -367,7 +389,10 @@ export default function ChatSessionPage() {
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
                 <div className="min-w-0">
-                  <CardTitle className="truncate">{conversation.title || 'Untitled Conversation'}</CardTitle>
+                  <CardTitle className="truncate">
+                    {isTypingTitle ? displayTitle : (conversation.title || 'Untitled Conversation')}
+                    {isTypingTitle && <span className="animate-pulse">|</span>}
+                  </CardTitle>
                   <p 
                     className="text-sm text-muted-foreground truncate"
                     title={new Date(conversation.createdAt).toLocaleString('en-US', {

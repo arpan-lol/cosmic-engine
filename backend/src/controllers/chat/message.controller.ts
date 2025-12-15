@@ -8,6 +8,7 @@ import {
 import { GenerationService } from '../../services/llm/generation.service';
 import { logger } from '../../utils/logger.util';
 import { sseService } from '../../services/sse.service';
+import { jobQueue } from '../../queue';
 import { UnauthorizedError, NotFoundError, ValidationError, ProcessingError } from '../../types/errors';
 import { buildQueryCacheKey, QueryCacheService } from 'src/services/features/caching/cache.service';
 import { QueryExpansionService } from 'src/services/features/vague-questions/query-expansion.service';
@@ -65,11 +66,23 @@ export class MessageController {
         },
       });
 
-      // Update session timestamp
       await prisma.session.update({
         where: { id: sessionId },
         data: { updatedAt: new Date() },
       });
+
+      const messageCount = await prisma.chat.count({
+        where: { sessionId, role: 'user' }
+      });
+
+      if (messageCount === 1) {
+        jobQueue.add('generate-title', {
+          sessionId,
+          firstUserMessage: content.trim()
+        }, { maxAttempts: 5 }).catch((err) => {
+          logger.error('MessageController', 'Failed to queue title generation', err, { sessionId });
+        });
+      }
 
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
