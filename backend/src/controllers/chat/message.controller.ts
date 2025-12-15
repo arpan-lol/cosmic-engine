@@ -123,7 +123,6 @@ export class MessageController {
             type: 'success',
             scope: 'session',
             message: 'query-cache-hit',
-            showInChat: false,
             data: {
               title: 'Cached response',
               body: ['Reusing a previously generated answer'],
@@ -173,7 +172,6 @@ export class MessageController {
             type: 'notification',
             scope: 'session',
             message: 'query-expanded',
-            showInChat: false,
             data: {
               title: 'Query expanded',
               body: [
@@ -214,7 +212,6 @@ export class MessageController {
             type: 'notification',
             scope: 'session',
             message: 'saved-to-cache',
-            showInChat: false,
             data: {
               title: 'Cached response',
               body: [
@@ -255,7 +252,6 @@ export class MessageController {
           type: 'error',
           scope: 'session',
           message: errorMessage,
-          showInChat: false,
           timestamp: new Date().toISOString(),
         }).catch((err: any) => {
           logger.error('MessageController', 'Failed to publish error event', err);
@@ -283,7 +279,6 @@ export class MessageController {
           type: 'error',
           scope: 'session',
           message: errorMessage,
-          showInChat: false,
           timestamp: new Date().toISOString(),
         }).catch((err: any) => {
           logger.error('MessageController', 'Failed to publish error event', err);

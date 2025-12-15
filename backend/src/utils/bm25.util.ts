@@ -225,7 +225,6 @@ async function processBM25(
       type: 'success',
       scope: 'session',
       message: `${attachment.filename} indexed for keyword search`,
-      showInChat: true,
       attachmentId,
       actionType: 'view-chunks',
       data: {

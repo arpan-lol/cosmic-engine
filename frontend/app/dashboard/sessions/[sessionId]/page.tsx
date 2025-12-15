@@ -6,15 +6,13 @@ import { useConversation } from '@/hooks/use-conversations';
 import { useStreamMessage } from '@/hooks/use-stream-message';
 import { useAuth } from '@/hooks/use-auth';
 import { useQueryClient } from '@tanstack/react-query';
-import { useSessionAttachments, useDeleteAttachment, useBM25Progress } from '@/hooks/use-upload';
+import { useSessionAttachments, useDeleteAttachment, useBM25Progress, useUploadFile } from '@/hooks/use-upload';
 import { useSearchOptions } from '@/hooks/use-search-options';
 import { useEngineEvents } from '@/hooks/use-engine-events';
 import ChatMessage from '@/components/ChatMessage';
-import ChatInput from '@/components/ChatInput';
-import FileUploadButton from '@/components/FileUploadButton';
+import ChatComposer from '@/components/ChatComposer';
 import AttachmentSelector from '@/components/AttachmentSelector';
 import FilePanel from '@/components/FilePanel';
-import { SystemMessage } from '@/components/SystemMessage';
 import BM25ProgressCard from '@/components/BM25ProgressCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -57,12 +55,13 @@ export default function ChatSessionPage() {
   const deleteAttachment = useDeleteAttachment();
   const { options: searchOptions, disableHybridSearch } = useSearchOptions();
   const bm25Progress = useBM25Progress(sessionId, sessionAttachments);
+  const uploadFile = useUploadFile();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   console.log('[SESSION] bm25Progress:', bm25Progress);
   console.log('[SESSION] sessionAttachments:', sessionAttachments);
 
   const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
-  const [engineEvents, setEngineEvents] = useState<EngineEvent[]>([]);
   const [allLogs, setAllLogs] = useState<EngineEvent[]>([]);
   const [flashTrigger, setFlashTrigger] = useState(0);
   const [displayTitle, setDisplayTitle] = useState('');
@@ -91,9 +90,6 @@ export default function ChatSessionPage() {
 
     if (event.scope === 'session') {
       setAllLogs(prev => [...prev, event]);
-      if (event.showInChat) {
-        setEngineEvents(prev => [...prev, event]);
-      }
     } else if (event.scope === 'user') {
       toast(event.message, {
         description: event.data?.title,
@@ -113,7 +109,6 @@ export default function ChatSessionPage() {
   useEffect(() => {
     if (conversation?.messages) {
       const regularMessages: Message[] = [];
-      const systemEvents: EngineEvent[] = [];
       const logs: EngineEvent[] = [];
 
       conversation.messages.forEach(msg => {
@@ -121,19 +116,22 @@ export default function ChatSessionPage() {
           try {
             const event = JSON.parse(msg.content) as EngineEvent;
             logs.push(event);
-            if (event.showInChat) {
-              systemEvents.push(event);
-            }
           } catch (error) {
             console.error('[Session] Failed to parse system message:', error);
           }
         } else {
+          console.debug('[Session] Processing message:', {
+            messageId: msg.id,
+            role: msg.role,
+            hasAttachments: !!msg.attachments,
+            attachmentCount: msg.attachments?.length || 0,
+            attachments: msg.attachments,
+          });
           regularMessages.push(msg);
         }
       });
 
       setOptimisticMessages(regularMessages);
-      setEngineEvents(systemEvents);
       setAllLogs(logs);
     }
   }, [conversation?.messages]);
@@ -263,6 +261,10 @@ export default function ChatSessionPage() {
     }
   };
 
+  const handleAttachmentClick = (filename: string) => {
+    handleCitationClick(filename);
+  };
+
   const handleDocumentClick = (attachment: any) => {
     if (!attachment.filename.toLowerCase().endsWith('.pdf')) {
       return;
@@ -330,10 +332,6 @@ export default function ChatSessionPage() {
     );
   }
 
-  type TimelineItem = 
-    | { type: 'message'; data: Message }
-    | { type: 'event'; data: EngineEvent };
-
   const displayMessages = [...optimisticMessages];
 
   if (isStreaming && streamedContent) {
@@ -345,15 +343,6 @@ export default function ChatSessionPage() {
       };
     }
   }
-
-  const timeline: TimelineItem[] = [
-    ...displayMessages.map(msg => ({ type: 'message' as const, data: msg })),
-    ...engineEvents.map(evt => ({ type: 'event' as const, data: evt })),
-  ].sort((a, b) => {
-    const timeA = a.type === 'message' ? a.data.createdAt : a.data.timestamp;
-    const timeB = b.type === 'message' ? b.data.createdAt : b.data.timestamp;
-    return new Date(timeA).getTime() - new Date(timeB).getTime();
-  });
 
   const isLoadingResponse = isStreaming && !streamedContent;
   
@@ -429,36 +418,28 @@ export default function ChatSessionPage() {
         <div className="flex-1 min-h-0 overflow-hidden">
           <ScrollArea className="h-full bg-background">
             <div className="p-4">
-            {timeline.length === 0 ? (
+            {displayMessages.length === 0 ? (
               <div className="flex items-center justify-center h-full text-muted-foreground">
                 Start a conversation by sending a message
               </div>
             ) : (
               <div>
-                {timeline.map((item, index) => {
-                  if (item.type === 'message') {
-                    const isLastAssistantMessage = 
-                      index === timeline.length - 1 && 
-                      item.data.role === 'assistant';
-                    
-                    return (
-                      <ChatMessage 
-                        key={item.data.id} 
-                        message={item.data} 
-                        userAvatar={authUser?.picture}
-                        userName={authUser?.name}
-                        isLoading={isLoadingResponse && isLastAssistantMessage}
-                        onCitationClick={handleCitationClick}
-                      />
-                    );
-                  } else {
-                    return (
-                      <SystemMessage 
-                        key={item.data.timestamp} 
-                        event={item.data} 
-                      />
-                    );
-                  }
+                {displayMessages.map((message, index) => {
+                  const isLastAssistantMessage = 
+                    index === displayMessages.length - 1 && 
+                    message.role === 'assistant';
+                  
+                  return (
+                    <ChatMessage 
+                      key={message.id} 
+                      message={message} 
+                      userAvatar={authUser?.picture}
+                      userName={authUser?.name}
+                      isLoading={isLoadingResponse && isLastAssistantMessage}
+                      onCitationClick={handleCitationClick}
+                      onAttachmentClick={handleAttachmentClick}
+                    />
+                  );
                 })}
               </div>
             )}
@@ -466,77 +447,126 @@ export default function ChatSessionPage() {
         </ScrollArea>
         </div>
 
-      <Card className="mt-0 bg-background flex-shrink-0 border-0 border-t rounded-none">
-        <CardContent className="p-2 space-y-2">{error && (
-            <Card className="border-destructive">
-              <CardContent className="p-3 text-sm text-destructive flex items-start justify-between gap-2">
-                <span>Error! The server might be overloaded. Please try again.</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5 -mt-0.5 hover:bg-destructive/10"
-                  onClick={() => reset()}
+      <div className="flex-shrink-0 space-y-2 p-2">
+        {error && (
+          <Card className="border-destructive">
+            <CardContent className="p-3 text-sm text-destructive flex items-start justify-between gap-2">
+              <span>Error! The server might be overloaded. Please try again.</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 -mt-0.5 hover:bg-destructive/10"
+                onClick={() => reset()}
+              >
+                <span className="sr-only">Dismiss error</span>
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <span className="sr-only">Dismiss error</span>
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
-          <div className="w-full">
-            <FileUploadButton sessionId={sessionId} onUploadComplete={handleUploadComplete} />
-          </div>
+        {sessionAttachments && Object.entries(bm25Progress).map(([attachmentId, progressData]) => {
+          console.log('[BM25 RENDER] Rendering progress for:', attachmentId, progressData);
+          const attachment = sessionAttachments.find((att: any) => att.id === attachmentId);
+          if (!attachment) {
+            console.log('[BM25 RENDER] No attachment found for:', attachmentId);
+            return null;
+          }
+          
+          console.log('[BM25 RENDER] Rendering BM25ProgressCard for:', attachment.filename);
+          return (
+            <BM25ProgressCard
+              key={attachmentId}
+              attachmentId={attachmentId}
+              filename={attachment.filename}
+              progressData={progressData}
+            />
+          );
+        })}
 
-          {sessionAttachments && Object.entries(bm25Progress).map(([attachmentId, progressData]) => {
-            console.log('[BM25 RENDER] Rendering progress for:', attachmentId, progressData);
-            const attachment = sessionAttachments.find((att: any) => att.id === attachmentId);
-            if (!attachment) {
-              console.log('[BM25 RENDER] No attachment found for:', attachmentId);
-              return null;
-            }
+        <input
+          ref={fileInputRef}
+          type="file"
+          onChange={async (e) => {
+            const files = Array.from(e.target.files || []);
+            if (files.length === 0) return;
+
+            const maxSize = 50 * 1024 * 1024;
             
-            console.log('[BM25 RENDER] Rendering BM25ProgressCard for:', attachment.filename);
-            return (
-              <BM25ProgressCard
-                key={attachmentId}
-                attachmentId={attachmentId}
-                filename={attachment.filename}
-                progressData={progressData}
-              />
-            );
-          })}
+            for (const file of files) {
+              if (file.size > maxSize) {
+                toast.error(`${file.name} exceeds 50MB limit`, {
+                  description: 'Please upload a smaller file!',
+                  duration: 6000,
+                });
+                continue;
+              }
 
-          <ChatInput
-            onSend={handleSendMessage}
-            disabled={isStreaming || isLoadingAttachments || hasProcessingAttachments || hasBM25Indexing}
-            loading={isLoadingAttachments}
-            placeholder={
-              isStreaming
-                ? 'Waiting for response...'
-                : isLoadingAttachments
-                ? 'Loading...'
-                : hasProcessingAttachments
-                ? 'Processing documents...'
-                : hasBM25Indexing
-                ? 'Indexing files for BM25...'
-                : 'Type your message... (Enter to send, Shift+Enter for new line)'
+              try {
+                const result = await uploadFile.mutateAsync({ file, sessionId });
+                handleUploadComplete(result.attachmentId);
+              } catch (error) {
+                console.error('Upload failed:', error);
+                const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+                
+                if (errorMessage.includes('413') || errorMessage.includes('size') || errorMessage.includes('limit')) {
+                  toast.error(`${file.name} too large`, {
+                    description: 'The file exceeds server upload limits.',
+                    duration: 8000,
+                  });
+                } else if (errorMessage.includes('CORS') || errorMessage.includes('fetch')) {
+                  toast.error(`Upload failed: ${file.name}`, {
+                    description: 'Network error. Please try again.',
+                    duration: 6000,
+                  });
+                } else {
+                  toast.error(`Upload failed: ${file.name}`, {
+                    description: errorMessage,
+                    duration: 6000,
+                  });
+                }
+              }
             }
-          />
-        </CardContent>
-      </Card>
+
+            if (fileInputRef.current) {
+              fileInputRef.current.value = '';
+            }
+          }}
+          className="hidden"
+          accept=".png,.jpg,.jpeg,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+          multiple
+        />
+
+        <ChatComposer
+          onSend={handleSendMessage}
+          onAttachmentClick={() => fileInputRef.current?.click()}
+          disabled={isStreaming || isLoadingAttachments || hasProcessingAttachments || hasBM25Indexing}
+          loading={isLoadingAttachments}
+          placeholder={
+            isStreaming
+              ? 'Waiting for response...'
+              : isLoadingAttachments
+              ? 'Loading...'
+              : hasProcessingAttachments
+              ? 'Processing documents...'
+              : hasBM25Indexing
+              ? 'Indexing files for BM25...'
+              : 'Ask Anything'
+          }
+        />
+      </div>
       </div>
 
       {/* File Panel Section */}

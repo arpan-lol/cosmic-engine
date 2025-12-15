@@ -30,7 +30,6 @@ export interface EngineEvent {
   scope: 'session' | 'user';
   sessionId?: string;
   message: string;
-  showInChat: boolean;
   attachmentId?: string;
   actionType?: 'view-chunks';
   data?: {

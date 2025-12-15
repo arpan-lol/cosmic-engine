@@ -43,7 +43,6 @@ export class RetrievalService {
         type: 'success',
         scope: 'session',
         message: 'vector-search-complete',
-        showInChat: false,
         data: {
           title: 'Vector search complete',
           body: [
@@ -63,7 +62,6 @@ export class RetrievalService {
         type: 'notification',
         scope: 'session',
         message: 'retrieval-error',
-        showInChat: false,
         data: {
           title: 'Retrieval failed',
           body: [error instanceof Error ? error.message : String(error)],

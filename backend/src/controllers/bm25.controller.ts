@@ -55,7 +55,6 @@ class BM25Controller {
         type: "notification",
         scope: "session",
         message: "New Job added",
-        showInChat: false,
         attachmentId: att.id,
         data: {
           title: `Added File ${att.filename} to BM25 indexing queue`,

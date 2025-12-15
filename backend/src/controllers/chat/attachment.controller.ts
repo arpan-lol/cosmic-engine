@@ -277,7 +277,6 @@ export class AttachmentController {
       type: 'notification',
       scope: 'session',
       message: 'File Deleted',
-      showInChat: false,
       attachmentId,
       data: {
         title: `${attachment.filename} permanently deleted!`,

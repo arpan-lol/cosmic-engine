@@ -38,7 +38,6 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       type: 'notification',
       scope: 'session',
       message: 'File processing started',
-      showInChat: false,
       attachmentId,
       data: {
         title: `Processing ${attachment.filename}`,
@@ -145,7 +144,6 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
           type: 'notification',
           scope: 'session',
           message: 'embedding-progress',
-          showInChat: false,
           attachmentId,
           data: {
             title: `Embedding progress`,
@@ -202,7 +200,6 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       type: 'success',
       scope: 'session',
       message: `${attachment.filename} processed successfully`,
-      showInChat: true,
       attachmentId,
       actionType: 'view-chunks',
       data: {
@@ -359,7 +356,6 @@ export function Orchestrator() {
         type: 'title-update',
         scope: 'session',
         message: 'Title updated',
-        showInChat: false,
         newTitle: cleanTitle,
         data: {
           title: 'Conversation Title Generated',

@@ -17,7 +17,6 @@ export interface EngineEvent {
   scope: 'session' | 'user';
   sessionId?: string;
   message: string;
-  showInChat: boolean;
   attachmentId?: string;
   actionType?: 'view-chunks';
   data?: {
@@ -45,7 +44,14 @@ class SSEService {
 
   private sendSSE(res: Response, data: any): boolean {
     try {
-      const message = `data: ${JSON.stringify(data)}\n\n`;
+      const serialized = JSON.stringify(data);
+      const message = `data: ${serialized}\n\n`;
+      const messageSize = Buffer.byteLength(message, 'utf8');
+      
+      if (messageSize > 100000) {
+        console.warn(`[SSE] Large message: ${messageSize} bytes`);
+      }
+      
       res.write(message);
       return true;
     } catch (error) {
@@ -210,11 +216,18 @@ class SSEService {
       }
     });
 
+    const serializedEvent = JSON.stringify(eventWithTimestamp);
+    const eventSize = Buffer.byteLength(serializedEvent, 'utf8');
+
+    if (eventSize > 50000) {
+      console.warn(`[EventStream] Large event detected: ${eventSize} bytes for ${event.message}`);
+    }
+
     prisma.chat.create({
       data: {
         sessionId,
         role: 'system',
-        content: JSON.stringify(eventWithTimestamp),
+        content: serializedEvent,
       },
     }).catch((err: any) => {
       console.error(`[EventStream] Failed to persist event to DB:`, err);

@@ -131,7 +131,6 @@ export class GenerationService {
           type: 'notification',
           scope: 'session',
           message: 'retrieval-complete',
-          showInChat: false,
           data: {
             title: 'Retrieved context',
             body: enhancedContexts.map(ctx =>
@@ -174,7 +173,6 @@ export class GenerationService {
         type: 'notification',
         scope: 'session',
         message: 'generation-started',
-        showInChat: false,
         data: {
           title: 'Started generating response',
           body: [`Query: ${query}`]
@@ -229,7 +227,6 @@ export class GenerationService {
             type: 'notification',
             scope: 'session',
             message: 'tool-response',
-            showInChat: false,
             data: {
               title: `Tool executed: ${name}`,
               body: [`Response length: ${toolResponse.length}`]
@@ -263,7 +260,6 @@ export class GenerationService {
           type: 'notification',
           scope: 'session',
           message: 'generation-complete',
-          showInChat: false,
           data: {
             title: 'Response complete',
             body: [`Length: ${accumulatedText.length} chars`]
@@ -283,7 +279,6 @@ export class GenerationService {
         type: 'error',
         scope: 'session',
         message: 'generation-error',
-        showInChat: false,
         data: {
           title: 'Generation error',
           body: [error instanceof Error ? error.message : String(error)]

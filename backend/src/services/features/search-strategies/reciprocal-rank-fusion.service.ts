@@ -51,7 +51,6 @@ export class ReciprocalRankFusionService {
         type: 'notification',
         scope: 'session',
         message: 'rrf-started',
-        showInChat: false,
         data: {
           title: 'RRF search started',
           body: [`Query: ${query}`, `Attachments: ${attachmentIds.length}`, `topK: ${totalTopK}`]
@@ -98,7 +97,6 @@ export class ReciprocalRankFusionService {
             type: 'notification',
             scope: 'session',
             message: 'rrf-attachment-complete',
-            showInChat: false,
             attachmentId,
             data: {
               title: `Search results for ${att.filename ?? attachmentId}`,
@@ -141,7 +139,6 @@ export class ReciprocalRankFusionService {
             type: 'notification',
             scope: 'session',
             message: 'rrf-progress',
-            showInChat: false,
             attachmentId,
             data: {
               title: `Progress: ${progress}%`,
@@ -205,7 +202,6 @@ export class ReciprocalRankFusionService {
           type: 'notification',
           scope: 'session',
           message: 'rrf-fusion-complete',
-          showInChat: false,
           data: {
             title: 'RRF fusion complete',
             body: previewBody
@@ -245,7 +241,6 @@ export class ReciprocalRankFusionService {
           type: 'success',
           scope: 'session',
           message: 'rrf-complete',
-          showInChat: false,
           data: {
             title: 'RRF search complete',
             body: [
@@ -266,7 +261,6 @@ export class ReciprocalRankFusionService {
           type: 'notification',
           scope: 'session',
           message: 'rrf-error',
-          showInChat: false,
           data: {
             title: 'RRF search error',
             body: [err instanceof Error ? err.message : String(err)]

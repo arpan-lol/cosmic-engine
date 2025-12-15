@@ -56,7 +56,6 @@ export class HybridSearchService {
         type: 'notification',
         scope: 'session',
         message: 'hybrid-search-started',
-        showInChat: false,
         data: {
           title: `Hybrid search started`,
           body: [`Query: ${query}`, `Attachments: ${attachmentIds.length}`, `topK: ${totalTopK}`]
@@ -106,7 +105,6 @@ export class HybridSearchService {
             type: 'notification',
             scope: 'session',
             message: 'hybrid-search-attachment-complete',
-            showInChat: false,
             attachmentId,
             data: {
               title: `Search results for ${att.filename ?? attachmentId}`,
@@ -164,7 +162,6 @@ export class HybridSearchService {
             type: 'notification',
             scope: 'session',
             message: 'hybrid-search-progress',
-            showInChat: false,
             attachmentId,
             data: {
               title: `Progress: ${progress}%`,
@@ -224,7 +221,6 @@ export class HybridSearchService {
           type: 'notification',
           scope: 'session',
           message: 'hybrid-ranking-complete',
-          showInChat: false,
           data: {
             title: 'Hybrid ranking complete',
             body: rankingBody
@@ -266,7 +262,6 @@ export class HybridSearchService {
           type: 'success',
           scope: 'session',
           message: 'hybrid-search-complete',
-          showInChat: false,
           data: {
             title: 'Hybrid search complete',
             body: [
@@ -293,7 +288,6 @@ export class HybridSearchService {
           type: 'notification',
           scope: 'session',
           message: 'hybrid-search-error',
-          showInChat: false,
           data: {
             title: 'Hybrid search error',
             body: [err instanceof Error ? err.message : String(err)]
