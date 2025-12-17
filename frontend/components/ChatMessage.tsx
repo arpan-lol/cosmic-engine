@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { formatMessageTime, formatMessageDateTime, getDateTimeAttribute } from '@/lib/date-utils';
 import { areAttachmentsEqual } from '@/lib/message-utils';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { MessageContent } from '@/components/MessageContent';
+import { StreamingMessageContent } from '@/components/StreamingMessageContent';
 import { AttachmentList } from '@/components/AttachmentList';
 import 'highlight.js/styles/github-dark.css';
 
@@ -21,6 +21,8 @@ interface ChatMessageProps {
   userAvatar?: string;
   userName?: string;
   isLoading?: boolean;
+  isStreaming?: boolean;
+  isComplete?: boolean;
   onCitationClick?: (filename: string, page?: number) => void;
   onAttachmentClick?: (filename: string) => void;
 }
@@ -29,7 +31,7 @@ const AVATAR_SIZE = 32;
 const AVATAR_SIZE_CLASS = 'h-8 w-8';
 const COPY_SUCCESS_DURATION = 2000;
 
-function ChatMessageComponent({ message, userAvatar, userName, isLoading, onCitationClick, onAttachmentClick }: ChatMessageProps) {
+function ChatMessageComponent({ message, userAvatar, userName, isLoading, isStreaming = false, isComplete = false, onCitationClick, onAttachmentClick }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
@@ -90,7 +92,12 @@ function ChatMessageComponent({ message, userAvatar, userName, isLoading, onCita
                 ) : (
                   <ErrorBoundary>
                     <div className="prose prose-sm dark:prose-invert max-w-none break-words">
-                      <MessageContent content={message.content} onCitationClick={onCitationClick} />
+                      <StreamingMessageContent 
+                        content={message.content} 
+                        isStreaming={isStreaming}
+                        isComplete={isComplete}
+                        onCitationClick={onCitationClick} 
+                      />
                     </div>
                   </ErrorBoundary>
                 )}
@@ -173,6 +180,8 @@ const ChatMessage = memo(ChatMessageComponent, (prevProps, nextProps) => {
     prevProps.message?.content === nextProps.message?.content &&
     prevProps.message?.createdAt === nextProps.message?.createdAt &&
     prevProps.isLoading === nextProps.isLoading &&
+    prevProps.isStreaming === nextProps.isStreaming &&
+    prevProps.isComplete === nextProps.isComplete &&
     prevProps.userAvatar === nextProps.userAvatar &&
     prevProps.userName === nextProps.userName &&
     prevProps.onCitationClick === nextProps.onCitationClick &&

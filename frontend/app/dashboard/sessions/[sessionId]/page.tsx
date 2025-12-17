@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useConversation } from '@/hooks/use-conversations';
 import { useStreamMessage } from '@/hooks/use-stream-message';
@@ -51,7 +51,7 @@ export default function ChatSessionPage() {
   const { data: authUser } = useAuth();
   const { data: conversation, isLoading } = useConversation(sessionId);
   const { data: sessionAttachments, isLoading: isLoadingAttachments } = useSessionAttachments(sessionId);
-  const { sendMessage, isStreaming, streamedContent, error, reset } = useStreamMessage();
+  const { sendMessage, isStreaming, isComplete, streamedContent, error, reset } = useStreamMessage();
   const deleteAttachment = useDeleteAttachment();
   const { options: searchOptions, disableHybridSearch } = useSearchOptions();
   const bm25Progress = useBM25Progress(sessionId, sessionAttachments);
@@ -332,39 +332,26 @@ export default function ChatSessionPage() {
     );
   }
 
-  const displayMessages = [...optimisticMessages];
-
-  if (isStreaming && streamedContent) {
-    const lastMessage = displayMessages[displayMessages.length - 1];
-    if (lastMessage && lastMessage.role === 'assistant') {
-      displayMessages[displayMessages.length - 1] = {
-        ...lastMessage,
-        content: streamedContent,
-      };
+  const displayMessages = useMemo(() => {
+    const messages = [...optimisticMessages];
+    if (isStreaming && streamedContent) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg?.role === 'assistant') {
+        messages[messages.length - 1] = { ...lastMsg, content: streamedContent };
+      }
     }
-  }
+    return messages;
+  }, [optimisticMessages, isStreaming, streamedContent]);
 
   const isLoadingResponse = isStreaming && !streamedContent;
   
-  // Check if any attachments are currently being processed
   const hasProcessingAttachments = sessionAttachments?.some(
     (att: any) => !att.metadata?.processed && !att.metadata?.error
   ) || false;
 
-  // Check if any attachments are currently being BM25 indexed
   const hasBM25Indexing = sessionAttachments?.some(
     (att: any) => att.bm25indexStatus === 'queued' || att.bm25indexStatus === 'processing'
   ) || false;
-  
-  if (isStreaming && streamedContent && displayMessages.length > 0) {
-    const lastMessage = displayMessages[displayMessages.length - 1];
-    if (lastMessage && lastMessage.role === 'assistant') {
-      displayMessages[displayMessages.length - 1] = {
-        ...lastMessage,
-        content: streamedContent,
-      };
-    }
-  }
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -436,6 +423,8 @@ export default function ChatSessionPage() {
                       userAvatar={authUser?.picture}
                       userName={authUser?.name}
                       isLoading={isLoadingResponse && isLastAssistantMessage}
+                      isStreaming={isStreaming && isLastAssistantMessage}
+                      isComplete={isComplete}
                       onCitationClick={handleCitationClick}
                       onAttachmentClick={handleAttachmentClick}
                     />

@@ -6,6 +6,7 @@ const API_BASE_URL =
 
 export const useStreamMessage = () => {
   const [isStreaming, setIsStreaming] = useState(false)
+  const [isComplete, setIsComplete] = useState(false)
   const [streamedContent, setStreamedContent] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -29,6 +30,7 @@ export const useStreamMessage = () => {
       }
     ) => {
       setIsStreaming(true)
+      setIsComplete(false)
       setStreamedContent('')
       setError(null)
 
@@ -126,13 +128,17 @@ export const useStreamMessage = () => {
                 setStreamedContent((prev) => prev + message.content)
                 options?.onToken?.(message.content)
               } else if (message.type === 'done' && message.messageId) {
+                setIsComplete(true)
                 options?.onComplete?.(message.messageId)
               } else if (message.type === 'error' && message.error) {
                 setError(message.error)
                 options?.onError?.(message.error)
               }
             } catch (e) {
-              console.error('Failed to parse SSE message:', e)
+              console.error('[SSE] Failed to parse message:', e, 'Line:', line)
+              const parseError = `Stream parsing error: ${e instanceof Error ? e.message : 'Unknown'}`
+              setError(parseError)
+              options?.onError?.(parseError)
             }
           }
         }
@@ -152,11 +158,13 @@ export const useStreamMessage = () => {
     setStreamedContent('')
     setError(null)
     setIsStreaming(false)
+    setIsComplete(false)
   }, [])
 
   return {
     sendMessage,
     isStreaming,
+    isComplete,
     streamedContent,
     error,
     reset,
