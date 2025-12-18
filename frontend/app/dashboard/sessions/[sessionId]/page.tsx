@@ -148,7 +148,7 @@ export default function ChatSessionPage() {
     }
     return [];
   });
-  const [selectedPDF, setSelectedPDF] = useState<{ filename: string; url: string; targetPage?: number } | undefined>();
+  const [selectedPDF, setSelectedPDF] = useState<{ filename: string; url: string; targetPage?: number; type?: string } | undefined>();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [attachmentToDelete, setAttachmentToDelete] = useState<string | null>(null);
 
@@ -473,13 +473,14 @@ export default function ChatSessionPage() {
 
   const handleCitationClick = (filename: string, page?: number) => {
     const attachment = sessionAttachments?.find((att: any) => att.filename === filename);
-    if (attachment && attachment.filename.toLowerCase().endsWith('.pdf')) {
+    if (attachment) {
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
       const fileToUse = attachment.storedFilename || attachment.filename;
       setSelectedPDF({
         filename: attachment.filename,
         url: `${baseUrl}/dashboard/sessions/uploads/${encodeURIComponent(fileToUse)}`,
         targetPage: page,
+        type: attachment.type,
       });
     }
   };
@@ -489,14 +490,12 @@ export default function ChatSessionPage() {
   };
 
   const handleDocumentClick = (attachment: any) => {
-    if (!attachment.filename.toLowerCase().endsWith('.pdf')) {
-      return;
-    }
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
     const fileToUse = attachment.storedFilename || attachment.filename;
     setSelectedPDF({
       filename: attachment.filename,
       url: `${baseUrl}/dashboard/sessions/uploads/${encodeURIComponent(fileToUse)}`,
+      type: attachment.type,
     });
   };
 
@@ -810,7 +809,7 @@ export default function ChatSessionPage() {
       </div>
 
       {/* File Panel Section */}
-      <div className="w-[500px] flex-shrink-0 h-full overflow-hidden">
+      <div className="w-[500px] flex-shrink-0 h-full">
         <FilePanel
           attachments={mergedAttachments}
           selectedFile={selectedPDF}

@@ -52,21 +52,8 @@ export default function LogsPanel({ logs, isDocumentOpen, sessionId }: LogsPanel
   };
 
   return (
-    <div className="absolute inset-x-0 bottom-0 h-full pointer-events-none z-10 border-l">
-      <ResizablePanelGroup direction="vertical" className="h-full">
-        <ResizablePanel defaultSize={100 - panelSize} className="pointer-events-none" />
-        <ResizableHandle withHandle className="pointer-events-auto bg-border" />
-        <ResizablePanel 
-          ref={logsPanelRef}
-          defaultSize={panelSize}
-          minSize={10}
-          maxSize={70}
-          className="pointer-events-auto"
-          collapsible={true}
-          collapsedSize={4}
-          onResize={(size) => setPanelSize(size)}
-        >
-          <Card className="h-full flex flex-col rounded-none border-0 border-t overflow-hidden bg-background">
+    <div className="h-full">
+      <Card className="h-full flex flex-col rounded-none border-0 border-l overflow-hidden bg-background">
             <CardHeader className="px-4 py- flex-shrink-0">
               <CardTitle className="text-sm font-medium">Engine Logs</CardTitle>
             </CardHeader>
@@ -132,8 +119,6 @@ export default function LogsPanel({ logs, isDocumentOpen, sessionId }: LogsPanel
               </ScrollArea>
             </CardContent>
           </Card>
-        </ResizablePanel>
-      </ResizablePanelGroup>
       {selectedLog && selectedLog.attachmentId && (
         <ChunkViewer
           open={chunkViewerOpen}

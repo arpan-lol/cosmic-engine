@@ -155,7 +155,7 @@ export default function FileUploadButton({
         variant="outline"
         onClick={handleButtonClick}
         disabled={uploadFile.isPending || hasAnyUploading || hasAnyProcessing}
-        className="hover:border-primary"
+        className="hover:border-primary transition-all duration-300 ease-in-out"
       >
         {uploadFile.isPending || hasAnyUploading || hasAnyProcessing ? (
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />

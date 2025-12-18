@@ -40,15 +40,15 @@ export class AttachmentController {
         fileType = 'image';
       } else if (file.mimetype === 'application/pdf') {
         fileType = 'pdf';
+      } else if (file.mimetype.includes('presentation') || file.mimetype.includes('powerpoint')) {
+        fileType = 'presentation';
+      } else if (file.mimetype.includes('spreadsheet') || file.mimetype.includes('excel')) {
+        fileType = 'spreadsheet';
       } else if (
         file.mimetype.includes('word') ||
         file.mimetype.includes('document')
       ) {
         fileType = 'document';
-      } else if (file.mimetype.includes('spreadsheet') || file.mimetype.includes('excel')) {
-        fileType = 'spreadsheet';
-      } else if (file.mimetype.includes('presentation') || file.mimetype.includes('powerpoint')) {
-        fileType = 'presentation';
       }
 
       const attachment = await prisma.attachment.create({

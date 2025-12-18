@@ -10,6 +10,11 @@ import 'react-pdf/dist/Page/TextLayer.css';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
+const SCALE_MIN = 0.5;
+const SCALE_MAX = 3.0;
+const SCALE_STEP = 0.2;
+const SCALE_DEFAULT = 1.0;
+
 interface PDFViewerProps {
   fileUrl: string;
   currentPage: number;
@@ -18,15 +23,33 @@ interface PDFViewerProps {
 
 export default function PDFViewer({ fileUrl, currentPage, onPageChange }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
-  const [scale, setScale] = useState<number>(1.0);
+  const [scale, setScale] = useState<number>(SCALE_DEFAULT);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
+    setNumPages(0);
   }, [fileUrl]);
+
+  useEffect(() => {
+    if (numPages > 0 && currentPage > numPages) {
+      onPageChange(numPages);
+    } else if (numPages > 0 && currentPage < 1) {
+      onPageChange(1);
+    }
+  }, [numPages, currentPage, onPageChange]);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
+    setLoading(false);
+    setError(null);
+  }
+
+  function onDocumentLoadError(err: Error) {
+    console.error('[PDFViewer] Load error:', err);
+    setError(err.message || 'Failed to load PDF');
     setLoading(false);
   }
 
@@ -43,11 +66,11 @@ export default function PDFViewer({ fileUrl, currentPage, onPageChange }: PDFVie
   }
 
   function zoomIn() {
-    setScale((prev) => Math.min(prev + 0.2, 3.0));
+    setScale((prev) => Math.min(prev + SCALE_STEP, SCALE_MAX));
   }
 
   function zoomOut() {
-    setScale((prev) => Math.max(prev - 0.2, 0.5));
+    setScale((prev) => Math.max(prev - SCALE_STEP, SCALE_MIN));
   }
 
   return (
@@ -58,20 +81,30 @@ export default function PDFViewer({ fileUrl, currentPage, onPageChange }: PDFVie
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         )}
-        <Document
-          file={fileUrl}
-          onLoadSuccess={onDocumentLoadSuccess}
-          onLoadError={(error) => console.error('PDF load error:', error)}
-          loading={<Loader2 className="h-8 w-8 animate-spin" />}
-        >
-          <Page
-            pageNumber={currentPage}
-            scale={scale}
-            renderTextLayer={true}
-            renderAnnotationLayer={true}
-            className="shadow-lg"
-          />
-        </Document>
+        {error && (
+          <div className="flex flex-col items-center justify-center h-full text-destructive">
+            <p className="text-sm mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()} variant="outline" size="sm">
+              Retry
+            </Button>
+          </div>
+        )}
+        {!error && (
+          <Document
+            file={fileUrl}
+            onLoadSuccess={onDocumentLoadSuccess}
+            onLoadError={onDocumentLoadError}
+            loading={<Loader2 className="h-8 w-8 animate-spin" />}
+          >
+            <Page
+              pageNumber={Math.max(1, Math.min(currentPage, numPages || 1))}
+              scale={scale}
+              renderTextLayer={true}
+              renderAnnotationLayer={true}
+              className="shadow-lg"
+            />
+          </Document>
+        )}
       </div>
       <Card className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-3 flex items-center justify-between w-auto z-20">
         <div className="flex items-center gap-2">
