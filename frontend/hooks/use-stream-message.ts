@@ -129,6 +129,7 @@ export const useStreamMessage = () => {
                 options?.onToken?.(message.content)
               } else if (message.type === 'done' && message.messageId) {
                 setIsComplete(true)
+                setIsStreaming(false)
                 options?.onComplete?.(message.messageId)
               } else if (message.type === 'error' && message.error) {
                 setError(message.error)
@@ -146,9 +147,8 @@ export const useStreamMessage = () => {
         const errorMessage =
           err instanceof Error ? err.message : 'Unknown error'
         setError(errorMessage)
-        options?.onError?.(errorMessage)
-      } finally {
         setIsStreaming(false)
+        options?.onError?.(errorMessage)
       }
     },
     []

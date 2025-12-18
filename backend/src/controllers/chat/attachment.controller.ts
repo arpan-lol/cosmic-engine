@@ -53,6 +53,7 @@ export class AttachmentController {
 
       const attachment = await prisma.attachment.create({
         data: {
+          sessionId,
           type: fileType,
           url: path.join('uploads', file.filename),
           filename: file.originalname,
@@ -63,7 +64,6 @@ export class AttachmentController {
             uploadedAt: new Date().toISOString(),
             storedFilename: file.filename,
             processed: false,
-            sessionId, // Store session reference
           },
           bm25indexStatus: "not started"
         },
@@ -120,10 +120,7 @@ export class AttachmentController {
       // Get all attachments for this session
       const attachments = await prisma.attachment.findMany({
         where: {
-          metadata: {
-            path: ['sessionId'],
-            equals: sessionId,
-          },
+          sessionId,
         },
         orderBy: {
           createdAt: 'desc',

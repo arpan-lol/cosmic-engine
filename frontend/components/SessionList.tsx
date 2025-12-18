@@ -33,9 +33,17 @@ export default function SessionList() {
   const updateTitle = useUpdateConversationTitle();
 
   const handleCreateConversation = async () => {
-    const result = await createConversation.mutateAsync(newConversationTitle || undefined);
-    setNewConversationTitle('');
-    router.push(`/dashboard/sessions/${result.sessionId}`);
+    try {
+      const result = await createConversation.mutateAsync(newConversationTitle || undefined);
+      setNewConversationTitle('');
+      if (result?.sessionId) {
+        router.push(`/dashboard/sessions/${result.sessionId}`);
+      } else {
+        console.error('Session creation failed: No sessionId returned', result);
+      }
+    } catch (error) {
+      console.error('Failed to create conversation:', error);
+    }
   };
 
   const handleEditTitle = (sessionId: string, currentTitle: string, e: React.MouseEvent) => {

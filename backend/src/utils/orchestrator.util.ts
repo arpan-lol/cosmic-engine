@@ -53,10 +53,19 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     logger.info('Orchestrator', `Processing: ${attachment.filename}`, { attachmentId, sessionId });
 
     sseService.sendProgress(attachmentId, {
+      status: 'connected',
+      step: 'connected',
+      message: `Connected to processing ${attachment.filename}...`,
+      progress: 0,
+      phase: 'file-processing'
+    });
+
+    sseService.sendProgress(attachmentId, {
       status: 'processing',
       step: 'started',
       message: `Processing ${attachment.filename}...`,
-      progress: 0
+      progress: 5,
+      phase: 'file-processing'
     });
 
     logger.info('Orchestrator', 'Step 0: Initializing vector store', { attachmentId, sessionId });
@@ -64,7 +73,8 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       status: 'processing',
       step: 'initialization',
       message: 'Initializing vector store...',
-      progress: 10
+      progress: 10,
+      phase: 'file-processing'
     });
 
     const collectionName = CollectionService.generateCName(sessionId);
@@ -75,7 +85,8 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       status: 'processing',
       step: 'ingestion',
       message: 'Preprocessing',
-      progress: 25
+      progress: 25,
+      phase: 'file-processing'
     });
 
     const markdown = await IngestionService.convertToMarkdown(attachment.url);
@@ -86,7 +97,8 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       status: 'processing',
       step: 'chunking',
       message: `Chunking ${markdown.length} characters`,
-      progress: 40
+      progress: 40,
+      phase: 'file-processing'
     });
 
     const chunkSize = 1000;
@@ -127,7 +139,8 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
           status: 'processing',
           step: 'embedding',
           message: `Processing vectors (${storedCount} stored)...`,
-          progress: newProgress
+          progress: newProgress,
+          phase: 'file-processing'
         });
       }
 
@@ -165,7 +178,8 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       status: 'processing',
       step: 'indexing',
       message: 'Building search index...',
-      progress: 85
+      progress: 85,
+      phase: 'file-processing'
     });
 
     await CollectionService.buildIndexAndLoad(collectionName);
@@ -193,7 +207,8 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       message: `Successfully processed! (${totalChunks} chunks)`,
       progress: 100,
       chunkCount: totalChunks,
-      embeddingCount: totalChunks
+      embeddingCount: totalChunks,
+      phase: 'file-processing'
     });
 
     await sseService.publishToSession(sessionId, {
@@ -225,10 +240,12 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     }
 
     sseService.sendProgress(attachmentId, {
-      status: 'failed',
+      status: 'error',
       step: 'error',
       message: userMessage,
-      progress: 0
+      progress: 0,
+      phase: 'file-processing',
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
 
     try {

@@ -18,7 +18,7 @@ export function StreamingMessageContent({
 }: StreamingMessageContentProps) {
   const deferredContent = useDeferredValue(content);
   
-  if (isStreaming && !isComplete) {
+  if (isStreaming) {
     return (
       <div className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed">
         {content}

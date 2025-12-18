@@ -1,17 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api } from '@/lib/api';
-import type { AttachmentStatus } from '@/lib/types';
-
-interface StreamStatus {
-  status: 'processing' | 'completed' | 'error';
-  step?: string;
-  message?: string;
-  progress?: number;
-  chunkCount?: number;
-  embeddingCount?: number;
-  error?: string;
-}
+import type { AttachmentStatus, StreamStatus } from '@/lib/types';
 
 export const useUploadFile = () => {
   const queryClient = useQueryClient();
@@ -96,15 +86,10 @@ export const useAttachmentStream = (attachmentId: string | null) => {
         console.error('[SSE] Failed to get token:', error);
       }
       
-      console.log('[SSE] Connecting to stream for attachment:', attachmentId);
-      console.log('[SSE] Token available:', !!token);
-      
       const url = new URL(`${API_BASE_URL}/chat/attachments/${attachmentId}/stream`);
       if (token) {
         url.searchParams.set('token', token);
       }
-      
-      console.log('[SSE] URL:', url.toString());
       
       const eventSource = new EventSource(url.toString(), { withCredentials: true });
 
@@ -169,7 +154,7 @@ export const useSessionAttachments = (sessionId: string | null) => {
       const hasBM25Indexing = data?.some((att: any) => 
         att.bm25indexStatus === 'queued' || att.bm25indexStatus === 'processing'
       );
-      return (hasProcessing || hasBM25Indexing) ? 2000 : false;
+      return (hasProcessing || hasBM25Indexing) ? 5000 : false;
     },
     staleTime: 1000,
     refetchOnMount: true,
@@ -201,6 +186,8 @@ export const useDeleteAttachment = () => {
 export const useBM25Progress = (sessionId: string | null, attachments: any[] | undefined) => {
   const [progressMap, setProgressMap] = useState<Record<string, StreamStatus>>({});
   const queryClient = useQueryClient();
+  const timeoutRefs = useRef<Record<string, NodeJS.Timeout>>({});
+  const connectionTimeoutRefs = useRef<Record<string, NodeJS.Timeout>>({});
 
   useEffect(() => {
     if (!sessionId || !attachments) return;
@@ -211,6 +198,10 @@ export const useBM25Progress = (sessionId: string | null, attachments: any[] | u
 
     if (indexingAttachments.length === 0) {
       setProgressMap({});
+      Object.values(timeoutRefs.current).forEach(clearTimeout);
+      Object.values(connectionTimeoutRefs.current).forEach(clearTimeout);
+      timeoutRefs.current = {};
+      connectionTimeoutRefs.current = {};
       return;
     }
 
@@ -237,14 +228,30 @@ export const useBM25Progress = (sessionId: string | null, attachments: any[] | u
       
       const eventSource = new EventSource(url.toString(), { withCredentials: true });
 
+      connectionTimeoutRefs.current[attachmentId] = setTimeout(() => {
+        eventSource.close();
+        setProgressMap(prev => {
+          const updated = { ...prev };
+          delete updated[attachmentId];
+          return updated;
+        });
+      }, 120000);
+
       eventSource.onmessage = (event) => {
         try {
+          if (connectionTimeoutRefs.current[attachmentId]) {
+            clearTimeout(connectionTimeoutRefs.current[attachmentId]);
+            delete connectionTimeoutRefs.current[attachmentId];
+          }
+
           const data: StreamStatus = JSON.parse(event.data);
           
-          setProgressMap(prev => ({
-            ...prev,
-            [attachmentId]: data
-          }));
+          if (!data.phase || data.phase === 'bm25') {
+            setProgressMap(prev => ({
+              ...prev,
+              [attachmentId]: data
+            }));
+          }
 
           if (data.status === 'completed' || data.status === 'error') {
             queryClient.invalidateQueries({ 
@@ -252,6 +259,15 @@ export const useBM25Progress = (sessionId: string | null, attachments: any[] | u
               refetchType: 'active'
             });
             eventSource.close();
+            
+            timeoutRefs.current[attachmentId] = setTimeout(() => {
+              setProgressMap(prev => {
+                const updated = { ...prev };
+                delete updated[attachmentId];
+                return updated;
+              });
+              delete timeoutRefs.current[attachmentId];
+            }, 3500);
           }
         } catch (error) {
           console.error('[BM25 Progress] Error parsing SSE data:', error);
@@ -259,6 +275,10 @@ export const useBM25Progress = (sessionId: string | null, attachments: any[] | u
       };
 
       eventSource.onerror = () => {
+        if (connectionTimeoutRefs.current[attachmentId]) {
+          clearTimeout(connectionTimeoutRefs.current[attachmentId]);
+          delete connectionTimeoutRefs.current[attachmentId];
+        }
         eventSource.close();
       };
 
@@ -273,6 +293,10 @@ export const useBM25Progress = (sessionId: string | null, attachments: any[] | u
 
     return () => {
       eventSources.forEach(es => es.close());
+      Object.values(timeoutRefs.current).forEach(clearTimeout);
+      Object.values(connectionTimeoutRefs.current).forEach(clearTimeout);
+      timeoutRefs.current = {};
+      connectionTimeoutRefs.current = {};
     };
   }, [sessionId, attachments, queryClient]);
 

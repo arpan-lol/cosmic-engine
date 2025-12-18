@@ -39,20 +39,19 @@ model Session {
 }
 
 model Chat {
-  id          String       @id @default(uuid())
+  id          String             @id @default(uuid())
   sessionId   String
-  session     Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  role        String // 'user' | 'assistant' | 'system'
-  content     String       @db.Text
-  attachments Attachment[]
+  session     Session            @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role        String             // 'user' | 'assistant' | 'system'
+  content     String             @db.Text
+  attachments ChatAttachment[]
   tokens      Int?
-  createdAt   DateTime     @default(now())
+  createdAt   DateTime           @default(now())
 }
 
 model Attachment {
   id              String           @id @default(uuid())
-  chatId          String?
-  chat            Chat?            @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sessionId       String
   type            String
   url             String
   filename        String
@@ -64,6 +63,20 @@ model Attachment {
   bm25indexedAt   DateTime?
   bm25Meta        BM25IndexMeta?
   bm25Entries     BM25IndexEntry[]
+  chats           ChatAttachment[]
+}
+
+model ChatAttachment {
+  id           String     @id @default(uuid())
+  chatId       String
+  attachmentId String
+  chat         Chat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  attachment   Attachment @relation(fields: [attachmentId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([chatId, attachmentId])
+  @@index([chatId])
+  @@index([attachmentId])
 }
 
 model BM25IndexMeta {

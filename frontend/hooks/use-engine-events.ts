@@ -46,14 +46,11 @@ export function useEngineEvents({ sessionId, onEvent, onError }: UseEngineEvents
         ? `${apiUrl}/chat/sessions/${sessionId}/events?token=${encodeURIComponent(token)}`
         : `${apiUrl}/chat/sessions/${sessionId}/events`;
 
-      console.log('[EngineEvents] Connecting to event stream:', url.replace(/token=[^&]+/, 'token=***'));
-
       const eventSource = new EventSource(url, {
         withCredentials: true,
       });
 
       eventSource.onopen = () => {
-        console.log('[EngineEvents] Connected to event stream');
         setIsConnected(true);
         reconnectAttemptsRef.current = 0;
       };
@@ -61,8 +58,6 @@ export function useEngineEvents({ sessionId, onEvent, onError }: UseEngineEvents
       eventSource.onmessage = (e) => {
         try {
           const event: EngineEvent = JSON.parse(e.data);
-          console.log('[EngineEvents] Received event:', event);
-          
           onEventRef.current?.(event);
         } catch (error) {
           console.error('[EngineEvents] Failed to parse event:', error);
@@ -70,17 +65,14 @@ export function useEngineEvents({ sessionId, onEvent, onError }: UseEngineEvents
       };
 
       eventSource.onerror = () => {
-        console.error('[EngineEvents] Connection error, readyState:', eventSource.readyState);
-        
-        if (eventSource.readyState === EventSource.CLOSED) {
-          console.log('[EngineEvents] Connection closed by server');
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[EngineEvents] Connection error, readyState:', eventSource.readyState);
         }
         
         setIsConnected(false);
         eventSource.close();
 
         if (isCleaningUp) {
-          console.log('[EngineEvents] Cleanup in progress, not reconnecting');
           return;
         }
 
@@ -90,8 +82,6 @@ export function useEngineEvents({ sessionId, onEvent, onError }: UseEngineEvents
 
         if (reconnectAttemptsRef.current < maxRetries) {
           const delay = Math.min(baseDelay * Math.pow(2, reconnectAttemptsRef.current), maxDelay);
-          
-          console.log(`[EngineEvents] Will reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1}/${maxRetries})`);
           
           if (reconnectAttemptsRef.current === 0) {
             toast.error('Connection to server lost. Reconnecting...', {
@@ -120,7 +110,6 @@ export function useEngineEvents({ sessionId, onEvent, onError }: UseEngineEvents
     connect();
 
     return () => {
-      console.log('[EngineEvents] Cleaning up connection');
       isCleaningUp = true;
       
       if (reconnectTimeoutRef.current) {

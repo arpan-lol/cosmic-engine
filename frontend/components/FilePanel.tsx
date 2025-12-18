@@ -7,9 +7,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FileText, X, ArrowLeft, Trash2, ExternalLink } from 'lucide-react';
-import { EngineEvent } from '@/lib/types';
+import { EngineEvent, StreamStatus } from '@/lib/types';
 import LogsPanel from './LogsPanel';
 import ChunkViewer from './ChunkViewer';
+import { Progress } from '@/components/ui/progress';
 
 const PDFViewer = dynamic(() => import('./PDFViewer'), {
   loading: () => <div>Loading PDF...</div>,
@@ -19,9 +20,10 @@ interface Attachment {
   id: string;
   filename: string;
   type: string;
-  url: string;
+  url?: string;
   size: number;
   bm25indexStatus?: string;
+  isTemporary?: boolean;
   metadata?: {
     processed?: boolean;
   };
@@ -33,12 +35,13 @@ interface FilePanelProps {
   onClose?: () => void;
   onDocumentClick?: (attachment: Attachment) => void;
   onDeleteAttachment?: (attachmentId: string) => void;
-  bm25Progress?: Record<string, any>;
+  bm25Progress?: Record<string, StreamStatus>;
+  fileProcessingProgress?: Record<string, StreamStatus>;
   logs?: EngineEvent[];
   sessionId: string;
 }
 
-export default function FilePanel({ attachments, selectedFile, onClose, onDocumentClick, onDeleteAttachment, bm25Progress, logs = [], sessionId }: FilePanelProps) {
+export default function FilePanel({ attachments, selectedFile, onClose, onDocumentClick, onDeleteAttachment, bm25Progress, fileProcessingProgress, logs = [], sessionId }: FilePanelProps) {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [chunkViewerOpen, setChunkViewerOpen] = useState(false);
   const [selectedAttachment, setSelectedAttachment] = useState<{ id: string; filename: string } | null>(null);
@@ -61,7 +64,8 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
     (att) => {
       const isPDF = att.filename.toLowerCase().endsWith('.pdf');
       const isProcessed = att.metadata?.processed;
-      return isPDF && isProcessed;
+      const isTemporary = att.isTemporary;
+      return isPDF && (isProcessed || isTemporary);
     }
   );
   
@@ -94,62 +98,95 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[600px]">
-              {pdfAttachments.map((att) => (
-                <Card
-                  key={att.id}
-                  className="p-3 hover:bg-muted/50 transition-colors mb-2"
-                >
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <div 
-                      className="flex-1 min-w-0 cursor-pointer"
-                      onClick={() => onDocumentClick?.(att)}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm font-medium">{att.filename}</p>
-                        {att.bm25indexStatus === 'completed' && (
-                          <Badge variant="secondary" className="text-xs">
-                            BM25 Indexed
-                          </Badge>
-                        )}
-                        {(att.bm25indexStatus === 'processing' || att.bm25indexStatus === 'queued') && (
-                          <Badge variant="outline" className="text-xs">
-                            {bm25Progress?.[att.id]?.message || 'Indexing...'}
-                          </Badge>
+              {pdfAttachments.map((att) => {
+                const fileProgress = fileProcessingProgress?.[att.id];
+                const bm25ProgressData = bm25Progress?.[att.id];
+                const isFileProcessing = fileProgress?.status === 'processing' || fileProgress?.status === 'connected';
+                const isBM25Processing = (att.bm25indexStatus === 'processing' || att.bm25indexStatus === 'queued') && bm25ProgressData?.status === 'processing';
+                const progressValue = isFileProcessing ? fileProgress?.progress : isBM25Processing ? bm25ProgressData?.progress : undefined;
+                
+                if (att.isTemporary || progressValue !== undefined) {
+                  console.log('[FilePanel] Progress:', {
+                    filename: att.filename,
+                    isTemporary: att.isTemporary,
+                    fileProgress,
+                    isFileProcessing,
+                    isBM25Processing,
+                    progressValue,
+                  });
+                }
+
+                return (
+                  <Card
+                    key={att.id}
+                    className={`p-3 hover:bg-muted/50 transition-colors mb-2 ${att.isTemporary ? 'opacity-60' : ''}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <div 
+                        className="flex-1 min-w-0 cursor-pointer"
+                        onClick={() => !att.isTemporary && onDocumentClick?.(att)}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm font-medium">{att.filename}</p>
+                          {att.isTemporary && (
+                            <Badge variant="outline" className="text-xs">
+                              Uploading...
+                            </Badge>
+                          )}
+                          {!att.isTemporary && att.bm25indexStatus === 'completed' && (
+                            <Badge variant="secondary" className="text-xs">
+                              BM25 Indexed
+                            </Badge>
+                          )}
+                          {!att.isTemporary && isBM25Processing && (
+                            <Badge variant="outline" className="text-xs">
+                              {bm25ProgressData?.message || 'Indexing...'}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {(att.size / 1024).toFixed(1)} KB
+                        </p>
+                        
+                        {progressValue !== undefined && (
+                          <div className="mt-2">
+                            <Progress value={progressValue} className="h-1" />
+                          </div>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {(att.size / 1024).toFixed(1)} KB
-                      </p>
+
+                      {!att.isTemporary && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewChunks(att);
+                            }}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteAttachment?.(att.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
-
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleViewChunks(att);
-                      }}
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteAttachment?.(att.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </ScrollArea>
           </CardContent>
         </Card>

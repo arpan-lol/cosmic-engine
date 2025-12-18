@@ -203,9 +203,11 @@ function FileProgressCard({ attachmentId, fileInfo, onComplete, onError }: FileP
   const { data: attachmentStatus } = useAttachmentStatus(attachmentId.startsWith('temp-') ? null : attachmentId);
   const { streamStatus } = useAttachmentStream(attachmentId.startsWith('temp-') ? null : attachmentId);
 
+  const isFileProcessingPhase = !streamStatus?.phase || streamStatus?.phase === 'file-processing';
+
   // Simulate slow progress during preprocessing
   useEffect(() => {
-    if (!fileInfo.isWaitingForProcessing || streamStatus?.status === 'processing' || streamStatus?.status === 'error' || attachmentStatus?.error) {
+    if (!fileInfo.isWaitingForProcessing || streamStatus?.status === 'connected' || streamStatus?.status === 'processing' || streamStatus?.status === 'error' || attachmentStatus?.error) {
       return;
     }
 
@@ -241,10 +243,10 @@ function FileProgressCard({ attachmentId, fileInfo, onComplete, onError }: FileP
     }
   }, [streamStatus?.status, attachmentStatus?.error, attachmentId, onError]);
 
-  const isProcessing = streamStatus?.status === 'processing' || 
+  const isProcessing = ((streamStatus?.status === 'connected' || streamStatus?.status === 'processing') && isFileProcessingPhase) || 
     (!attachmentStatus?.processed && !attachmentStatus?.error && fileInfo.isWaitingForProcessing);
   
-  const hasError = streamStatus?.status === 'error' || attachmentStatus?.error;
+  const hasError = (streamStatus?.status === 'error' && isFileProcessingPhase) || attachmentStatus?.error;
   const showProgressCard = !hasError && (fileInfo.isUploading || fileInfo.isWaitingForProcessing || isProcessing);
   
   const getUnifiedProgress = () => {

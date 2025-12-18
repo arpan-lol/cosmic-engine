@@ -44,10 +44,18 @@ async function processBM25(
     });
 
     sseService.sendProgress(attachmentId, {
+      status: 'connected',
+      step: 'bm25-connected',
+      message: `Connected to BM25 indexing for ${attachment.filename}...`,
+      progress: 0,
+      phase: 'bm25',
+    });
+
+    sseService.sendProgress(attachmentId, {
       status: 'processing',
       step: 'bm25-started',
       message: `Starting BM25 indexing for ${attachment.filename}...`,
-      progress: 0,
+      progress: 5,
       phase: 'bm25',
     });
 
@@ -69,7 +77,7 @@ async function processBM25(
       status: 'processing',
       step: 'bm25-tokenizing',
       message: `Tokenizing ${chunks.length} chunks...`,
-      progress: 25,
+      progress: 20,
       phase: 'bm25',
     });
 
@@ -125,7 +133,7 @@ async function processBM25(
       status: 'processing',
       step: 'bm25-indexing',
       message: 'Building BM25 index...',
-      progress: 50,
+      progress: 40,
       phase: 'bm25',
     });
 
@@ -180,7 +188,7 @@ async function processBM25(
       status: 'processing',
       step: 'bm25-storing',
       message: `Storing ${entriesData.length} index entries...`,
-      progress: 75,
+      progress: 70,
       phase: 'bm25',
     });
 
@@ -250,11 +258,12 @@ async function processBM25(
     );
 
     sseService.sendProgress(attachmentId, {
-      status: 'failed',
+      status: 'error',
       step: 'bm25-error',
       message: 'BM25 indexing failed',
       progress: 0,
       phase: 'bm25',
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
 
     try {

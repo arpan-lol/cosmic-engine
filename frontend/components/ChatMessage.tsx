@@ -23,6 +23,7 @@ interface ChatMessageProps {
   isLoading?: boolean;
   isStreaming?: boolean;
   isComplete?: boolean;
+  isNewMessage?: boolean;
   onCitationClick?: (filename: string, page?: number) => void;
   onAttachmentClick?: (filename: string) => void;
 }
@@ -31,7 +32,7 @@ const AVATAR_SIZE = 32;
 const AVATAR_SIZE_CLASS = 'h-8 w-8';
 const COPY_SUCCESS_DURATION = 2000;
 
-function ChatMessageComponent({ message, userAvatar, userName, isLoading, isStreaming = false, isComplete = false, onCitationClick, onAttachmentClick }: ChatMessageProps) {
+function ChatMessageComponent({ message, userAvatar, userName, isLoading, isStreaming = false, isComplete = false, isNewMessage = false, onCitationClick, onAttachmentClick }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
@@ -65,6 +66,7 @@ function ChatMessageComponent({ message, userAvatar, userName, isLoading, isStre
     <div
       className={cn(
         'mb-4',
+        isNewMessage && 'animate-in fade-in slide-in-from-bottom-4 duration-300',
         isUser && 'flex gap-3 items-start justify-end',
         !isUser && 'flex flex-col gap-2'
       )}
@@ -182,6 +184,7 @@ const ChatMessage = memo(ChatMessageComponent, (prevProps, nextProps) => {
     prevProps.isLoading === nextProps.isLoading &&
     prevProps.isStreaming === nextProps.isStreaming &&
     prevProps.isComplete === nextProps.isComplete &&
+    prevProps.isNewMessage === nextProps.isNewMessage &&
     prevProps.userAvatar === nextProps.userAvatar &&
     prevProps.userName === nextProps.userName &&
     prevProps.onCitationClick === nextProps.onCitationClick &&

@@ -99,8 +99,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }, [authUser]);
 
   const handleCreateConversation = async () => {
-    const result = await createConversation.mutateAsync(undefined);
-    router.push(`/dashboard/sessions/${result.sessionId}`);
+    try {
+      const result = await createConversation.mutateAsync(undefined);
+      if (result?.sessionId) {
+        router.push(`/dashboard/sessions/${result.sessionId}`);
+      } else {
+        console.error('Session creation failed: No sessionId returned', result);
+      }
+    } catch (error) {
+      console.error('Failed to create conversation:', error);
+    }
   };
 
   const handleEditTitle = (conversationId: string, currentTitle: string, e: React.MouseEvent) => {

@@ -78,7 +78,11 @@ export class SessionController {
           chats: {
             orderBy: { createdAt: 'asc' },
             include: {
-              attachments: true,
+              attachments: {
+                include: {
+                  attachment: true,
+                },
+              },
             },
           },
         },
@@ -101,14 +105,14 @@ export class SessionController {
           content: msg.content,
           tokens: msg.tokens || undefined,
           createdAt: msg.createdAt,
-          attachments: msg.attachments.map((att) => ({
-            id: att.id,
-            type: att.type,
-            url: att.url,
-            filename: att.filename,
-            mimeType: att.mimeType,
-            size: att.size,
-            metadata: att.metadata || undefined,
+          attachments: msg.attachments.map((chatAtt) => ({
+            id: chatAtt.attachment.id,
+            type: chatAtt.attachment.type,
+            url: chatAtt.attachment.url,
+            filename: chatAtt.attachment.filename,
+            mimeType: chatAtt.attachment.mimeType,
+            size: chatAtt.attachment.size,
+            metadata: chatAtt.attachment.metadata || undefined,
           })),
         })),
       };

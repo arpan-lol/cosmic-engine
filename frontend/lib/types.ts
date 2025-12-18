@@ -88,3 +88,14 @@ export interface SSEMessage {
   content?: string;
   error?: string;
 }
+
+export interface StreamStatus {
+  status: 'connected' | 'processing' | 'completed' | 'error';
+  step?: string;
+  message?: string;
+  progress?: number;
+  phase?: string;
+  chunkCount?: number;
+  embeddingCount?: number;
+  error?: string;
+}

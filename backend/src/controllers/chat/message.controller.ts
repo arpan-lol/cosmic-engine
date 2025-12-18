@@ -60,7 +60,11 @@ export class MessageController {
           content: content.trim(),
           attachments: attachmentIds
             ? {
-                connect: attachmentIds.map((id) => ({ id })),
+                create: attachmentIds.map((id) => ({
+                  attachment: {
+                    connect: { id },
+                  },
+                })),
               }
             : undefined,
         },
