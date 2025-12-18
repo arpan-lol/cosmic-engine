@@ -11,10 +11,6 @@ interface PyResponse {
   error_message?: string;
   cached: boolean;
   processing_strategy?: string;
-  chunks?: Array<{
-    chunk_content: string;
-    chunk_page_no: number | null;
-  }>;
 }
 
 export class IngestionService {

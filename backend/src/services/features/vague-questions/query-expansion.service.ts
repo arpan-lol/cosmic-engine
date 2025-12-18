@@ -6,7 +6,7 @@ import prisma from 'src/prisma/client'
 const MIN_QUERY_LENGTH_FOR_EXPANSION = 3
 const MAX_QUERY_LENGTH_FOR_EXPANSION = 200
 const DEFAULT_TEMPERATURE = 0.5
-const DEFAULT_MAX_TOKENS = 300
+const DEFAULT_MAX_TOKENS = 500
 
 export class QueryExpansionService {
   static async expand(

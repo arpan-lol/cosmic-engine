@@ -305,7 +305,7 @@ export class GenerationService {
       systemPrompt,
       userPrompt,
       temperature = 0.5,
-      maxTokens = 200,
+      maxTokens = 500,
     } = params
 
     try {

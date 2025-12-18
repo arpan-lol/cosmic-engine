@@ -296,7 +296,11 @@ export function Orchestrator() {
         include: {
           chats: {
             include: {
-              attachments: true
+              attachments: {
+                include: {
+                  attachment: true
+                }
+              }
             },
             take: 1
           }
@@ -313,7 +317,7 @@ export function Orchestrator() {
         return;
       }
 
-      const fileNames = session.chats[0]?.attachments?.map(att => att.filename) || [];
+      const fileNames = session.chats[0]?.attachments?.map(att => att.attachment.filename) || [];
       
       logger.info('Orchestrator', 'Generating title with context', { 
         sessionId, 
@@ -326,7 +330,7 @@ export function Orchestrator() {
         systemPrompt: TITLE_PROMPT,
         userPrompt: buildTitlePrompt(firstUserMessage, fileNames),
         temperature: 0.7,
-        maxTokens: 50
+        maxTokens: 150
       });
 
       logger.info('Orchestrator', 'LLM returned title', { 
