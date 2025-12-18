@@ -90,8 +90,19 @@ export class StorageService {
       vector: embedding.vector,
     }));
 
-    if (embeddings.length > 0 && embeddings[0].metadata?.pageNumber) {
-      console.log(`[Milvus] Sample metadata - pageNumber: ${embeddings[0].metadata.pageNumber}, chunk: ${embeddings[0].chunkIndex}`);
+    if (embeddings.length > 0) {
+      const withPageNum = embeddings.filter(e => e.metadata?.pageNumber != null).length;
+      const withoutPageNum = embeddings.length - withPageNum;
+      console.log(`[Milvus] Batch of ${embeddings.length} embeddings: ${withPageNum} with pageNumber, ${withoutPageNum} without`);
+      
+      if (embeddings[0].metadata?.pageNumber) {
+        console.log(`[Milvus] Sample - chunk ${embeddings[0].chunkIndex}, pageNumber: ${embeddings[0].metadata.pageNumber}`);
+      }
+      
+      const lastEmbed = embeddings[embeddings.length - 1];
+      if (lastEmbed.metadata?.pageNumber) {
+        console.log(`[Milvus] Last in batch - chunk ${lastEmbed.chunkIndex}, pageNumber: ${lastEmbed.metadata.pageNumber}`);
+      }
     }
 
     await client.insert({
@@ -99,6 +110,6 @@ export class StorageService {
       data: data,
     });
 
-    console.log(`Inserted ${embeddings.length} embeddings into ${collectionName}`);
+    console.log(`[Milvus] Inserted ${embeddings.length} embeddings into ${collectionName}`);
   }
 }

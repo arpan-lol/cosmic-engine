@@ -25,11 +25,12 @@ export class ChunkingService {
       throw new Error('chunkSize must be greater than chunkOverlap');
     }
 
+    const pagePositions = this.extractPageNumbers(markdown);
+
     const separators = ['\n\n', '\n', '. ', ' '];
     let buffer = '';
     let chunkIndex = 0;
     let globalPosition = 0;
-    let currentPageNumber: number | null = null;
 
     const SEGMENT_SIZE = 100000;
     
@@ -40,15 +41,6 @@ export class ChunkingService {
       while (buffer.length >= chunkSize || (i + SEGMENT_SIZE >= markdown.length && buffer.length > 0)) {
         const endIndex = Math.min(chunkSize, buffer.length);
         let chunkText = buffer.slice(0, endIndex);
-
-        const pageMatch = chunkText.match(/<!-- Page (\d+) -->|<!-- Slide number: (\d+) -->|^# Sheet (\d+)/m);
-        if (pageMatch) {
-          const newPageNumber = parseInt(pageMatch[1] || pageMatch[2] || pageMatch[3], 10);
-          if (newPageNumber !== currentPageNumber) {
-            currentPageNumber = newPageNumber;
-            console.log(`[Chunking] Detected page marker: Page ${currentPageNumber}`);
-          }
-        }
 
         if (endIndex === chunkSize && buffer.length > chunkSize) {
           let bestSplit = chunkText.length;
@@ -64,6 +56,12 @@ export class ChunkingService {
 
         const trimmedChunk = chunkText.trim();
         if (trimmedChunk.length > 0) {
+          const pageNumber = this.determineChunkPageNumber(globalPosition, pagePositions);
+          
+          if (chunkIndex % 10 === 0) {
+            console.log(`[Chunking] Chunk ${chunkIndex}: position ${globalPosition}, pageNumber: ${pageNumber ?? 'null'}`);
+          }
+          
           yield {
             content: trimmedChunk,
             index: chunkIndex++,
@@ -71,7 +69,7 @@ export class ChunkingService {
               startChar: globalPosition,
               endChar: globalPosition + trimmedChunk.length,
               length: trimmedChunk.length,
-              pageNumber: currentPageNumber,
+              pageNumber: pageNumber,
             },
           };
         }
@@ -91,6 +89,9 @@ export class ChunkingService {
     }
 
     if (buffer.trim().length > 0) {
+      const pageNumber = this.determineChunkPageNumber(globalPosition, pagePositions);
+      console.log(`[Chunking] Final chunk ${chunkIndex}: position ${globalPosition}, pageNumber: ${pageNumber ?? 'null'}`);
+      
       yield {
         content: buffer.trim(),
         index: chunkIndex,
@@ -98,10 +99,12 @@ export class ChunkingService {
           startChar: globalPosition,
           endChar: globalPosition + buffer.length,
           length: buffer.length,
-          pageNumber: currentPageNumber,
+          pageNumber: pageNumber,
         },
       };
-    }
+    }    
+    console.log(`[Chunking] Stream complete: Generated ${chunkIndex} chunks total`);    
+    console.log(`[Chunking] Stream complete: Generated ${chunkIndex} chunks total`);
   }
 
   static async chunkContent(
@@ -118,27 +121,43 @@ export class ChunkingService {
   private static extractPageNumbers(content: string): PagePosition[] {
     const pagePositions: PagePosition[] = [];
     
-    const lines = content.split('\n');
-    let currentPos = 0;
+    const pdfPageRegex = /<!-- Page (\d+) -->/g;
+    let match;
+    while ((match = pdfPageRegex.exec(content)) !== null) {
+      pagePositions.push({
+        position: match.index,
+        pageNumber: parseInt(match[1], 10),
+      });
+    }
     
-    for (const line of lines) {
-      const slideMatch = line.match(/<!-- Slide number: (\d+) -->/);
-      if (slideMatch) {
-        pagePositions.push({
-          position: currentPos,
-          pageNumber: parseInt(slideMatch[1], 10),
-        });
-      }
-      
-      const sheetMatch = line.match(/^# Sheet (\d+)/);
-      if (sheetMatch && pagePositions.length === 0) {
-        pagePositions.push({
-          position: currentPos,
-          pageNumber: parseInt(sheetMatch[1], 10),
-        });
-      }
-      
-      currentPos += line.length + 1;
+    if (pagePositions.length > 0) {
+      console.log(`[Chunking] Found ${pagePositions.length} PDF page markers`);
+      return pagePositions;
+    }
+    
+    const slideRegex = /<!-- Slide number: (\d+) -->/g;
+    while ((match = slideRegex.exec(content)) !== null) {
+      pagePositions.push({
+        position: match.index,
+        pageNumber: parseInt(match[1], 10),
+      });
+    }
+    
+    if (pagePositions.length > 0) {
+      console.log(`[Chunking] Found ${pagePositions.length} slide markers`);
+      return pagePositions;
+    }
+    
+    const sheetRegex = /^# Sheet (\d+)/gm;
+    while ((match = sheetRegex.exec(content)) !== null) {
+      pagePositions.push({
+        position: match.index,
+        pageNumber: parseInt(match[1], 10),
+      });
+    }
+    
+    if (pagePositions.length > 0) {
+      console.log(`[Chunking] Found ${pagePositions.length} sheet markers`);
     }
 
     return pagePositions;

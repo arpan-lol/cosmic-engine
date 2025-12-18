@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Any
 import time
 import os
 from pathlib import Path
-from utils import process_url_with_markitdown, split_content_into_chunks, GeminiClientWrapper, inject_page_markers_into_markdown
+from utils import process_url_with_markitdown, GeminiClientWrapper, inject_page_markers_into_markdown, get_pdf_page_count
 from markitdown import MarkItDown
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -50,9 +50,6 @@ class ProcessingResponse(BaseModel):
     error_message: Optional[str] = None
     cached: bool = False
     processing_strategy: Optional[str] = None  # 'batch_pdf' | 'batch_text' | 'rag'
-    chunks: Optional[List[Dict[str, Any]]] = (
-        None  # List of chunks with content and page numbers
-    )
 
     class Config:
         json_schema_extra = {
@@ -65,14 +62,6 @@ class ProcessingResponse(BaseModel):
                 "error_message": None,
                 "cached": False,
                 "processing_strategy": "batch_text",
-                "chunks": [
-                    {
-                        "chunk_content": "# Document Title\n\nFirst chunk content...",
-                        "chunk_page_no": 1,
-                    },
-                    {"chunk_content": "Second chunk content...", "chunk_page_no": 1},
-                    {"chunk_content": "Third chunk content...", "chunk_page_no": 2},
-                ],
             }
         }
 
@@ -139,16 +128,8 @@ async def process_url_endpoint(request: URLRequest):
                     error_message=None,
                     cached=True,
                     processing_strategy=cached_strategy,
-                    chunks=None,  # No chunks for batch_pdf
                 )
             else:
-                # Generate chunks for cached content
-                is_pdf = cached_strategy in ["batch_pdf", "rag"]
-                chunks = (
-                    split_content_into_chunks(cached_content, is_pdf=is_pdf)
-                    if cached_content
-                    else []
-                )
                 return ProcessingResponse(
                     success=True,
                     url=url_str,
@@ -158,7 +139,6 @@ async def process_url_endpoint(request: URLRequest):
                     error_message=None,
                     cached=True,
                     processing_strategy=cached_strategy,
-                    chunks=chunks,
                 )
 
         # Process the URL
@@ -172,17 +152,13 @@ async def process_url_endpoint(request: URLRequest):
                 success=True,
                 url=url_str,
                 processing_time=processing_time,
-                content_length=0,  # No markdown content generated
-                markdown_content=None,  # Explicitly None for batch_pdf
+                content_length=0,
+                markdown_content=None,
                 error_message=None,
-                cached=False,  # This is fresh processing, not cached
+                cached=False,
                 processing_strategy=processing_strategy,
-                chunks=None,  # No chunks for batch_pdf
             )
         elif result is not None:
-            # Generate chunks for the content
-            is_pdf = processing_strategy in ["batch_pdf", "rag"]
-            chunks = split_content_into_chunks(result, is_pdf=is_pdf)
             return ProcessingResponse(
                 success=True,
                 url=url_str,
@@ -190,9 +166,8 @@ async def process_url_endpoint(request: URLRequest):
                 content_length=len(result),
                 markdown_content=result,
                 error_message=None,
-                cached=False,  # This is fresh processing, not cached
+                cached=False,
                 processing_strategy=processing_strategy,
-                chunks=chunks,
             )
         else:
             return ProcessingResponse(
@@ -204,7 +179,6 @@ async def process_url_endpoint(request: URLRequest):
                 error_message="Failed to process URL. Possible reasons: file too large (>150MB), ZIP file, network error, or unsupported format.",
                 cached=False,
                 processing_strategy=None,
-                chunks=None,
             )
 
     except Exception as e:
@@ -219,7 +193,6 @@ async def process_url_endpoint(request: URLRequest):
             error_message=f"Unexpected error: {str(e)}",
             cached=False,
             processing_strategy=None,
-            chunks=None,
         )
 
 
@@ -248,7 +221,6 @@ async def process_file_endpoint(request: FilePathRequest):
                 error_message=f"File not found: {file_path}",
                 cached=False,
                 processing_strategy=None,
-                chunks=None,
             )
 
         # Check file size
@@ -264,7 +236,6 @@ async def process_file_endpoint(request: FilePathRequest):
                 error_message=f"File too large: {file_size / (1024*1024):.2f}MB exceeds 100MB limit",
                 cached=False,
                 processing_strategy=None,
-                chunks=None,
             )
 
         # Process file with MarkItDown
@@ -273,15 +244,25 @@ async def process_file_endpoint(request: FilePathRequest):
         markdown_content = result.text_content
         
         is_pdf = file_path.lower().endswith('.pdf')
+        page_count = None
+        
         if is_pdf:
-            markdown_content = inject_page_markers_into_markdown(markdown_content, file_path)
+            page_count = get_pdf_page_count(file_path)
+            print(f"📄 PDF detected: {page_count} pages")
+            
+            if page_count and page_count > 0:
+                before_length = len(markdown_content)
+                markdown_content = inject_page_markers_into_markdown(markdown_content, file_path, page_count)
+                after_length = len(markdown_content)
+                marker_count = markdown_content.count('<!-- Page')
+                print(f"✓ Page marker injection: {before_length} → {after_length} chars, {marker_count} markers added")
+            else:
+                print(f"⚠️ Could not get page count, skipping page markers")
         
         processing_time = time.time() - start_time
         content_length = len(markdown_content)
 
-        chunks = split_content_into_chunks(markdown_content, is_pdf=is_pdf)
-
-        print(f"✅ Successfully processed: {content_length:,} characters, {len(chunks)} chunks")
+        print(f"✅ Successfully processed: {content_length:,} characters")
 
         return ProcessingResponse(
             success=True,
@@ -292,7 +273,6 @@ async def process_file_endpoint(request: FilePathRequest):
             error_message=None,
             cached=False,
             processing_strategy="local_file",
-            chunks=chunks,
         )
 
     except Exception as e:
@@ -318,7 +298,6 @@ async def process_file_endpoint(request: FilePathRequest):
             error_message=error_message,
             cached=False,
             processing_strategy=None,
-            chunks=None,
         )
 
 
