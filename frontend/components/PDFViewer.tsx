@@ -73,7 +73,7 @@ export default function PDFViewer({ fileUrl, currentPage, onPageChange }: PDFVie
           />
         </Document>
       </div>
-      <Card className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-3 flex items-center justify-between w-auto z-10">
+      <Card className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-3 flex items-center justify-between w-auto z-20">
         <div className="flex items-center gap-2">
           <Button
             onClick={previousPage}

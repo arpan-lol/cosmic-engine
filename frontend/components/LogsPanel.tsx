@@ -26,7 +26,7 @@ export default function LogsPanel({ logs, isDocumentOpen, sessionId }: LogsPanel
   useEffect(() => {
     if (logsPanelRef.current) {
       if (isDocumentOpen) {
-        logsPanelRef.current.resize(10);
+        logsPanelRef.current.resize(4);
       } else {
         logsPanelRef.current.resize(100);
       }
@@ -62,7 +62,8 @@ export default function LogsPanel({ logs, isDocumentOpen, sessionId }: LogsPanel
           minSize={10}
           maxSize={70}
           className="pointer-events-auto"
-          collapsedSize={10}
+          collapsible={true}
+          collapsedSize={4}
           onResize={(size) => setPanelSize(size)}
         >
           <Card className="h-full flex flex-col rounded-none border-0 border-t overflow-hidden bg-background">
@@ -85,6 +86,8 @@ export default function LogsPanel({ logs, isDocumentOpen, sessionId }: LogsPanel
                         {log.type === 'success' ? (
                           <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
                         ) : log.type === 'notification' ? (
+                          <Info className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                        ) : log.type === 'title-update' ? (
                           <Info className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
                         ) : (
                           <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
