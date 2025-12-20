@@ -34,5 +34,8 @@ export async function getJwtCookie(): Promise<string | undefined> {
 
 export async function deleteJwtCookie() {
   const cookieStore = await cookies();
-  cookieStore.delete(JWT_COOKIE_NAME);
+  cookieStore.set(JWT_COOKIE_NAME, '', {
+    ...defaultOptions,
+    maxAge: 0,
+  });
 }

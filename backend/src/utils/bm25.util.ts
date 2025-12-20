@@ -169,9 +169,9 @@ async function processBM25(
           attachmentId,
           chunkIndex: Number(doc.chunkIndex),
           term,
-          tf: tf[term],
-          df: dfMap[term],
-          chunkLength: doc.length,
+          tf: parseInt(String(tf[term]), 10),
+          df: parseInt(String(dfMap[term]), 10),
+          chunkLength: parseInt(String(doc.length), 10),
           avgChunkLength,
           totalDocs,
         });

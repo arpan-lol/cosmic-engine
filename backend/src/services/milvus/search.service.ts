@@ -131,7 +131,7 @@ export class SearchService {
 
       const chunks: Chunk[] = queryResults.data.map((result: any) => ({
         content: result.content || '',
-        index: result.chunk_index || 0,
+        index: parseInt(result.chunk_index, 10) || 0,
         metadata: result.metadata,
       }));
 
