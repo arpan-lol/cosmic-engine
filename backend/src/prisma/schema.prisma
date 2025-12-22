@@ -47,6 +47,29 @@ model Chat {
   attachments ChatAttachment[]
   tokens      Int?
   createdAt   DateTime           @default(now())
+  timeMetrics TimeMetrics?
+}
+
+model TimeMetrics {
+  id                  String  @id @default(uuid())
+  chatId              String  @unique
+  chat                Chat    @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  totalRequestMs      Int
+  queryExpansionMs    Int?
+  retrievalMs         Int?
+  embeddingMs         Int?
+  vectorSearchMs      Int?
+  bm25SearchMs        Int?
+  rankingMs           Int?
+  hydrationMs         Int?
+  perAttachmentMs     Json?
+  promptBuildingMs    Int?
+  firstTokenMs        Int?
+  streamingMs         Int?
+  total   Int?
+  createdAt           DateTime @default(now())
+
+  @@index([chatId])
 }
 
 model Attachment {

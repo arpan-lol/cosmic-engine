@@ -12,9 +12,12 @@ import { jobQueue } from '../../queue';
 import { UnauthorizedError, NotFoundError, ValidationError, ProcessingError } from '../../types/errors';
 import { buildQueryCacheKey, QueryCacheService } from 'src/services/features/caching/cache.service';
 import { QueryExpansionService } from 'src/services/features/vague-questions/query-expansion.service';
+import { PerformanceTracker, RetrievalBreakdown } from '../../utils/timer.util';
 
 export class MessageController {
   static async message(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    const timer = new PerformanceTracker();
+    
     const userId = req.user?.userId;
     if (!userId) {
       throw new UnauthorizedError();
@@ -170,7 +173,9 @@ export class MessageController {
         let retrievalQuery = content.trim()
 
         if (options?.queryExpansion?.enabled) {
+          timer.startTimer('queryExpansion');
           retrievalQuery = await QueryExpansionService.expand(retrievalQuery, attachmentIds ? attachmentIds : undefined, options.queryExpansion)
+          timer.endTimer('queryExpansion');
 
           await sseService.publishToSession(sessionId, {
             type: 'notification',
@@ -187,18 +192,23 @@ export class MessageController {
           })
         }
 
+        timer.startTimer('streaming');
         const stream = GenerationService.streamResponse(
           sessionId,
           retrievalQuery,
           conversationHistory,
           attachmentIds,
-          options
+          options,
+          timer
         );
 
         for await (const chunk of stream) {
           fullResponse += chunk;
           res.write(`data: ${JSON.stringify({ type: 'token', content: chunk })}\n\n`);
         }
+        timer.endTimer('streaming');
+
+        const finalMetrics = timer.getFullMetrics();
 
         // Save assistant response
         const assistantMessage = await prisma.chat.create({
@@ -207,6 +217,23 @@ export class MessageController {
             role: 'assistant',
             content: fullResponse,
             tokens: fullResponse.length,
+            timeMetrics: {
+              create: {
+                totalRequestMs: finalMetrics.totalRequestMs,
+                queryExpansionMs: finalMetrics.queryExpansionMs,
+                retrievalMs: finalMetrics.retrievalMs,
+                embeddingMs: finalMetrics.retrievalBreakdown?.embeddingMs,
+                vectorSearchMs: finalMetrics.retrievalBreakdown?.vectorSearchMs,
+                bm25SearchMs: finalMetrics.retrievalBreakdown?.bm25SearchMs,
+                rankingMs: finalMetrics.retrievalBreakdown?.rankingMs,
+                hydrationMs: finalMetrics.retrievalBreakdown?.hydrationMs,
+                perAttachmentMs: finalMetrics.retrievalBreakdown?.perAttachment || {},
+                promptBuildingMs: finalMetrics.promptBuildingMs,
+                firstTokenMs: finalMetrics.firstTokenMs,
+                streamingMs: finalMetrics.streamingMs,
+                total: finalMetrics.total,
+              },
+            },
           },
         });
 

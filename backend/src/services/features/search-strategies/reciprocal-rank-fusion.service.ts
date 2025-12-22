@@ -5,6 +5,7 @@ import { dynamicTopK } from '../../../config/rag.config';
 import prisma from 'src/prisma/client';
 import { NotFoundError, ValidationError } from 'src/types/errors';
 import { sseService } from 'src/services/sse.service';
+import { PerformanceTracker } from '../../../utils/timer.util';
 
 interface RRFHit {
   attachmentId: string;
@@ -23,7 +24,8 @@ export class ReciprocalRankFusionService {
   static async search(
     sessionId: string,
     query: string,
-    attachmentIds: string[]
+    attachmentIds: string[],
+    timer?: PerformanceTracker
   ): Promise<EnhancedContext[]> {
     try {
       const totalTopK = dynamicTopK(attachmentIds.length);
@@ -64,10 +66,16 @@ export class ReciprocalRankFusionService {
         const att = attachments[i] as any;
         const attachmentId = att.id as string;
 
+        timer?.startAttachmentTimer('vectorSearch', attachmentId);
+        timer?.startAttachmentTimer('bm25Search', attachmentId);
+
         const [vecHits, bmData] = await Promise.all([
           SearchService.search(sessionId, query, topKPerDoc, attachmentId),
           BM25Search.search(attachmentId, query, topKPerDoc)
         ]);
+
+        timer?.endAttachmentTimer('vectorSearch', attachmentId);
+        timer?.endAttachmentTimer('bm25Search', attachmentId);
 
         try {
           const vecPreview = (vecHits || []).slice(0, 3).map((h: any) =>
@@ -151,6 +159,7 @@ export class ReciprocalRankFusionService {
         }
       }
 
+      timer?.startTimer('ranking');
       const bm25RanksArray = Array.from(map.values())
         .filter((h) => h.bm25Score !== undefined)
         .sort((a, b) => (b.bm25Score ?? 0) - (a.bm25Score ?? 0));
@@ -189,6 +198,7 @@ export class ReciprocalRankFusionService {
 
       const FINAL_K = Math.min(12, totalTopK);
       const top = fused.slice(0, FINAL_K);
+      timer?.endTimer('ranking');
 
       try {
         const previewBody: string[] = [
@@ -212,6 +222,7 @@ export class ReciprocalRankFusionService {
         console.warn('[RRF] SSE publish failed for fusion preview', err);
       }
 
+      timer?.startTimer('hydration');
       const hydrated = await Promise.all(
         top.map(async (t) => {
           if (!t.content || !t.filename) {
@@ -225,6 +236,34 @@ export class ReciprocalRankFusionService {
           return t;
         })
       );
+      timer?.endTimer('hydration');
+
+      if (timer) {
+        const breakdown = timer.getMetrics().retrievalBreakdown || {};
+        breakdown.vectorSearchMs = timer.getDuration('vectorSearch') || undefined;
+        breakdown.bm25SearchMs = timer.getDuration('bm25Search') || undefined;
+        breakdown.rankingMs = timer.getDuration('ranking') || undefined;
+        breakdown.hydrationMs = timer.getDuration('hydration') || undefined;
+        
+        const vectorTimings = timer.getAttachmentTimings('vectorSearch');
+        const bm25Timings = timer.getAttachmentTimings('bm25Search');
+        
+        breakdown.perAttachment = breakdown.perAttachment || {};
+        for (const [attachmentId, duration] of Object.entries(vectorTimings)) {
+          breakdown.perAttachment[attachmentId] = {
+            ...breakdown.perAttachment[attachmentId],
+            vectorSearchMs: duration,
+          };
+        }
+        for (const [attachmentId, duration] of Object.entries(bm25Timings)) {
+          breakdown.perAttachment[attachmentId] = {
+            ...breakdown.perAttachment[attachmentId],
+            bm25SearchMs: duration,
+          };
+        }
+        
+        timer.setRetrievalBreakdown(breakdown);
+      }
 
       const valid: EnhancedContext[] = hydrated
         .filter((h) => h.content && h.filename)

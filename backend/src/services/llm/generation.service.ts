@@ -6,6 +6,7 @@ import { logger } from '../../utils/logger.util';
 import { isGeminiError, parseGeminiError, ProcessingError } from '../../types/errors';
 import { RetrievalOptions } from '../../types/chat.types';
 import { sseService } from '../sse.service';
+import { PerformanceTracker } from '../../utils/timer.util';
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GOOGLE_GENAI_API_KEY,
@@ -121,10 +122,13 @@ export class GenerationService {
     query: string,
     conversationHistory: ChatMessage[] = [],
     attachmentIds?: string[],
-    options?: RetrievalOptions
+    options?: RetrievalOptions,
+    timer?: PerformanceTracker
   ): AsyncGenerator<string> {
     try {
-      const enhancedContexts = await RetrievalService.getContext(sessionId, query, attachmentIds, options);
+      timer?.startTimer('retrieval');
+      const enhancedContexts = await RetrievalService.getContext(sessionId, query, attachmentIds, options, timer);
+      timer?.endTimer('retrieval');
       
       if (!options?.bm25) {
         await sseService.publishToSession(sessionId, {
@@ -142,7 +146,7 @@ export class GenerationService {
         });
       }
 
-      
+      timer?.startTimer('promptBuilding');
       const systemPromptWithContext = buildPrompt('', enhancedContexts, []);
       const contextStrings = enhancedContexts.map((ctx) => ctx.content);
       const estimatedTokens = estimatePromptTokens(
@@ -151,6 +155,7 @@ export class GenerationService {
         conversationHistory,
         query
       );
+      timer?.endTimer('promptBuilding');
       logger.info('Generation', 'Stream prompt token estimate', { estimatedTokens, sessionId });
 
       // initial contents: system (as user instruction), history, and the user query
@@ -180,6 +185,9 @@ export class GenerationService {
         timestamp: new Date().toISOString()
       });
 
+      timer?.startTimer('totalGeneration');
+      timer?.startTimer('firstToken');
+      let firstTokenReceived = false;
 
       while (iterationCount < maxIterations) {
         iterationCount++;
@@ -191,6 +199,10 @@ export class GenerationService {
 
         for await (const item of streamWithToolSupport(contents, sessionId)) {
           if (item.type === 'token') {
+            if (!firstTokenReceived) {
+              timer?.endTimer('firstToken');
+              firstTokenReceived = true;
+            }
             accumulatedText += item.data;
             yield item.data;
           } else if (item.type === 'functionCall') {
@@ -267,6 +279,7 @@ export class GenerationService {
           timestamp: new Date().toISOString()
         });
 
+        timer?.endTimer('totalGeneration');
         return;
       }
 

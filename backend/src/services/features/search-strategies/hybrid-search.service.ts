@@ -5,6 +5,7 @@ import { dynamicTopK } from '../../../config/rag.config';
 import prisma from 'src/prisma/client';
 import { NotFoundError, ValidationError } from 'src/types/errors';
 import { sseService } from 'src/services/sse.service';
+import { PerformanceTracker } from '../../../utils/timer.util';
 
 interface HybridHit {
   attachmentId: string;
@@ -20,7 +21,8 @@ export class HybridSearchService {
   static async search(
     sessionId: string,
     query: string,
-    attachmentIds: string[]
+    attachmentIds: string[],
+    timer?: PerformanceTracker
   ): Promise<EnhancedContext[]> {
     try {
       const totalTopK = dynamicTopK(attachmentIds.length);
@@ -70,11 +72,16 @@ export class HybridSearchService {
         const att = attachments[i] as any;
         const attachmentId = att.id as string;
 
-        // run vector + bm25 search in parallel
+        timer?.startAttachmentTimer('vectorSearch', attachmentId);
+        timer?.startAttachmentTimer('bm25Search', attachmentId);
+        
         const [vecHits, bmData] = await Promise.all([
           SearchService.search(sessionId, query, topKPerDoc, attachmentId),
           BM25Search.search(attachmentId, query, topKPerDoc)
         ]);
+        
+        const vectorDuration = timer?.endAttachmentTimer('vectorSearch', attachmentId);
+        const bm25Duration = timer?.endAttachmentTimer('bm25Search', attachmentId);
 
         // publish an interim event for this attachment with concise info
         try {
@@ -174,7 +181,7 @@ export class HybridSearchService {
         }
       }
 
-      // ranking and normalization
+      timer?.startTimer('ranking');
       const allHits = Array.from(hybridMap.values());
 
       const vectorScores = allHits.map((h) => h.vectorScore ?? 0).filter((s) => s > 0);
@@ -208,8 +215,8 @@ export class HybridSearchService {
 
       const FINAL_HYBRID_K = Math.min(12, totalTopK);
       const topHits = rankedHits.slice(0, FINAL_HYBRID_K);
+      timer?.endTimer('ranking');
 
-      // publish the hybrid-ranking summary before hydrating
       try {
         const rankingBody: string[] = [
           `Top ${topHits.length} hybrid-ranked chunks (scores: 0.0-1.0):`,
@@ -231,7 +238,7 @@ export class HybridSearchService {
         console.warn('[HybridSearch] SSE publish failed for hybrid ranking', err);
       }
 
-      // hydrate missing content
+      timer?.startTimer('hydration');
       const hydratedHits = await Promise.all(
         topHits.map(async (hit) => {
           if (!hit.content || !hit.filename) {
@@ -245,6 +252,34 @@ export class HybridSearchService {
           return hit;
         })
       );
+      timer?.endTimer('hydration');
+
+      if (timer) {
+        const breakdown = timer.getMetrics().retrievalBreakdown || {};
+        breakdown.vectorSearchMs = timer.getDuration('vectorSearch') || undefined;
+        breakdown.bm25SearchMs = timer.getDuration('bm25Search') || undefined;
+        breakdown.rankingMs = timer.getDuration('ranking') || undefined;
+        breakdown.hydrationMs = timer.getDuration('hydration') || undefined;
+        
+        const vectorTimings = timer.getAttachmentTimings('vectorSearch');
+        const bm25Timings = timer.getAttachmentTimings('bm25Search');
+        
+        breakdown.perAttachment = breakdown.perAttachment || {};
+        for (const [attachmentId, duration] of Object.entries(vectorTimings)) {
+          breakdown.perAttachment[attachmentId] = {
+            ...breakdown.perAttachment[attachmentId],
+            vectorSearchMs: duration,
+          };
+        }
+        for (const [attachmentId, duration] of Object.entries(bm25Timings)) {
+          breakdown.perAttachment[attachmentId] = {
+            ...breakdown.perAttachment[attachmentId],
+            bm25SearchMs: duration,
+          };
+        }
+        
+        timer.setRetrievalBreakdown(breakdown);
+      }
 
       const validContexts: EnhancedContext[] = hydratedHits
         .filter((hit) => hit.content && hit.filename)

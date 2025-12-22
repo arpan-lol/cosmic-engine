@@ -2,22 +2,24 @@
 
 import { useState, memo } from 'react';
 import Image from 'next/image';
-import { Loader2, Copy, Check, AlertCircle } from 'lucide-react';
+import { Loader2, Copy, Check, AlertCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Message } from '@/lib/types';
+import type { Message, Attachment } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { formatMessageTime, formatMessageDateTime, getDateTimeAttribute } from '@/lib/date-utils';
+import { formatMessageTime, formatMessageDateTime, getDateTimeAttribute, formatDurationShort } from '@/lib/date-utils';
 import { areAttachmentsEqual } from '@/lib/message-utils';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StreamingMessageContent } from '@/components/StreamingMessageContent';
 import { AttachmentList } from '@/components/AttachmentList';
+import { TimingBreakdownModal } from '@/components/TimingBreakdownModal';
 import 'highlight.js/styles/github-dark.css';
 
 interface ChatMessageProps {
   message: Message;
+  sessionAttachments?: Attachment[];
   userAvatar?: string;
   userName?: string;
   isLoading?: boolean;
@@ -32,7 +34,7 @@ const AVATAR_SIZE = 32;
 const AVATAR_SIZE_CLASS = 'h-8 w-8';
 const COPY_SUCCESS_DURATION = 2000;
 
-function ChatMessageComponent({ message, userAvatar, userName, isLoading, isStreaming = false, isComplete = false, isNewMessage = false, onCitationClick, onAttachmentClick }: ChatMessageProps) {
+function ChatMessageComponent({ message, sessionAttachments, userAvatar, userName, isLoading, isStreaming = false, isComplete = false, isNewMessage = false, onCitationClick, onAttachmentClick }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
@@ -106,23 +108,41 @@ function ChatMessageComponent({ message, userAvatar, userName, isLoading, isStre
 
                 {hasValidDate && (
                   <div className="flex items-center justify-between mt-5">
-                    {!isLoading && message?.content && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-4 w-4 p-0 text-muted-foreground hover:text-foreground"
-                        onClick={handleCopy}
-                        aria-label={copyError ? 'Failed to copy' : copied ? 'Message copied to clipboard' : 'Copy message to clipboard'}
-                      >
-                        {copyError ? (
-                          <AlertCircle className="h-3 w-3" aria-hidden="true" />
-                        ) : copied ? (
-                          <Check className="h-3 w-3" aria-hidden="true" />
-                        ) : (
-                          <Copy className="h-3 w-3" aria-hidden="true" />
-                        )}
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {!isLoading && message?.content && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-4 w-4 p-0 text-muted-foreground hover:text-foreground"
+                          onClick={handleCopy}
+                          aria-label={copyError ? 'Failed to copy' : copied ? 'Message copied to clipboard' : 'Copy message to clipboard'}
+                        >
+                          {copyError ? (
+                            <AlertCircle className="h-3 w-3" aria-hidden="true" />
+                          ) : copied ? (
+                            <Check className="h-3 w-3" aria-hidden="true" />
+                          ) : (
+                            <Copy className="h-3 w-3" aria-hidden="true" />
+                          )}
+                        </Button>
+                      )}
+                      {message.timeMetrics && !isLoading && (
+                        <TimingBreakdownModal
+                          timeMetrics={message.timeMetrics}
+                          attachments={sessionAttachments}
+                          trigger={
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-auto px-1.5 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 font-mono"
+                            >
+                              <Clock className="h-3 w-3 mr-1" />
+                              {formatDurationShort(message.timeMetrics.totalRequestMs)}
+                            </Button>
+                          }
+                        />
+                      )}
+                    </div>
                     <time
                       className="text-xs text-muted-foreground"
                       dateTime={getDateTimeAttribute(message.createdAt)}
@@ -189,7 +209,8 @@ const ChatMessage = memo(ChatMessageComponent, (prevProps, nextProps) => {
     prevProps.userName === nextProps.userName &&
     prevProps.onCitationClick === nextProps.onCitationClick &&
     prevProps.onAttachmentClick === nextProps.onAttachmentClick &&
-    areAttachmentsEqual(prevProps.message?.attachments, nextProps.message?.attachments)
+    areAttachmentsEqual(prevProps.message?.attachments, nextProps.message?.attachments) &&
+    areAttachmentsEqual(prevProps.sessionAttachments, nextProps.sessionAttachments)
   );
 });
 

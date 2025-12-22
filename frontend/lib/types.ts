@@ -23,6 +23,29 @@ export interface Message {
   tokens?: number;
   createdAt: string;
   attachments?: Attachment[];
+  timeMetrics?: {
+    id: string;
+    chatId: string;
+    totalRequestMs: number;
+    queryExpansionMs?: number;
+    retrievalMs?: number;
+    embeddingMs?: number;
+    vectorSearchMs?: number;
+    bm25SearchMs?: number;
+    rankingMs?: number;
+    hydrationMs?: number;
+    perAttachmentMs?: Record<string, {
+      embeddingMs?: number;
+      vectorSearchMs?: number;
+      bm25SearchMs?: number;
+      totalMs?: number;
+    }>;
+    promptBuildingMs?: number;
+    firstTokenMs?: number;
+    streamingMs?: number;
+    total?: number;
+    createdAt: string;
+  };
 }
 
 export interface EngineEvent {
