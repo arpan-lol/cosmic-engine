@@ -19,6 +19,7 @@ export const ChatController = {
   getSessionAttachments: AttachmentController.getSessionAttachments,
   getAttachmentStatus: AttachmentController.getAttachmentStatus,
   streamAttachmentStatus: AttachmentController.streamAttachmentStatus,
+  serveFile: AttachmentController.serveFile,
   deleteAttachment: AttachmentController.deleteAttachment,
 
   // Chunks methods

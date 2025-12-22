@@ -475,10 +475,9 @@ export default function ChatSessionPage() {
     const attachment = sessionAttachments?.find((att: any) => att.filename === filename);
     if (attachment) {
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
-      const fileToUse = attachment.storedFilename || attachment.filename;
       setSelectedPDF({
         filename: attachment.filename,
-        url: `${baseUrl}/dashboard/sessions/uploads/${encodeURIComponent(fileToUse)}`,
+        url: `${baseUrl}/chat/attachments/${attachment.id}/file`,
         targetPage: page,
         type: attachment.type,
       });
@@ -491,10 +490,9 @@ export default function ChatSessionPage() {
 
   const handleDocumentClick = (attachment: any) => {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
-    const fileToUse = attachment.storedFilename || attachment.filename;
     setSelectedPDF({
       filename: attachment.filename,
-      url: `${baseUrl}/dashboard/sessions/uploads/${encodeURIComponent(fileToUse)}`,
+      url: `${baseUrl}/chat/attachments/${attachment.id}/file`,
       type: attachment.type,
     });
   };
@@ -631,7 +629,8 @@ export default function ChatSessionPage() {
                   return (
                     <ChatMessage 
                       key={`${message.role}-${index}`}
-                      message={message} 
+                      message={message}
+                      sessionAttachments={sessionAttachments}
                       userAvatar={authUser?.picture}
                       userName={authUser?.name}
                       isLoading={isLoadingResponse && isLastAssistantMessage}

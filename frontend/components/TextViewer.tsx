@@ -22,7 +22,7 @@ export default function TextViewer({ fileUrl, filename }: TextViewerProps) {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(fileUrl);
+        const response = await fetch(fileUrl, { credentials: 'include' });
         if (!response.ok) throw new Error('Failed to load file');
         const text = await response.text();
         setContent(text);

@@ -22,7 +22,7 @@ export default function DocxViewer({ fileUrl, filename }: DocxViewerProps) {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(fileUrl);
+        const response = await fetch(fileUrl, { credentials: 'include' });
         if (!response.ok) throw new Error('Failed to load document');
         
         const arrayBuffer = await response.arrayBuffer();

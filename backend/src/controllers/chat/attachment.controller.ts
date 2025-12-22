@@ -3,6 +3,7 @@ import { AuthRequest } from '../../types/express';
 import prisma from '../../prisma/client';
 import { UploadFileResponse } from '../../types/chat.types';
 import path from 'path';
+import fs from 'fs';
 import { jobQueue } from '../../queue';
 import { sseService } from '../../services/sse.service';
 import { logger } from '../../utils/logger.util';
@@ -132,12 +133,18 @@ export class AttachmentController {
         const processed = metadata?.processed || false;
         const hasFailed = metadata?.failedAt || metadata?.error;
         
+        let storedFilename = metadata?.storedFilename;
+        if (!storedFilename && att.url) {
+          const urlParts = att.url.replace(/\\/g, '/').split('/');
+          storedFilename = urlParts[urlParts.length - 1];
+        }
+        
         return {
           id: att.id,
           filename: att.filename,
           type: att.type,
           url: att.url,
-          storedFilename: metadata?.storedFilename,
+          storedFilename,
           mimeType: att.mimeType,
           size: att.size,
           createdAt: att.createdAt,
@@ -288,6 +295,72 @@ export class AttachmentController {
       logger.error('AttachmentController', 'Error deleting attachment', error instanceof Error ? error : undefined, { attachmentId, userId });
       if (error instanceof NotFoundError || error instanceof UnauthorizedError) throw error;
       next(new ProcessingError('Failed to delete attachment'));
+    }
+  }
+
+  static async serveFile(req: AuthRequest, res: Response, next: NextFunction): Promise<Response | void> {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedError();
+    }
+
+    const { attachmentId } = req.params;
+
+    try {
+      const attachment = await prisma.attachment.findUnique({
+        where: { id: attachmentId }
+      });
+
+      if (!attachment) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      const session = await prisma.session.findUnique({
+        where: { id: attachment.sessionId }
+      });
+
+      if (!session || session.userId !== userId) {
+        return res.status(403).json({ error: 'Not authorized to access this file' });
+      }
+
+      const metadata = attachment.metadata as any;
+      let storedFilename = metadata?.storedFilename;
+      if (!storedFilename && attachment.url) {
+        const urlParts = attachment.url.replace(/\\/g, '/').split('/');
+        storedFilename = urlParts[urlParts.length - 1];
+      }
+
+      if (!storedFilename) {
+        logger.error('AttachmentController', 'Could not determine stored filename', undefined, { attachmentId, url: attachment.url });
+        return res.status(500).json({ error: 'File configuration error' });
+      }
+
+      const filePath = path.join(process.cwd(), 'uploads', storedFilename);
+
+      if (!fs.existsSync(filePath)) {
+        logger.error('AttachmentController', 'File not found on disk', undefined, { attachmentId, storedFilename, filePath });
+        return res.status(404).json({ error: 'File not found on disk' });
+      }
+
+      res.setHeader('Content-Type', attachment.mimeType || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(attachment.filename)}"`);
+      
+      const fileStream = fs.createReadStream(filePath);
+      fileStream.pipe(res);
+
+      fileStream.on('error', (error) => {
+        logger.error('AttachmentController', 'Error streaming file', error, { filename, attachmentId: attachment.id });
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Failed to stream file' });
+        }
+      });
+
+      logger.info('AttachmentController', `File served: ${attachment.filename}`, { attachmentId: attachment.id, userId });
+    } catch (error) {
+      logger.error('AttachmentController', 'Error serving file', error instanceof Error ? error : undefined, { attachmentId, userId });
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to serve file' });
+      }
     }
   }
 }

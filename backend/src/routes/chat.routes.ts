@@ -38,6 +38,7 @@ router.post('/upload', corsMiddleware, upload.single('file'), asyncHandler(ChatC
 router.get('/sessions/:sessionId/attachments', asyncHandler(ChatController.getSessionAttachments));
 router.get('/attachments/:attachmentId/status', asyncHandler(ChatController.getAttachmentStatus));
 router.get('/attachments/:attachmentId/stream', corsMiddleware, asyncHandler(ChatController.streamAttachmentStatus));
+router.get('/attachments/:attachmentId/file', asyncHandler(ChatController.serveFile));
 router.delete('/attachments/:attachmentId', asyncHandler(ChatController.deleteAttachment));
 
 router.post('/sessions/:id/chunks', asyncHandler(ChatController.getChunks));

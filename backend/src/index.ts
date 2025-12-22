@@ -29,9 +29,6 @@ console.log(process.cwd())
 app.use(express.json());
 app.use(cookieParser());
 
-// Serve uploaded files
-app.use('/dashboard/sessions/uploads', express.static(path.join(process.cwd(), 'uploads')));
-
 app.use('/api/v1/healthcheck', healthcheckRouter);
 app.use('/', baseRouter)
 app.use('/auth', authRoutes);

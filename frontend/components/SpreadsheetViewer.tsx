@@ -24,7 +24,7 @@ export default function SpreadsheetViewer({ fileUrl, filename }: SpreadsheetView
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(fileUrl);
+        const response = await fetch(fileUrl, { credentials: 'include' });
         if (!response.ok) throw new Error('Failed to load spreadsheet');
         
         const arrayBuffer = await response.arrayBuffer();

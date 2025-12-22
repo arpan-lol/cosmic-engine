@@ -1,9 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ZoomIn, ZoomOut, RotateCw, Maximize2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCw, Maximize2, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 
 interface ImageViewerProps {
@@ -12,6 +13,44 @@ interface ImageViewerProps {
 }
 
 export default function ImageViewer({ fileUrl, filename }: ImageViewerProps) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadImage = async () => {
+      try {
+        const response = await fetch(fileUrl, { credentials: 'include' });
+        if (!response.ok) throw new Error('Failed to load image');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        setBlobUrl(url);
+      } catch (err) {
+        console.error('[ImageViewer] Error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadImage();
+    return () => {
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [fileUrl]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!blobUrl) {
+    return (
+      <div className="flex items-center justify-center h-full text-muted-foreground">
+        Failed to load image
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col h-full relative">
       <TransformWrapper
@@ -28,7 +67,7 @@ export default function ImageViewer({ fileUrl, filename }: ImageViewerProps) {
                 contentClass="flex items-center justify-center"
               >
                 <img
-                  src={fileUrl}
+                  src={blobUrl}
                   alt={filename}
                   className="max-w-full max-h-full object-contain"
                   style={{ imageRendering: 'auto' }}

@@ -35,12 +35,10 @@ export function TimingBreakdownModal({ timeMetrics, attachments, trigger }: Timi
 
   const getAttachmentName = (attachmentId: string): string => {
     if (!attachments || attachments.length === 0) {
-      console.log('[TimingModal] No attachments provided');
       return attachmentId.substring(0, 8) + '...';
     }
     
     const attachment = attachments.find(a => a.id === attachmentId);
-    console.log('[TimingModal] Looking for', attachmentId, 'found:', attachment);
     
     const name = attachment?.filename || attachmentId;
     return name.length > 50 ? name.substring(0, 50) + '...' : name;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -21,16 +21,41 @@ interface PDFViewerProps {
   onPageChange: (pageNumber: number) => void;
 }
 
+async function loadPDFWithCredentials(url: string) {
+  const response = await fetch(url, {
+    credentials: 'include',
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to load PDF: ${response.status} ${response.statusText}`);
+  }
+  
+  return response.arrayBuffer();
+}
+
 export default function PDFViewer({ fileUrl, currentPage, onPageChange }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [scale, setScale] = useState<number>(SCALE_DEFAULT);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
     setNumPages(0);
+    setPdfData(null);
+    
+    loadPDFWithCredentials(fileUrl)
+      .then((arrayBuffer) => {
+        const uint8Array = new Uint8Array(arrayBuffer);
+        setPdfData(uint8Array);
+      })
+      .catch((err) => {
+        console.error('[PDFViewer] Failed to load PDF:', err);
+        setError(err.message || 'Failed to load PDF');
+        setLoading(false);
+      });
   }, [fileUrl]);
 
   useEffect(() => {
@@ -73,10 +98,12 @@ export default function PDFViewer({ fileUrl, currentPage, onPageChange }: PDFVie
     setScale((prev) => Math.max(prev - SCALE_STEP, SCALE_MIN));
   }
 
+  const fileObject = useMemo(() => pdfData ? { data: pdfData } : null, [pdfData]);
+
   return (
     <div className="flex flex-col h-full relative">
       <div className="flex-1 overflow-auto bg-muted/30 rounded-lg p-4 flex items-center justify-center">
-        {loading && (
+        {loading && !error && (
           <div className="flex items-center justify-center h-full">
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
@@ -89,12 +116,11 @@ export default function PDFViewer({ fileUrl, currentPage, onPageChange }: PDFVie
             </Button>
           </div>
         )}
-        {!error && (
+        {!error && fileObject && (
           <Document
-            file={fileUrl}
+            file={fileObject}
             onLoadSuccess={onDocumentLoadSuccess}
             onLoadError={onDocumentLoadError}
-            loading={<Loader2 className="h-8 w-8 animate-spin" />}
           >
             <Page
               pageNumber={Math.max(1, Math.min(currentPage, numPages || 1))}
