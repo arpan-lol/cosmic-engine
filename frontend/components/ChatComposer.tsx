@@ -10,6 +10,7 @@ interface ChatComposerProps {
   disabled?: boolean;
   placeholder?: string;
   loading?: boolean;
+  selectedFilesCount?: number;
 }
 
 export default function ChatComposer({
@@ -18,6 +19,7 @@ export default function ChatComposer({
   disabled = false,
   placeholder = 'Type your message...',
   loading = false,
+  selectedFilesCount = 0,
 }: ChatComposerProps) {
   const [message, setMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -54,6 +56,14 @@ export default function ChatComposer({
 
   return (
     <div className="w-full px-4 pb-4">
+      {/* {selectedFilesCount > 0 && (
+        <div className="flex justify-center mb-2">
+          <div className="flex items-center gap-1 px-2 py-1 bg-accent/50 rounded-full text-xs text-accent-foreground border">
+            <Paperclip className="h-3 w-3" />
+            <span>{selectedFilesCount} file{selectedFilesCount !== 1 ? 's' : ''} selected</span>
+          </div>
+        </div>
+      )} */}
       <div
         className={cn(
           "relative flex items-center gap-2 rounded-[28px] border bg-background px-1 py-1",

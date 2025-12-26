@@ -792,6 +792,7 @@ export default function ChatSessionPage() {
           onAttachmentClick={() => fileInputRef.current?.click()}
           disabled={isStreaming || isLoadingAttachments || hasProcessingAttachments || hasBM25Indexing}
           loading={isLoadingAttachments}
+          selectedFilesCount={selectedContextIds.length}
           placeholder={
             isStreaming
               ? 'Waiting for response...'

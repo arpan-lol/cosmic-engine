@@ -120,20 +120,20 @@ export function TimingBreakdownModal({ timeMetrics, attachments, trigger }: Timi
     });
   }
 
-  if (timeMetrics.promptBuildingMs) {
-    sections.push({
-      title: 'Prompt Building',
-      icon: <FileText className="h-4 w-4" />,
-      metrics: [
-        {
-          label: 'System prompt construction',
-          value: timeMetrics.promptBuildingMs,
-          color: 'bg-yellow-500',
-        },
-      ],
-      totalMs: timeMetrics.promptBuildingMs,
-    });
-  }
+  // if (timeMetrics.promptBuildingMs) {
+  //   sections.push({
+  //     title: 'Prompt Building',
+  //     icon: <FileText className="h-4 w-4" />,
+  //     metrics: [
+  //       {
+  //         label: 'System prompt construction',
+  //         value: timeMetrics.promptBuildingMs,
+  //         color: 'bg-yellow-500',
+  //       },
+  //     ],
+  //     totalMs: timeMetrics.promptBuildingMs,
+  //   });
+  // }
 
   const generationMetrics: { label: string; value: number; color: string }[] = [];
 
@@ -190,7 +190,7 @@ export function TimingBreakdownModal({ timeMetrics, attachments, trigger }: Timi
         </DialogHeader>
 
         <div className="space-y-4">
-          <Card>
+          <Card className='border-none'>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -206,7 +206,7 @@ export function TimingBreakdownModal({ timeMetrics, attachments, trigger }: Timi
           </Card>
 
           {sections.map((section, idx) => (
-            <Card key={idx}>
+            <Card key={idx} className='border-none'>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium flex items-center justify-between">
                   <span className="flex items-center gap-2">
@@ -235,7 +235,7 @@ export function TimingBreakdownModal({ timeMetrics, attachments, trigger }: Timi
           ))}
 
           {perAttachmentData && (
-            <Card>
+            <Card className='border-none'>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                   <FileText className="h-4 w-4" />

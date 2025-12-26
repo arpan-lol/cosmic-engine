@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -66,52 +66,56 @@ export default function LogsPanel({ logs, isDocumentOpen, sessionId }: LogsPanel
                     </div>
                   ) : (
                     logs.map((log, index) => (
-                      <div
-                        key={`${log.timestamp}-${index}`}
-                        className="flex items-start gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors text-xs"
-                      >
-                        {log.type === 'success' ? (
-                          <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
-                        ) : log.type === 'notification' ? (
-                          <Info className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                        ) : log.type === 'title-update' ? (
-                          <Info className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                        ) : (
-                          <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-foreground">{log.message}</span>
-                            {log.actionType === 'view-chunks' && log.attachmentId && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-5 w-5"
-                                onClick={() => handleViewChunks(log)}
-                              >
-                                <ExternalLink className="h-3 w-3" />
-                              </Button>
-                            )}
-                            <span className="text-muted-foreground text-[10px] ml-auto">
-                              {formatTimestamp(log.timestamp)}
-                            </span>
-                          </div>
-                          {log.data && (
-                            <div className="mt-1 space-y-1">
-                              {log.data.title && (
-                                <p className="text-muted-foreground font-medium">{log.data.title}</p>
-                              )}
-                              {log.data.body && log.data.body.length > 0 && (
-                                <ul className="text-muted-foreground space-y-0.5 ml-2">
-                                  {log.data.body.map((item, i) => (
-                                    <li key={i} className="text-[11px]">• {item}</li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
+                      <Fragment key={`${log.timestamp}-${index}`}>
+                        <div
+                          className="flex items-start gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors text-xs"
+                        >
+                          {log.type === 'success' ? (
+                            <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                          ) : log.type === 'notification' ? (
+                            <Info className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                          ) : log.type === 'title-update' ? (
+                            <Info className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
                           )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-foreground">{log.message}</span>
+                              {log.actionType === 'view-chunks' && log.attachmentId && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-5 w-5"
+                                  onClick={() => handleViewChunks(log)}
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                </Button>
+                              )}
+                              <span className="text-muted-foreground text-[10px] ml-auto">
+                                {formatTimestamp(log.timestamp)}
+                              </span>
+                            </div>
+                            {log.data && (
+                              <div className="mt-1 space-y-1">
+                                {log.data.title && (
+                                  <p className="text-muted-foreground font-medium">{log.data.title}</p>
+                                )}
+                                {log.data.body && log.data.body.length > 0 && (
+                                  <ul className="text-muted-foreground space-y-0.5 ml-2">
+                                    {log.data.body.map((item, i) => (
+                                      <li key={i} className="text-[11px]">• {item}</li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                        {log.message === 'generation-complete' && (
+                          <div className="border-t-2 border-foreground/20 dark:border-foreground/30 my-4" />
+                        )}
+                      </Fragment>
                     ))
                   )}
                   <div ref={logsEndRef} />
