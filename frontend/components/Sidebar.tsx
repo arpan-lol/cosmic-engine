@@ -243,9 +243,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   />
                   <span className="text-base font-semibold">Cosmic Engine</span>
                 </a>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={toggleSidebar}>
+                {/* <Button variant="ghost" size="icon" className="h-6 w-6" onClick={toggleSidebar}>
                   <PanelLeftClose className="h-4 w-4" />
-                </Button>
+                </Button> */}
               </div>
             </SidebarMenuItem>
           </SidebarMenu>

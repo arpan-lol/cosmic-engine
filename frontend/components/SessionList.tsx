@@ -108,7 +108,7 @@ export default function SessionList() {
 
   return (
     <div className="space-y-4">
-        <Card>
+        <Card className='border-none'>
           <CardHeader>
             <CardTitle>New Conversation</CardTitle>
             <CardDescription>Start a new conversation</CardDescription>
@@ -129,7 +129,7 @@ export default function SessionList() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className='border-none'>
         <CardHeader>
           <CardTitle>Your Conversations</CardTitle>
           <CardDescription>
@@ -239,7 +239,9 @@ export default function SessionList() {
               ))}
               {conversations?.length === 0 && (
                 <div className="text-center p-8 text-muted-foreground">
-                  No conversations yet. Create one to get started!
+                  <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p>No conversations yet</p>
+                  <p>Create one to get started!</p>
                 </div>
               )}
             </div>

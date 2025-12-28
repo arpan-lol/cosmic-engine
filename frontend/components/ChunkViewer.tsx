@@ -128,7 +128,7 @@ export default function ChunkViewer({ open, onOpenChange, sessionId, attachmentI
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 </div>
-                <ScrollArea className="flex-1 border rounded-md overflow-auto">
+                <ScrollArea className="border rounded-md h-[400px]">
                   <div className="p-4">
                     <pre className="text-xs font-mono whitespace-pre-wrap break-words">
                       {selectedChunk.content}
@@ -137,13 +137,13 @@ export default function ChunkViewer({ open, onOpenChange, sessionId, attachmentI
                 </ScrollArea>
               </div>
             ) : (
-              <ScrollArea className="h-[400px]">
-                <div className="grid grid-cols-10 gap-3 p-4">
+              <ScrollArea className="h-[400px] pr-2">
+                <div className="grid grid-cols-10 gap-1 p-2">
                   {chunks.map((chunk) => (
                     <Button
                       key={chunk.id}
                       variant="outline"
-                      className="h-12 w-12 p-0"
+                      className="p-0"
                       onClick={() => setSelectedChunkIndex(chunk.index)}
                     >
                       {chunk.index}

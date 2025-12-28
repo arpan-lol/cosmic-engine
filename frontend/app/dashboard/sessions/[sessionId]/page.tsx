@@ -17,7 +17,7 @@ import BM25ProgressCard from '@/components/BM25ProgressCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, MessageSquare } from 'lucide-react';
 import type { Message, EngineEvent, StreamStatus } from '@/lib/types';
 import { toast } from 'sonner';
 
@@ -613,10 +613,16 @@ export default function ChatSessionPage() {
 
         <div className="flex-1 min-h-0 overflow-hidden">
           <ScrollArea className="h-full bg-background">
-            <div className="p-4">
+            <div className="p-3">
             {displayMessages.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                Start a conversation by sending a message
+              <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+                <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 mb-4">
+                  <MessageSquare className="h-10 w-10 text-primary/50" />
+                </div>
+                <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
+                <p className="text-muted-foreground max-w-sm">
+                  Upload documents and ask questions to get AI-powered insights from your files.
+                </p>
               </div>
             ) : (
               <div className="space-y-2">

@@ -106,9 +106,14 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
                 <CardTitle className="text-lg">Files</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                  <FileText className="h-12 w-12 mb-4 opacity-50" />
-                  <p className="text-sm text-center">No files available</p>
+                <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+                  <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 mb-4">
+                    <FileText className="h-10 w-10 text-primary/50" />
+                  </div>
+                  <h3 className="text-base font-medium mb-2">No Files Available</h3>
+                  <p className="text-sm text-muted-foreground max-w-sm">
+                    Upload documents to start chatting with your content.
+                  </p>
                 </div>
               </CardContent>
             </Card>

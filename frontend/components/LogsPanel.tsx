@@ -112,9 +112,9 @@ export default function LogsPanel({ logs, isDocumentOpen, sessionId }: LogsPanel
                             )}
                           </div>
                         </div>
-                        {log.message === 'generation-complete' && (
+                        {/* {log.message === 'generation-complete' && (
                           <div className="border-t-2 border-foreground/20 dark:border-foreground/30 my-4" />
-                        )}
+                        )} */}
                       </Fragment>
                     ))
                   )}
