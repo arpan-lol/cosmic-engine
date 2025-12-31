@@ -108,7 +108,7 @@ function ChatMessageComponent({ message, sessionAttachments, userAvatar, userNam
 
                 {hasValidDate && (
                   <div className="flex items-center justify-between mt-5">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center">
                       {!isLoading && message?.content && (
                         <Button
                           variant="ghost"
@@ -136,8 +136,12 @@ function ChatMessageComponent({ message, sessionAttachments, userAvatar, userNam
                               size="sm"
                               className="h-auto px-1.5 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 font-mono"
                             >
-                              <Clock className="h-3 w-3 mr-1" />
-                              {formatDurationShort(message.timeMetrics.totalRequestMs)}
+                              <Clock className="h-3 w-3" />
+                              {message.timeMetrics.isCached ? (
+                                <em>cached</em>
+                              ) : (
+                                formatDurationShort(message.timeMetrics.totalRequestMs)
+                              )}
                             </Button>
                           }
                         />

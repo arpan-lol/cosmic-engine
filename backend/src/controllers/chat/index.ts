@@ -2,6 +2,7 @@ import { SessionController } from './session.controller';
 import { MessageController } from './message.controller';
 import { AttachmentController } from './attachment.controller';
 import { ChunksController } from './serve-chunks.controller';
+import { CacheController } from './cache.controller';
 
 export const ChatController = {
   // Session methods
@@ -24,9 +25,13 @@ export const ChatController = {
 
   // Chunks methods
   getChunks: ChunksController.getChunks,
+
+  // Cache methods
+  getCache: CacheController.getCache,
 };
 
 export { SessionController } from './session.controller';
 export { MessageController } from './message.controller';
 export { AttachmentController } from './attachment.controller';
 export { ChunksController } from './serve-chunks.controller';
+export { CacheController } from './cache.controller';

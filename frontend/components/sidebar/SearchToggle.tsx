@@ -15,6 +15,7 @@ interface SearchToggleProps {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   isLoading?: boolean;
+  action?: React.ReactNode;
 }
 
 export function SearchToggle({
@@ -23,7 +24,8 @@ export function SearchToggle({
   helpText,
   checked,
   onCheckedChange,
-  isLoading = false
+  isLoading = false,
+  action
 }: SearchToggleProps) {
   return (
     <div className="flex items-center justify-between py-2">
@@ -43,12 +45,20 @@ export function SearchToggle({
         <Label htmlFor={id} className="text-sm cursor-pointer">
           {label}
         </Label>
+
+        {action && (
+          <div className="text-sm text-muted-foreground">
+            {action}
+          </div>
+        )}
       </div>
-      {isLoading ? (
-        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-      ) : (
-        <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} />
-      )}
+      <div className="flex items-center gap-2">
+        {isLoading ? (
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        ) : (
+          <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} />
+        )}
+      </div>
     </div>
   );
 }

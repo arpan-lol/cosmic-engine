@@ -5,6 +5,7 @@ import { EventsController } from '../controllers/events.controller';
 import { upload } from '../config/upload';
 import { asyncHandler } from '../utils/asyncHandler.util';
 import { BM25Controller } from 'src/controllers/bm25.controller';
+import { CacheController } from '../controllers/chat/cache.controller';
 
 const router = Router();
 
@@ -40,6 +41,8 @@ router.get('/attachments/:attachmentId/status', asyncHandler(ChatController.getA
 router.get('/attachments/:attachmentId/stream', corsMiddleware, asyncHandler(ChatController.streamAttachmentStatus));
 router.get('/attachments/:attachmentId/file', asyncHandler(ChatController.serveFile));
 router.delete('/attachments/:attachmentId', asyncHandler(ChatController.deleteAttachment));
+
+router.get('/cache', asyncHandler(ChatController.getCache));
 
 router.post('/sessions/:id/chunks', asyncHandler(ChatController.getChunks));
 

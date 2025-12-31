@@ -13,6 +13,7 @@ import { UnauthorizedError, NotFoundError, ValidationError, ProcessingError } fr
 import { buildQueryCacheKey, QueryCacheService } from 'src/services/features/caching/cache.service';
 import { QueryExpansionService } from 'src/services/features/vague-questions/query-expansion.service';
 import { PerformanceTracker, RetrievalBreakdown } from '../../utils/timer.util';
+import { Prisma } from '@prisma/client';
 
 export class MessageController {
   static async message(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
@@ -126,6 +127,19 @@ export class MessageController {
         const cachedAssistant = await QueryCacheService.getCachedResponse(cacheKey)
 
         if (cachedAssistant) {
+          const cacheEntry = await prisma.queryRequestCache.findUnique({
+            where: { cacheKey },
+          })
+
+          const attachmentNames: string[] = []
+          if (cacheEntry?.attachments && cacheEntry.attachments.length > 0) {
+            const attachments = await prisma.attachment.findMany({
+              where: { id: { in: cacheEntry.attachments } },
+              select: { filename: true },
+            })
+            attachmentNames.push(...attachments.map(att => att.filename))
+          }
+
           await sseService.publishToSession(sessionId, {
             type: 'success',
             scope: 'session',
@@ -149,6 +163,15 @@ export class MessageController {
               role: 'assistant',
               content: text,
               tokens: cachedAssistant.tokens,
+              timeMetrics: {
+                create: {
+                  totalRequestMs: 0, // cached responses have no processing time
+                  isCached: true,
+                  cachedQuery: cacheEntry?.query,
+                  cachedAttachmentNames: attachmentNames,
+                  cachedOptions: cacheEntry?.options as Prisma.InputJsonValue | undefined,
+                },
+              },
             },
           })
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { PanelLeftClose } from 'lucide-react';
+import { PanelLeftClose, Eye } from 'lucide-react';
 import * as React from 'react';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
@@ -10,6 +10,7 @@ import { SearchToggle } from './sidebar/SearchToggle';
 import { SearchStrategies } from './sidebar/SearchStrategies';
 import { VagueQueries } from './sidebar/VagueQueries';
 import { ConversationsList } from './sidebar/ConversationsList';
+import { CacheViewerModal } from './CacheViewerModal';
 
 import { NavUser } from '@/components/NavUser';
 import {
@@ -32,6 +33,7 @@ import {
   useUpdateConversationTitle,
 } from '@/hooks/use-conversations';
 import { useSessionAttachments } from '@/hooks/use-upload';
+import { useCache } from '@/hooks/use-cache';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
@@ -45,6 +47,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useSearchOptions } from '@/hooks/use-search-options';
+import { useEngineEvents } from '@/hooks/use-engine-events';
+import { useQueryClient } from '@tanstack/react-query';
 
 const KEYWORD_CACHING_HELP = `
 ### Keyword Caching
@@ -63,6 +67,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const createConversation = useCreateConversation();
   const deleteConversation = useDeleteConversation();
   const updateTitle = useUpdateConversationTitle();
+  const { data: cache, isFetching: isCacheFetching } = useCache();
+  const queryClient = useQueryClient();
+
+  
   const router = useRouter();
   const pathname = usePathname();
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
@@ -87,6 +95,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const sessionId = pathname?.match(/\/dashboard\/sessions\/([^\/]+)/)?.[1];
   const { data: sessionAttachments } = useSessionAttachments(sessionId || '');
+
+  // Subscribe to engine SSE events for the current session to invalidate cache when cache-related events happen
+  useEngineEvents({
+    sessionId: sessionId || '',
+    onEvent: (ev) => {
+      try {
+        if (ev?.message === 'query-cache-hit' || ev?.message === 'saved-to-cache') {
+          queryClient.invalidateQueries({ queryKey: ['cache'] });
+        }
+      } catch (e) {
+        console.error('Error handling engine event for cache invalidation', e);
+      }
+    },
+  });
 
   useEffect(() => {
     if (authUser) {
@@ -273,6 +295,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       helpText={KEYWORD_CACHING_HELP}
                       checked={options.caching}
                       onCheckedChange={toggleKeywordCaching}
+                      action={
+                        <CacheViewerModal cache={cache || []} isLoading={isCacheFetching} trigger={
+                          <Button variant="ghost" size="sm" className="p-0 text-sm text-muted-foreground hover:text-foreground">
+                            (view)
+                          </Button>
+                        } />
+                      }
                     />
                   </div>
                 </SidebarGroupContent>

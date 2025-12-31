@@ -45,6 +45,10 @@ export interface Message {
     streamingMs?: number;
     total?: number;
     createdAt: string;
+    isCached?: boolean;
+    cachedQuery?: string;
+    cachedAttachmentNames?: string[];
+    cachedOptions?: any;
   };
 }
 

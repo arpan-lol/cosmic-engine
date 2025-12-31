@@ -69,6 +69,11 @@ model TimeMetrics {
   total   Int?
   createdAt           DateTime @default(now())
 
+  isCached            Boolean @default(false)
+  cachedQuery         String?
+  cachedAttachmentNames String[]
+  cachedOptions       Json?
+
   @@index([chatId])
 }
 

@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Clock, Zap, Database, Cpu, FileText } from 'lucide-react';
+import { CacheViewerModal } from '@/components/CacheViewerModal';
+import type { CacheEntry } from '@/hooks/use-cache';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface TimingBreakdownModalProps {
@@ -28,6 +30,24 @@ interface TimingSection {
 
 export function TimingBreakdownModal({ timeMetrics, attachments, trigger }: TimingBreakdownModalProps) {
   const totalMs = timeMetrics.totalRequestMs;
+
+  if (timeMetrics.isCached) {
+    const entry: CacheEntry = {
+      id: timeMetrics.id || `cached-${timeMetrics.chatId}`,
+      cacheKey: timeMetrics.cachedQuery ? 'cached' : 'unknown',
+      sessionId: timeMetrics.chatId || '',
+      sessionTitle: null,
+      query: timeMetrics.cachedQuery || '',
+      attachmentNames: timeMetrics.cachedAttachmentNames || [],
+      options: (timeMetrics.cachedOptions as Record<string, any>) || {},
+      createdAt: timeMetrics.createdAt || new Date().toISOString(),
+      lastSeenAt: timeMetrics.createdAt || new Date().toISOString(),
+    };
+
+    return (
+      <CacheViewerModal cache={[entry]} trigger={trigger} />
+    );
+  }
 
   const calculatePercentage = (value: number) => {
     return totalMs > 0 ? (value / totalMs) * 100 : 0;

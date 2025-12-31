@@ -132,6 +132,10 @@ export class SessionController {
             streamingMs: msg.timeMetrics.streamingMs || undefined,
             total: msg.timeMetrics.total || undefined,
             createdAt: msg.timeMetrics.createdAt.toISOString(),
+            isCached: msg.timeMetrics.isCached,
+            cachedQuery: msg.timeMetrics.cachedQuery || undefined,
+            cachedAttachmentNames: msg.timeMetrics.cachedAttachmentNames,
+            cachedOptions: msg.timeMetrics.cachedOptions as any || undefined,
           } : undefined,
         })),
       };
