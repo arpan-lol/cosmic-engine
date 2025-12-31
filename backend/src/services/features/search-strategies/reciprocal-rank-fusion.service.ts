@@ -35,6 +35,10 @@ export class ReciprocalRankFusionService {
         where: { id: { in: attachmentIds } }
       });
 
+      const attachmentFilenameMap = new Map<string, string | undefined>(
+        attachments.map((a: any) => [a.id as string, a.filename as string | undefined])
+      );
+
       if (attachments.length !== attachmentIds.length) {
         const foundIds = new Set(attachments.map((a: any) => a.id));
         const missing = attachmentIds.filter((id) => !foundIds.has(id));
@@ -79,7 +83,7 @@ export class ReciprocalRankFusionService {
 
         try {
           const vecPreview = (vecHits || []).slice(0, 3).map((h: any) =>
-            `Chunk ${h.chunkIndex + 1}: ${(h.score ?? 0).toFixed(3)}${h.filename ? ` (${h.filename})` : ''}`
+            `Chunk ${h.chunkIndex + 1}: ${(h.score ?? 0).toFixed(3)}`
           );
 
           const bmTerms = (bmData.rows || []).slice(0, 5).map((r: any) =>
@@ -91,10 +95,9 @@ export class ReciprocalRankFusionService {
             .map(([chunkIndex, score]) => `Chunk ${Number(chunkIndex) + 1}: ${(score as number).toFixed(3)}`);
 
           const body: string[] = [
-            `Attachment: ${att.filename ?? attachmentId}`,
+            `Attachment: ${att.filename ?? 'file'}`,
             `Vector hits: ${(vecHits || []).length}`,
             ...vecPreview,
-            '---',
             'Top BM25 terms:',
             ...bmTerms,
             'Top BM25 chunk scores (raw, unnormalized):',
@@ -105,9 +108,8 @@ export class ReciprocalRankFusionService {
             type: 'notification',
             scope: 'session',
             message: 'rrf-attachment-complete',
-            attachmentId,
             data: {
-              title: `Search results for ${att.filename ?? attachmentId}`,
+              title: `Search results for ${att.filename ?? 'file'}`,
               body
             },
             timestamp: new Date().toISOString()
@@ -120,12 +122,16 @@ export class ReciprocalRankFusionService {
           const key = `${h.attachmentId}:${h.chunkIndex}`;
           let existing = map.get(key) as RRFHit | undefined;
           if (!existing) {
-            existing = { attachmentId: h.attachmentId, chunkIndex: h.chunkIndex };
+            existing = {
+              attachmentId: h.attachmentId,
+              chunkIndex: h.chunkIndex,
+              filename: h.filename ?? attachmentFilenameMap.get(h.attachmentId)
+            };
           }
           existing.vectorRank = idx + 1;
           existing.vectorScore = h.score;
           existing.content = existing.content ?? h.content;
-          existing.filename = existing.filename ?? h.filename;
+          existing.filename = existing.filename ?? h.filename ?? attachmentFilenameMap.get(h.attachmentId);
           existing.pageNumber = existing.pageNumber ?? h.pageNumber;
           map.set(key, existing);
         });
@@ -135,9 +141,14 @@ export class ReciprocalRankFusionService {
           const key = `${attachmentId}:${hit.chunkIndex}`;
           let existing = map.get(key) as RRFHit | undefined;
           if (!existing) {
-            existing = { attachmentId, chunkIndex: hit.chunkIndex };
+            existing = {
+              attachmentId,
+              chunkIndex: hit.chunkIndex,
+              filename: attachmentFilenameMap.get(attachmentId)
+            };
           }
           existing.bm25Score = hit.score;
+          existing.filename = existing.filename ?? attachmentFilenameMap.get(attachmentId);
           map.set(key, existing);
         });
 
@@ -147,7 +158,6 @@ export class ReciprocalRankFusionService {
             type: 'notification',
             scope: 'session',
             message: 'rrf-progress',
-            attachmentId,
             data: {
               title: `Progress: ${progress}%`,
               body: [`Processed ${i + 1} / ${attachments.length} attachments`]
@@ -204,7 +214,7 @@ export class ReciprocalRankFusionService {
         const previewBody: string[] = [
           `Top ${top.length} RRF-ranked chunks:`,
           ...top.map((t, i) =>
-            `${i + 1}. ${t.filename ?? t.attachmentId} - chunk ${t.chunkIndex + 1} - score ${(t.rrfScore ?? 0).toFixed(6)}`
+            `${i + 1}. ${t.filename ?? 'file'} - chunk ${t.chunkIndex + 1} - score ${(t.rrfScore ?? 0).toFixed(6)}`
           )
         ];
 
@@ -229,7 +239,9 @@ export class ReciprocalRankFusionService {
             const chunk = await SearchService.getChunk(sessionId, t.attachmentId, t.chunkIndex);
             if (chunk) {
               t.content = chunk.content;
-              t.filename = chunk.filename;
+              if (chunk.filename && chunk.filename !== 'unknown') {
+                t.filename = chunk.filename;
+              }
               t.pageNumber = chunk.pageNumber;
             }
           }

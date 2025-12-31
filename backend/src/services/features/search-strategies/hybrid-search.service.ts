@@ -98,7 +98,7 @@ export class HybridSearchService {
             .map(([chunkIndex, score]) => `Chunk ${chunkIndex}: ${(score as number).toFixed(3)}`);
 
           const body: string[] = [
-            `Attachment: ${att.filename ?? attachmentId}`,
+            `Attachment: ${att.filename ?? 'file'}`,
             `Vector hits: ${(vecHits || []).length}`,
             ...vecPreview,
             '---',
@@ -112,9 +112,8 @@ export class HybridSearchService {
             type: 'notification',
             scope: 'session',
             message: 'hybrid-search-attachment-complete',
-            attachmentId,
             data: {
-              title: `Search results for ${att.filename ?? attachmentId}`,
+              title: `Search results for ${att.filename ?? 'file'}`,
               body
             },
             timestamp: new Date().toISOString()
@@ -169,7 +168,6 @@ export class HybridSearchService {
             type: 'notification',
             scope: 'session',
             message: 'hybrid-search-progress',
-            attachmentId,
             data: {
               title: `Progress: ${progress}%`,
               body: [`Processed ${i + 1} / ${attachments.length} attachments`] 
@@ -221,7 +219,7 @@ export class HybridSearchService {
         const rankingBody: string[] = [
           `Top ${topHits.length} hybrid-ranked chunks (scores: 0.0-1.0):`,
           ...topHits.map((h, idx) =>
-            `${idx + 1}. ${h.filename ?? h.attachmentId} - chunk ${h.chunkIndex} - score ${(h.finalScore ?? 0).toFixed(4)}`          )
+            `${idx + 1}. ${h.filename ?? 'file'} - chunk ${h.chunkIndex} - score ${(h.finalScore ?? 0).toFixed(4)}`          )
         ];
 
         await sseService.publishToSession(sessionId, {

@@ -38,11 +38,9 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       type: 'notification',
       scope: 'session',
       message: 'File processing started',
-      attachmentId,
       data: {
         title: `Processing ${attachment.filename}`,
         body: [
-          `Attachment ID: ${attachmentId}`,
           `Session: ${sessionId}`,
           `Starting ingestion & embedding pipeline`
         ]
@@ -157,7 +155,6 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
           type: 'notification',
           scope: 'session',
           message: 'embedding-progress',
-          attachmentId,
           data: {
             title: `Embedding progress`,
             body: [
@@ -215,7 +212,6 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       type: 'success',
       scope: 'session',
       message: `${attachment.filename} processed successfully`,
-      attachmentId,
       actionType: 'view-chunks',
       data: {
         title: 'File Processing Complete',
