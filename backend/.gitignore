@@ -1,6 +1,7 @@
 node_modules
 dist
-.env*
+.env
+.env.prod
 todo-and-shit-to-remember.txt
 volumes
 .api
