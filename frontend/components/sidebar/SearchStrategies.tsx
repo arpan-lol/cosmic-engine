@@ -3,23 +3,7 @@
 import { SearchToggle } from './SearchToggle';
 import { BM25IndexButton } from './BM25IndexButton';
 import { SidebarGroup, SidebarGroupLabel, SidebarGroupContent } from '@/components/ui/sidebar';
-
-const HYBRID_SEARCH_HELP = `
-### Hybrid Search
-Combines semantic similarity **(vector search)** and keyword relevance **(BM25)**.
-
- • Vector search understands meaning  
- • BM25 boosts important terms  
- • Helps retrieve both precise and context-rich chunks  
-`;
-
-const RRF_SEARCH_HELP = `
-Reciprocal Rank Fusion (RRF) is a simple, powerful scoring method used to combine results from multiple search systems: like BM25 + embeddings + hybrid models - into one ranked list.
-
-RRF says: "If multiple systems rank a document highly, even if their scores differ, boost it heavily."
-
-Instead of using raw scores (which may not be comparable), it uses rank positions only.
-`;
+import { HELP_TEXTS } from '@/lib/help-texts';
 
 interface SearchStrategiesProps {
   options: {
@@ -49,7 +33,7 @@ export function SearchStrategies({
           <SearchToggle
             id="hybrid-search"
             label="Hybrid Search"
-            helpText={HYBRID_SEARCH_HELP}
+            helpText={HELP_TEXTS.HYBRID_SEARCH}
             checked={options.hybridSearch}
             onCheckedChange={onHybridSearchToggle}
             isLoading={isCheckingBM25}
@@ -60,7 +44,7 @@ export function SearchStrategies({
           <SearchToggle
             id="rrf-search"
             label="Reciprocal Rank Fusion"
-            helpText={RRF_SEARCH_HELP}
+            helpText={HELP_TEXTS.RRF_SEARCH}
             checked={options.rrfSearch}
             onCheckedChange={onRrfSearchToggle}
             isLoading={isCheckingRRF}

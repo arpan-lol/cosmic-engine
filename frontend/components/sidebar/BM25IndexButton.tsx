@@ -6,17 +6,8 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card';
-import ReactMarkdown from 'react-markdown';
-
-const BM25_INDEXING_HELP = `
-### BM25 Indexing
-
-BM25 indexing extracts **keywords** and **term statistics** so the system can perform keyword-based searches.
-
- • Essential for Hybrid Search and RRF  
- • One-time processing per file  
- • Enables fast keyword matching  
-`;
+import { HelpContent } from '@/components/HelpContent';
+import { HELP_TEXTS } from '@/lib/help-texts';
 
 interface BM25IndexButtonProps {
   onClick: () => void;
@@ -36,9 +27,7 @@ export function BM25IndexButton({ onClick }: BM25IndexButtonProps) {
         </Button>
       </HoverCardTrigger>
       <HoverCardContent className="w-80">
-        <div className="prose prose-invert text-sm whitespace-pre-wrap">
-          <ReactMarkdown>{BM25_INDEXING_HELP}</ReactMarkdown>
-        </div>
+        <HelpContent content={HELP_TEXTS.BM25_INDEXING} />
       </HoverCardContent>
     </HoverCard>
   );

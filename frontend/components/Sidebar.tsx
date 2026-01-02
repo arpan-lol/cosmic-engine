@@ -49,16 +49,7 @@ import {
 import { useSearchOptions } from '@/hooks/use-search-options';
 import { useEngineEvents } from '@/hooks/use-engine-events';
 import { useQueryClient } from '@tanstack/react-query';
-
-const KEYWORD_CACHING_HELP = `
-### Keyword Caching
-
-Stores recent query results to avoid redundant processing.
-
- • Faster responses for repeated queries  
- • Reduces LLM API calls  
- • Clears when session ends  
-`;
+import { HELP_TEXTS } from '@/lib/help-texts';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { toggleSidebar, state } = useSidebar();
@@ -292,7 +283,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     <SearchToggle
                       id="keyword-caching"
                       label="Keyword caching"
-                      helpText={KEYWORD_CACHING_HELP}
+                      helpText={HELP_TEXTS.KEYWORD_CACHING}
                       checked={options.caching}
                       onCheckedChange={toggleKeywordCaching}
                       action={

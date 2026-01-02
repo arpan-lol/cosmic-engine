@@ -103,9 +103,14 @@ export default function LogsPanel({ logs, isDocumentOpen, sessionId }: LogsPanel
                                 )}
                                 {log.data.body && log.data.body.length > 0 && (
                                   <ul className="text-muted-foreground space-y-0.5 ml-2">
-                                    {log.data.body.map((item, i) => (
-                                      <li key={i} className="text-[11px]">• {item}</li>
-                                    ))}
+                                    {log.data.body.map((item, i) => {
+                                      const text = typeof item === 'string' ? item : String(item);
+                                      if (log.message === 'generation-complete') {
+                                        const truncated = text.length > 100 ? `${text.slice(0, 100)}…` : text;
+                                        return <li key={i} className="text-[11px]">{truncated}</li>;
+                                      }
+                                      return <li key={i} className="text-[11px]">{text}</li>;
+                                    })}
                                   </ul>
                                 )}
                               </div>

@@ -4,9 +4,7 @@ import { CircleHelp, Loader2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkBreaks from 'remark-breaks';
+import { HelpContent } from '@/components/HelpContent';
 
 interface SearchToggleProps {
   id: string;
@@ -35,11 +33,7 @@ export function SearchToggle({
             <CircleHelp className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer" />
           </HoverCardTrigger>
           <HoverCardContent className="w-80">
-            <div className="prose prose-sm dark:prose-invert text-sm">
-              <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-                {helpText}
-              </ReactMarkdown>
-            </div>
+            <HelpContent content={helpText} />
           </HoverCardContent>
         </HoverCard>
         <Label htmlFor={id} className="text-sm cursor-pointer">

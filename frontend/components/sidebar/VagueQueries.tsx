@@ -3,17 +3,7 @@
 import { SearchToggle } from './SearchToggle';
 import { SidebarGroup, SidebarGroupLabel, SidebarGroupContent } from '@/components/ui/sidebar';
 import { Slider } from '@/components/ui/slider';
-
-const QUERY_EXPANSION_HELP = `
-### Query Expansion
-
-Expands short or vague queries with related terms before search.
-
- • Uses an LLM
- • Response time is increased
-
-Recommended for short or ambiguous queries.
-`;
+import { HELP_TEXTS } from '@/lib/help-texts';
 
 interface VagueQueriesProps {
   options: {
@@ -34,7 +24,7 @@ export function VagueQueries({ options, onOptionsUpdate }: VagueQueriesProps) {
           <SearchToggle
             id="query-expansion"
             label="Query Expansion"
-            helpText={QUERY_EXPANSION_HELP}
+            helpText={HELP_TEXTS.QUERY_EXPANSION}
             checked={options.queryExpansion?.enabled ?? false}
             onCheckedChange={(enabled) =>
               onOptionsUpdate({
