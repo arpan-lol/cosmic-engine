@@ -8,6 +8,7 @@ export function getMilvusClient(): MilvusClient {
   if (!milvusClient) {
     milvusClient = new MilvusClient({
       address: MILVUS_ADDRESS,
+      timeout: 60000
     });
   }
   return milvusClient;

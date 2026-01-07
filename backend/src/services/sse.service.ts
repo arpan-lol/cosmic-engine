@@ -44,6 +44,10 @@ class SSEService {
 
   private sendSSE(res: Response, data: any): boolean {
     try {
+      if (res.writableEnded) {
+        return false;
+      }
+
       const serialized = JSON.stringify(data);
       const message = `data: ${serialized}\n\n`;
       const messageSize = Buffer.byteLength(message, 'utf8');
@@ -52,7 +56,10 @@ class SSEService {
         console.warn(`[SSE] Large message: ${messageSize} bytes`);
       }
       
-      res.write(message);
+      const written = res.write(message);
+      if (!written) {
+        console.warn(`[SSE] Write buffer full, data may be queued`);
+      }
       return true;
     } catch (error) {
       console.error(`[SSE] Error sending to client:`, error);
@@ -71,6 +78,8 @@ class SSEService {
 
     console.log(`[SSE] Client connected for attachment: ${attachmentId} (total: ${clients.length})`);
 
+    res.flushHeaders();
+
     this.sendProgress(attachmentId, {
       status: 'connected',
       message: 'indexing...',
@@ -79,6 +88,15 @@ class SSEService {
     res.on('close', () => {
       this.removeProgressClient(attachmentId, res);
     });
+
+    res.on('error', (error) => {
+      console.error(`[SSE] Response error for attachment ${attachmentId}:`, error);
+      this.removeProgressClient(attachmentId, res);
+    });
+
+    res.socket?.setTimeout(0);
+    res.socket?.setNoDelay(true);
+    res.socket?.setKeepAlive(true, 30000);
   }
 
   private removeProgressClient(attachmentId: string, res: Response) {
@@ -134,6 +152,8 @@ class SSEService {
 
     console.log(`[EventStream] Client connected for session: ${sessionId} (userId: ${userId}, total: ${clients.length})`);
 
+    res.flushHeaders();
+
     this.sendSSE(res, {
       type: 'system',
       data: { status: 'connected', message: 'Connected to Engine Event Stream' },
@@ -146,9 +166,12 @@ class SSEService {
         if (currentClients && currentClients.length > 0) {
           currentClients.forEach(client => {
             try {
-              res.write(':keep-alive\n\n');
+              if (!client.res.writableEnded) {
+                client.res.write(':keep-alive\n\n');
+              }
             } catch (error) {
-              console.error(`[EventStream] Keep-alive failed for ${clientKey}`);
+              console.error(`[EventStream] Keep-alive failed for ${clientKey}:`, error);
+              this.removeSessionClient(client.userId, client.sessionId, client.res);
             }
           });
         } else {
@@ -158,7 +181,7 @@ class SSEService {
             this.keepAliveIntervals.delete(clientKey);
           }
         }
-      }, 30000);
+      }, 15000);
       
       this.keepAliveIntervals.set(clientKey, interval);
     }
@@ -166,6 +189,15 @@ class SSEService {
     res.on('close', () => {
       this.removeSessionClient(userId, sessionId, res);
     });
+
+    res.on('error', (error) => {
+      console.error(`[EventStream] Response error for session ${sessionId}:`, error);
+      this.removeSessionClient(userId, sessionId, res);
+    });
+
+    res.socket?.setTimeout(0);
+    res.socket?.setNoDelay(true);
+    res.socket?.setKeepAlive(true, 30000);
   }
 
   private removeSessionClient(userId: number, sessionId: string, res: Response) {

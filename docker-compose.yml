@@ -94,8 +94,13 @@ services:
     env_file:
       - ./backend/.env.prod
     depends_on:
-      - postgres
-      - python-md
+      postgres:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+      python-md:
+        condition: service_started
+    restart: on-failure
     networks:
       - internal
       - external
