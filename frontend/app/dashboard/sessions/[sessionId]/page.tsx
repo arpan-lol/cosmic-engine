@@ -9,6 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useSessionAttachments, useDeleteAttachment, useBM25Progress, useUploadFile } from '@/hooks/use-upload';
 import { useSearchOptions } from '@/hooks/use-search-options';
 import { useEngineEvents } from '@/hooks/use-engine-events';
+import { useFileViewer } from '@/contexts/FileViewerContext';
 import ChatMessage from '@/components/ChatMessage';
 import ChatComposer from '@/components/ChatComposer';
 import AttachmentSelector from '@/components/AttachmentSelector';
@@ -151,6 +152,12 @@ export default function ChatSessionPage() {
   const [selectedPDF, setSelectedPDF] = useState<{ filename: string; url: string; targetPage?: number; type?: string } | undefined>();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [attachmentToDelete, setAttachmentToDelete] = useState<string | null>(null);
+
+  const { setIsFileViewerOpen } = useFileViewer();
+
+  useEffect(() => {
+    setIsFileViewerOpen(!!selectedPDF);
+  }, [selectedPDF, setIsFileViewerOpen]);
 
   const { data: authUser } = useAuth();
   const { data: conversation, isLoading } = useConversation(sessionId);

@@ -5,6 +5,8 @@ import { ThemeProvider } from "next-themes";
 import { cn } from '@/lib/utils'
 import { Toaster } from 'sonner'
 import Providers from '@/components/Providers'
+import { GitHubButton } from '@/components/GitHubButton'
+import { FileViewerProvider } from '@/contexts/FileViewerContext'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -40,12 +42,15 @@ export default function RootLayout({
         )}
       >
       <ThemeProvider attribute="class" defaultTheme="system">
-        <div className="relative flex min-h-screen flex-col bg-background">
-          <Providers>
-            {children}
-            <Toaster />
-          </Providers>
-        </div>
+        <FileViewerProvider>
+          <div className="relative flex min-h-screen flex-col bg-background">
+            <GitHubButton />
+            <Providers>
+              {children}
+              <Toaster />
+            </Providers>
+          </div>
+        </FileViewerProvider>
       </ThemeProvider>
       </body>
     </html>
