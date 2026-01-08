@@ -93,7 +93,15 @@ async function* streamWithToolSupport(
   for await (const chunk of stream) {
     const candidates = chunk.candidates ?? [];
 
+    if (candidates.length === 0) {
+      logger.warn('Generation', 'Received chunk with no candidates', { sessionId });
+    }
+
     for (const candidate of candidates) {
+      if (candidate.finishReason) {
+        logger.info('Generation', `Stream finished with reason: ${candidate.finishReason}`, { sessionId });
+      }
+
       const parts: Part[] = candidate.content?.parts ?? [];
 
       for (const part of parts) {

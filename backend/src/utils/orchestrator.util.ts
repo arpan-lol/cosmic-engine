@@ -26,6 +26,10 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
   logger.info('Orchestrator', `Starting pipeline for attachment: ${attachmentId}`, { sessionId, userId });
 
   try {
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId }
+    });
+
     const attachment = await prisma.attachment.findUnique({
       where: { id: attachmentId }
     });
@@ -41,7 +45,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       data: {
         title: `Processing ${attachment.filename}`,
         body: [
-          `Session: ${sessionId}`,
+          `Session: ${session?.title || 'New Chat'}`,
           `Starting ingestion & embedding pipeline`
         ]
       },
