@@ -1,13 +1,12 @@
 FROM node:18-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm install
+RUN npm ci && npm cache clean --force
 
 FROM node:18-alpine AS builder
 WORKDIR /app
 COPY . .
 COPY --from=deps /app/node_modules ./node_modules
-COPY .env.prod .env.local
 RUN npm run build
 
 FROM node:18-alpine AS runner
@@ -17,9 +16,8 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["node", "server.js"]

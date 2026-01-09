@@ -4,10 +4,10 @@ FROM base AS deps
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci --omit=dev && npm cache clean --force
 
-COPY src/prisma ./prisma
-RUN npx prisma generate
+COPY src/prisma ./src/prisma
+RUN npx prisma generate --schema=src/prisma/schema.prisma
 
 FROM base AS builder
 WORKDIR /app
@@ -17,8 +17,6 @@ RUN npm ci
 
 COPY . .
 COPY tsconfig.json ./
-
-RUN npx prisma generate --schema=src/prisma/schema.prisma
 
 RUN npm run build
 
