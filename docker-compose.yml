@@ -76,6 +76,7 @@ services:
 
   python-md:
     build: ./backend/src/scripts
+    image: cosmic-engine-python-md:latest
     container_name: ce-python-md-service
     env_file:
       - ./backend/src/scripts/.env.prod
@@ -88,6 +89,7 @@ services:
 
   backend:
     build: ./backend
+    image: cosmic-engine-backend:latest
     container_name: cosmic-engine-backend
     ports:
       - "3006:3006"
@@ -108,7 +110,12 @@ services:
       - uploads:/app/uploads
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: https://api.cosmicengine.arpantaneja.dev
+        NEXT_PUBLIC_FRONTEND_URL: https://cosmicengine.arpantaneja.dev
+    image: cosmic-engine-frontend:latest
     container_name: cosmic-engine-frontend
     ports:
       - "3005:3000"
