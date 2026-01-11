@@ -1,4 +1,4 @@
-import { getMilvusClient } from './client';
+import { getMilvusClient, ensureConnection } from './client';
 import { EmbeddingService } from '../embedding.service';
 import { CollectionService } from './collection.service';
 import { Chunk } from '../chunking.service'
@@ -28,6 +28,8 @@ export class SearchService {
         console.log(`[Milvus] No collection found for session: ${sessionId}`);
         return [];
       }
+      
+      await ensureConnection();
       const client = getMilvusClient();
       
       const queryVector = await EmbeddingService.generateQueryEmbedding(queryText);

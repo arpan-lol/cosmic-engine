@@ -1,4 +1,4 @@
-import { getMilvusClient } from './client';
+import { getMilvusClient, ensureConnection } from './client';
 import { DataType } from '@zilliz/milvus2-sdk-node';
 
 const EMBEDDING_DIMENSION = 768;
@@ -9,6 +9,7 @@ export class CollectionService {
   }
 
   static async initializeCollection(collectionName: string): Promise<void> {
+    await ensureConnection();
     const client = getMilvusClient();
     
     const hasCollection = await client.hasCollection({

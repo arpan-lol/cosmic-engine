@@ -1,4 +1,4 @@
-import { getMilvusClient } from './client';
+import { getMilvusClient, ensureConnection } from './client';
 import { Embedding } from '../embedding.service';
 import { CollectionService } from './collection.service';
 
@@ -81,6 +81,7 @@ export class StorageService {
       return;
     }
 
+    await ensureConnection();
     const client = getMilvusClient();
 
     const data = embeddings.map((embedding) => ({
