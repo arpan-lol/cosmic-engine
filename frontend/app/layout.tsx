@@ -19,11 +19,25 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Cosmic Engine',
-  description: 'AI agent that can ingest, traverse and play around with any kind of media',
+  title: 'Cosmic Engine - RAG Experimentation Platform',
+  description: 'A experimentation platform for playing around with 10+ RAG retrieval, chunking, generation, and caching strategies!',
+  keywords: ['RAG', 'retrieval augmented generation', 'AI', 'chunking strategies', 'vector search', 'semantic search', 'caching', 'LLM', 'machine learning', 'document processing'],
+  authors: [{ name: 'Cosmic Engine' }],
   icons: {
     icon: '/logo.png',
     apple: '/logo.png',
+  },
+  openGraph: {
+    title: 'Cosmic Engine - RAG Experimentation Platform',
+    description: 'A experimentation platform for playing around with 10+ RAG retrieval, chunking, generation, and caching strategies!',
+    type: 'website',
+    images: ['/logo.png'],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Cosmic Engine - RAG Experimentation Platform',
+    description: 'A experimentation platform for playing around with 10+ RAG retrieval, chunking, generation, and caching strategies!',
+    images: ['/logo.png'],
   },
 }
 
