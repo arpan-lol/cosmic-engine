@@ -164,7 +164,7 @@ export default function ChatSessionPage() {
   const { data: sessionAttachments, isLoading: isLoadingAttachments } = useSessionAttachments(sessionId);
   const { sendMessage, isStreaming, isComplete, streamedContent, error, reset } = useStreamMessage();
   const deleteAttachment = useDeleteAttachment();
-  const { options: searchOptions, disableHybridSearch } = useSearchOptions();
+  const { options: searchOptions, disableHybridSearch, disableRrfSearch } = useSearchOptions();
   const bm25Progress = useBM25Progress(sessionId, sessionAttachments);
   const uploadFile = useUploadFile();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -460,18 +460,27 @@ export default function ChatSessionPage() {
 
 
   const handleUploadComplete = (attachmentId: string) => {
+    const disabledSearches: string[] = [];
+    
     if (searchOptions.hybridSearch) {
       disableHybridSearch();
-      
-      toast.info('Hybrid Search disabled', {
-        description: 'New files need BM25 indexing before using hybrid search',
+      disabledSearches.push('Hybrid');
+    }
+    
+    if (searchOptions.rrfSearch) {
+      disableRrfSearch();
+      disabledSearches.push('RRF');
+    }
+    
+    if (disabledSearches.length > 0) {
+      toast.info(`${disabledSearches.join(' & ')} Search disabled`, {
+        description: 'New files need BM25 indexing before using advanced search',
         duration: 5000,
       });
     }
     
     setUploadedAttachments((prev) => [...prev, attachmentId]);
     
-    // Force immediate refetch by invalidating with refetchType: 'active'
     queryClient.invalidateQueries({ 
       queryKey: ['sessions', sessionId, 'attachments'],
       refetchType: 'active'
