@@ -54,7 +54,7 @@ class BM25Controller {
       await sseService.publishToSession(sessionId, {
         type: "notification",
         scope: "session",
-        message: "New Job added",
+        message: "New BM25 Job added",
         attachmentId: att.id,
         data: {
           title: `Added File ${att.filename} to BM25 indexing queue`,

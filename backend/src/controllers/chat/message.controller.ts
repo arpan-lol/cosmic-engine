@@ -305,7 +305,11 @@ export class MessageController {
         sseService.publishToSession(sessionId, {
           type: 'error',
           scope: 'session',
-          message: errorMessage,
+          message: 'stream-error',
+          data: {
+            title: 'Generation Error',
+            body: [errorMessage]
+          },
           timestamp: new Date().toISOString(),
         }).catch((err: any) => {
           logger.error('MessageController', 'Failed to publish error event', err);
@@ -332,7 +336,11 @@ export class MessageController {
         sseService.publishToSession(sessionId, {
           type: 'error',
           scope: 'session',
-          message: errorMessage,
+          message: 'request-error',
+          data: {
+            title: 'Request Error',
+            body: [errorMessage]
+          },
           timestamp: new Date().toISOString(),
         }).catch((err: any) => {
           logger.error('MessageController', 'Failed to publish error event', err);
