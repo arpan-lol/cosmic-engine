@@ -234,10 +234,18 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
   } catch (error: any) {
     logger.error('Orchestrator', `Error processing ${attachmentId}`, error instanceof Error ? error : undefined, { attachmentId, sessionId });
 
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     let userMessage = 'Processing failed! Please try again later.';
+    
     if (error?.shouldExposeToClient && error?.clientMessage) {
       userMessage = error.clientMessage;
+    } else if (error instanceof ProcessingError) {
+      userMessage = errorMessage;
     }
+
+    const attachment = await prisma.attachment.findUnique({
+      where: { id: attachmentId }
+    });
 
     sseService.sendProgress(attachmentId, {
       status: 'error',
@@ -245,7 +253,21 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       message: userMessage,
       progress: 0,
       phase: 'file-processing',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: errorMessage
+    });
+
+    await sseService.publishToSession(sessionId, {
+      type: 'error',
+      scope: 'session',
+      message: `Failed to process ${attachment?.filename || 'file'}`,
+      data: {
+        title: 'File Processing Failed',
+        body: [
+          userMessage,
+          'Please try re-uploading the file or it might just be corrupted.'
+        ]
+      },
+      timestamp: new Date().toISOString()
     });
 
     try {
@@ -254,7 +276,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
         data: {
           metadata: {
             processed: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: errorMessage,
             failedAt: new Date().toISOString()
           }
         }

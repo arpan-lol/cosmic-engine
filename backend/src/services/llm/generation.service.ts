@@ -296,18 +296,6 @@ export class GenerationService {
     } catch (error) {
       logger.error('Generation', 'Error streaming response', error instanceof Error ? error : undefined, { sessionId });
 
-      await sseService.publishToSession(sessionId, {
-        type: 'error',
-        scope: 'session',
-        message: 'generation-error',
-        data: {
-          title: 'Generation error',
-          body: [error instanceof Error ? error.message : String(error)]
-        },
-        timestamp: new Date().toISOString()
-      });
-
-
       if (isGeminiError(error)) {
         throw parseGeminiError(error);
       }

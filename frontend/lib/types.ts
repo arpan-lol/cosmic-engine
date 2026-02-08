@@ -126,3 +126,14 @@ export interface StreamStatus {
   embeddingCount?: number;
   error?: string;
 }
+
+export interface TemporaryFile {
+  id: string;
+  realId?: string;
+  filename: string;
+  type: string;
+  size: number;
+  isTemporary: true;
+  uploadProgress?: number;
+  processingProgress?: StreamStatus;
+}
