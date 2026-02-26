@@ -18,9 +18,7 @@ It enables systematic comparison of retrieval and ranking pipelines - including 
 
 Cosmic Engine focuses on **retrieval quality, context relevance, and system observability**, providing fine-grained control over each stage of the RAG pipeline.
 
-<video width="800" autoplay loop muted playsinline>
-  <source src="assets/cosmic-engine-demo.mp4" type="video/mp4">
-</video>
+https://github.com/user-attachments/assets/7102e201-af3e-4a65-afe8-06c677866127
 
 <!-- ---
 
