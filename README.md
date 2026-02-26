@@ -1,8 +1,8 @@
 <div align="center">
-    <img src="frontend/public/logo.png" alt="Final Response with Document Viewer" width="100" />  
+    <img src="frontend/public/logo.png" alt="Logo" width="100" />  
 
   # Cosmic Engine
-  
+
   **A production grade RAG experimentation platform for comparing retrieval, ranking, and generation strategies**
 
   [![Visit](https://img.shields.io/badge/Visit-live-brightgreen?style=for-the-badge)](https://cosmicengine.arpantaneja.dev/)
@@ -18,12 +18,16 @@ It enables systematic comparison of retrieval and ranking pipelines - including 
 
 Cosmic Engine focuses on **retrieval quality, context relevance, and system observability**, providing fine-grained control over each stage of the RAG pipeline.
 
+<video width="800" autoplay loop muted playsinline>
+  <source src="assets/cosmic-engine-demo.mp4" type="video/mp4">
+</video>
+
 <!-- ---
 
 ## Screenshots
 
 <div align="center">
-<img src="screenshots/img5_final.png" alt="Final Response with Document Viewer" width="800" />
+<img src="screenshots/img5_final.png" alt="" width="800" />
 
 ### Document Upload & Processing
 <img src="screenshots/img1_documents_upload.png" alt="Document Upload" width="800" />
