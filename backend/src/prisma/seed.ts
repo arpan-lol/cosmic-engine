@@ -9,7 +9,6 @@ async function main() {
     create: {
       email: 'guest@cosmicengine',
       name: 'Guest User',
-      password: 'guest',
     },
   });
 

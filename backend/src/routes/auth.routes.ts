@@ -99,7 +99,6 @@ router.post('/guest', asyncHandler(async (req: AuthRequest, res: Response) => {
         data: {
           email: 'guest@cosmicengine',
           name: 'Guest User',
-          password: 'guest',
           googleId: null,
         }
       });
