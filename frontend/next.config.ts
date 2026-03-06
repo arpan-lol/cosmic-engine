@@ -4,9 +4,14 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   images: {
     unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'cosmicengine.arpantaneja.dev',
+      },
+    ],
   },
   turbopack: {
-    // Enable Turbopack rules for specific loaders if needed
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
