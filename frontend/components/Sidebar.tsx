@@ -1,6 +1,6 @@
 'use client';
 
-import { PanelLeftClose, Eye } from 'lucide-react';
+import { PanelLeftClose } from 'lucide-react';
 import * as React from 'react';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
@@ -60,10 +60,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const updateTitle = useUpdateConversationTitle();
   const { data: cache, isFetching: isCacheFetching } = useCache();
   const queryClient = useQueryClient();
-
-  
   const router = useRouter();
   const pathname = usePathname();
+  const sessionId = pathname?.match(/\/dashboard\/sessions\/([^\/]+)/)?.[1];
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -74,7 +73,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     toggleHybridSearch,
     toggleRrfSearch,
     toggleKeywordCaching,
-  } = useSearchOptions();
+  } = useSearchOptions(sessionId);
   const [showBM25Dialog, setShowBM25Dialog] = useState(false);
   const [isCheckingBM25, setIsCheckingBM25] = useState(false);
   const [isCheckingRRF, setIsCheckingRRF] = useState(false);
@@ -83,8 +82,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     email: string;
     avatar: string;
   }>();
-
-  const sessionId = pathname?.match(/\/dashboard\/sessions\/([^\/]+)/)?.[1];
   const { data: sessionAttachments } = useSessionAttachments(sessionId || '');
 
   // Subscribe to engine SSE events for the current session to invalidate cache when cache-related events happen

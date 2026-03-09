@@ -19,7 +19,7 @@ export function useConversationState({
   selectedContextIds,
 }: UseConversationStateOptions) {
   const queryClient = useQueryClient();
-  const { options: searchOptions } = useSearchOptions();
+  const { options: searchOptions } = useSearchOptions(sessionId);
 
   const { data: conversation, isLoading } = useConversation(sessionId);
   const { sendMessage, isStreaming, isComplete, streamedContent, error, reset } = useStreamMessage();

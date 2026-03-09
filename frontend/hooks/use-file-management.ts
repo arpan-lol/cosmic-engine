@@ -21,7 +21,7 @@ interface UseFileManagementOptions {
 export function useFileManagement({ sessionId }: UseFileManagementOptions) {
   const queryClient = useQueryClient();
   const { setIsFileViewerOpen } = useFileViewer();
-  const { options: searchOptions, disableHybridSearch, disableRrfSearch } = useSearchOptions();
+  const { options: searchOptions, disableHybridSearch, disableRrfSearch } = useSearchOptions(sessionId);
 
   const { data: sessionAttachments, isLoading: isLoadingAttachments } = useSessionAttachments(sessionId);
   const deleteAttachmentMutation = useDeleteAttachment();

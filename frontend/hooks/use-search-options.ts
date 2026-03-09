@@ -1,109 +1,143 @@
 'use client';
 
-import {  useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
 
 export interface SearchOptions {
   hybridSearch: boolean;
   rrfSearch: boolean;
   caching: boolean;
-queryExpansion?: {
-  enabled: boolean
-  temperature: number
-  }
+  queryExpansion?: {
+    enabled: boolean;
+    temperature: number;
+  };
 }
 
 const DEFAULT_OPTIONS: SearchOptions = {
   hybridSearch: false,
   rrfSearch: false,
-  caching: false
+  caching: false,
 };
 
-const STORAGE_KEY = 'cosmic-engine-search-options';
-
-// Singleton store for search options
 class SearchOptionsStore {
-  private listeners = new Set<() => void>();
-  private options: SearchOptions = DEFAULT_OPTIONS;
-  private isInitialized = false;
+  private listeners = new Map<string, Set<() => void>>();
+  private options = new Map<string, SearchOptions>();
+  private initializedKeys = new Set<string>();
 
-  constructor() {
-    if (typeof window !== 'undefined') {
-      this.loadFromStorage();
-    }
+  private getStorageKey(sessionId?: string) {
+    return sessionId
+      ? `session-${sessionId}-search-options`
+      : 'cosmic-engine-search-options';
   }
 
-  private loadFromStorage() {
+  private loadFromStorage(sessionId?: string) {
+    const storageKey = this.getStorageKey(sessionId);
+
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(storageKey);
       if (stored) {
-        this.options = { ...DEFAULT_OPTIONS, ...JSON.parse(stored) };
+        this.options.set(storageKey, { ...DEFAULT_OPTIONS, ...JSON.parse(stored) });
+      } else {
+        this.options.set(storageKey, DEFAULT_OPTIONS);
       }
-      this.isInitialized = true;
+      this.initializedKeys.add(storageKey);
     } catch (e) {
       console.error('Failed to parse search options from localStorage', e);
+      this.options.set(storageKey, DEFAULT_OPTIONS);
+      this.initializedKeys.add(storageKey);
     }
   }
 
-  getOptions(): SearchOptions {
-    if (!this.isInitialized && typeof window !== 'undefined') {
-      this.loadFromStorage();
+  getOptions(sessionId?: string): SearchOptions {
+    const storageKey = this.getStorageKey(sessionId);
+
+    if (!this.initializedKeys.has(storageKey) && typeof window !== 'undefined') {
+      this.loadFromStorage(sessionId);
     }
-    return this.options;
+
+    return this.options.get(storageKey) ?? DEFAULT_OPTIONS;
   }
 
-  setOptions(newOptions: Partial<SearchOptions>) {
-    this.options = { ...this.options, ...newOptions };
+  setOptions(sessionId: string | undefined, newOptions: Partial<SearchOptions>) {
+    const storageKey = this.getStorageKey(sessionId);
+    const currentOptions = this.getOptions(sessionId);
+    const nextOptions = { ...currentOptions, ...newOptions };
+
+    this.options.set(storageKey, nextOptions);
+    this.initializedKeys.add(storageKey);
+
     if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.options));
+      localStorage.setItem(storageKey, JSON.stringify(nextOptions));
     }
-    this.notifyListeners();
+
+    this.notifyListeners(storageKey);
   }
 
-  subscribe(listener: () => void) {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+  subscribe(sessionId: string | undefined, listener: () => void) {
+    const storageKey = this.getStorageKey(sessionId);
+    const keyListeners = this.listeners.get(storageKey) ?? new Set<() => void>();
+
+    keyListeners.add(listener);
+    this.listeners.set(storageKey, keyListeners);
+
+    return () => {
+      const currentListeners = this.listeners.get(storageKey);
+      if (!currentListeners) {
+        return;
+      }
+
+      currentListeners.delete(listener);
+
+      if (currentListeners.size === 0) {
+        this.listeners.delete(storageKey);
+      }
+    };
   }
 
-  private notifyListeners() {
-    this.listeners.forEach(listener => listener());
+  private notifyListeners(storageKey: string) {
+    const keyListeners = this.listeners.get(storageKey);
+    if (!keyListeners) {
+      return;
+    }
+
+    keyListeners.forEach(listener => listener());
   }
 }
 
 const store = new SearchOptionsStore();
 
-export function useSearchOptions() {
+export function useSearchOptions(sessionId?: string) {
   const options = useSyncExternalStore(
-    (listener) => store.subscribe(listener),
-    () => store.getOptions(),
+    (listener) => store.subscribe(sessionId, listener),
+    () => store.getOptions(sessionId),
     () => DEFAULT_OPTIONS
   );
 
   const updateOptions = (newOptions: Partial<SearchOptions>) => {
-    store.setOptions(newOptions);
+    store.setOptions(sessionId, newOptions);
   };
 
   const toggleHybridSearch = () => {
-    store.setOptions({ hybridSearch: !store.getOptions().hybridSearch });
+    store.setOptions(sessionId, { hybridSearch: !store.getOptions(sessionId).hybridSearch });
   };
 
   const disableHybridSearch = () => {
-    store.setOptions({ hybridSearch: false });
+    store.setOptions(sessionId, { hybridSearch: false });
   };
 
   const toggleRrfSearch = () => {
-    store.setOptions({ rrfSearch: !store.getOptions().rrfSearch });
+    store.setOptions(sessionId, { rrfSearch: !store.getOptions(sessionId).rrfSearch });
   };
 
   const disableRrfSearch = () => {
-    store.setOptions({ rrfSearch: false });
+    store.setOptions(sessionId, { rrfSearch: false });
   };
 
   const toggleKeywordCaching = () => {
-    store.setOptions({ caching: !store.getOptions().caching });
+    store.setOptions(sessionId, { caching: !store.getOptions(sessionId).caching });
   };
 
   const disableCaching = () => {
-    store.setOptions({ caching: false });
+    store.setOptions(sessionId, { caching: false });
   };
 
   return {
@@ -115,6 +149,6 @@ export function useSearchOptions() {
     disableRrfSearch,
     toggleKeywordCaching,
     disableCaching,
-    isLoaded: true, // Always loaded with sync external store
+    isLoaded: true,
   };
 }
