@@ -182,6 +182,14 @@ export class AttachmentController {
         throw new NotFoundError('Attachment not found');
       }
 
+      const session = await prisma.session.findUnique({
+        where: { id: attachment.sessionId, userId },
+      });
+
+      if (!session) {
+        throw new UnauthorizedError('You do not have access to this attachment');
+      }
+
       const metadata = attachment.metadata as any;
       const processed = metadata?.processed || false;
       const chunkCount = metadata?.chunkCount;
@@ -220,22 +228,17 @@ export class AttachmentController {
         throw new NotFoundError('Attachment not found');
       }
 
-      const metadata = attachment.metadata as any;
-      const sessionId = metadata?.sessionId;
+      const session = await prisma.session.findUnique({
+        where: { id: attachment.sessionId, userId },
+      });
 
-      if (sessionId) {
-        const session = await prisma.session.findUnique({
-          where: { id: sessionId, userId },
-        });
-
-        if (!session) {
-          throw new UnauthorizedError('You do not have access to this attachment');
-        }
+      if (!session) {
+        throw new UnauthorizedError('You do not have access to this attachment');
       }
 
       sseService.addProgressClient(attachmentId, res);
 
-      logger.info('AttachmentController', `SSE stream started for attachment: ${attachmentId}`, { userId, sessionId });
+      logger.info('AttachmentController', `SSE stream started for attachment: ${attachmentId}`, { userId, sessionId: attachment.sessionId });
     } catch (error) {
       logger.error('AttachmentController', 'Error starting SSE stream', error instanceof Error ? error : undefined, { attachmentId, userId });
       if (error instanceof NotFoundError || error instanceof UnauthorizedError) throw error;
@@ -260,36 +263,31 @@ export class AttachmentController {
         throw new NotFoundError('Attachment not found');
       }
 
-      const metadata = attachment.metadata as any;
-      const sessionId = metadata?.sessionId;
+      const session = await prisma.session.findUnique({
+        where: { id: attachment.sessionId, userId },
+      });
 
-      if (sessionId) {
-        const session = await prisma.session.findUnique({
-          where: { id: sessionId, userId },
-        });
-
-        if (!session) {
-          throw new UnauthorizedError('Not authorized to delete this attachment');
-        }
+      if (!session) {
+        throw new UnauthorizedError('Not authorized to delete this attachment');
       }
 
       await prisma.attachment.delete({
         where: { id: attachmentId },
       });
 
-    await sseService.publishToSession(sessionId, {
-      type: 'notification',
-      scope: 'session',
-      message: 'File Deleted',
-      attachmentId,
-      data: {
-        title: `${attachment.filename} permanently deleted!`,
-        body: []
-      },
-      timestamp: new Date().toISOString(),
-    });
+      await sseService.publishToSession(attachment.sessionId, {
+        type: 'notification',
+        scope: 'session',
+        message: 'File Deleted',
+        attachmentId,
+        data: {
+          title: `${attachment.filename} permanently deleted!`,
+          body: []
+        },
+        timestamp: new Date().toISOString(),
+      });
 
-      logger.info('AttachmentController', `Attachment deleted: ${attachmentId}`, { attachmentId, sessionId, userId });
+      logger.info('AttachmentController', `Attachment deleted: ${attachmentId}`, { attachmentId, sessionId: attachment.sessionId, userId });
       return res.status(200).json({ success: true, message: 'Attachment deleted successfully' });
     } catch (error) {
       logger.error('AttachmentController', 'Error deleting attachment', error instanceof Error ? error : undefined, { attachmentId, userId });
@@ -349,7 +347,7 @@ export class AttachmentController {
       fileStream.pipe(res);
 
       fileStream.on('error', (error) => {
-        logger.error('AttachmentController', 'Error streaming file', error, { filename, attachmentId: attachment.id });
+        logger.error('AttachmentController', 'Error streaming file', error, { filename: attachment.filename, attachmentId: attachment.id });
         if (!res.headersSent) {
           res.status(500).json({ error: 'Failed to stream file' });
         }

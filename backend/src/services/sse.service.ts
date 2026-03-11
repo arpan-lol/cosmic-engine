@@ -31,6 +31,7 @@ class SSEService {
   private progressClients: Map<string, ProgressClient[]> = new Map();
   private sessionClients: Map<string, SessionClient[]> = new Map();
   private keepAliveIntervals: Map<string, NodeJS.Timeout> = new Map();
+  private progressKeepAliveIntervals: Map<string, NodeJS.Timeout> = new Map();
 
   private setupSSEHeaders(res: Response) {
     const origin = process.env.FRONTEND_ORIGIN || 'https://cosmicengine.arpantaneja.dev';
@@ -85,6 +86,32 @@ class SSEService {
       message: 'indexing...',
     });
 
+    if (!this.progressKeepAliveIntervals.has(attachmentId)) {
+      const interval = setInterval(() => {
+        const currentClients = this.progressClients.get(attachmentId);
+        if (currentClients && currentClients.length > 0) {
+          currentClients.forEach(client => {
+            try {
+              if (!client.res.writableEnded) {
+                client.res.write(':keep-alive\n\n');
+              }
+            } catch (error) {
+              console.error(`[SSE] Keep-alive failed for attachment ${attachmentId}:`, error);
+              this.removeProgressClient(attachmentId, client.res);
+            }
+          });
+        } else {
+          const keepAlive = this.progressKeepAliveIntervals.get(attachmentId);
+          if (keepAlive) {
+            clearInterval(keepAlive);
+            this.progressKeepAliveIntervals.delete(attachmentId);
+          }
+        }
+      }, 15000);
+
+      this.progressKeepAliveIntervals.set(attachmentId, interval);
+    }
+
     res.on('close', () => {
       this.removeProgressClient(attachmentId, res);
     });
@@ -107,6 +134,11 @@ class SSEService {
     
     if (filtered.length === 0) {
       this.progressClients.delete(attachmentId);
+      const keepAlive = this.progressKeepAliveIntervals.get(attachmentId);
+      if (keepAlive) {
+        clearInterval(keepAlive);
+        this.progressKeepAliveIntervals.delete(attachmentId);
+      }
       console.log(`[SSE] No more clients for attachment: ${attachmentId}`);
     } else {
       this.progressClients.set(attachmentId, filtered);
@@ -137,6 +169,11 @@ class SSEService {
     });
 
     this.progressClients.delete(attachmentId);
+    const keepAlive = this.progressKeepAliveIntervals.get(attachmentId);
+    if (keepAlive) {
+      clearInterval(keepAlive);
+      this.progressKeepAliveIntervals.delete(attachmentId);
+    }
     console.log(`[SSE] Closed all connections for ${attachmentId}`);
   }
 

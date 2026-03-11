@@ -47,9 +47,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useSearchOptions } from '@/hooks/use-search-options';
-import { useEngineEvents } from '@/hooks/use-engine-events';
 import { useQueryClient } from '@tanstack/react-query';
 import { HELP_TEXTS } from '@/lib/help-texts';
+import { useSessionEvents } from '@/contexts/SessionEventsContext';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { toggleSidebar, state } = useSidebar();
@@ -83,20 +83,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     avatar: string;
   }>();
   const { data: sessionAttachments } = useSessionAttachments(sessionId || '');
+  const { lastEvent } = useSessionEvents();
 
-  // Subscribe to engine SSE events for the current session to invalidate cache when cache-related events happen
-  useEngineEvents({
-    sessionId: sessionId || '',
-    onEvent: (ev) => {
-      try {
-        if (ev?.message === 'query-cache-hit' || ev?.message === 'saved-to-cache') {
-          queryClient.invalidateQueries({ queryKey: ['cache'] });
-        }
-      } catch (e) {
-        console.error('Error handling engine event for cache invalidation', e);
+  useEffect(() => {
+    if (!lastEvent) {
+      return;
+    }
+
+    try {
+      if (lastEvent?.message === 'query-cache-hit' || lastEvent?.message === 'saved-to-cache') {
+        queryClient.invalidateQueries({ queryKey: ['cache'] });
       }
-    },
-  });
+    } catch (e) {
+      console.error('Error handling engine event for cache invalidation', e);
+    }
+  }, [lastEvent, queryClient]);
 
   useEffect(() => {
     if (authUser) {

@@ -17,6 +17,7 @@ const REQUIRED_ENV_VARS = [
 const OPTIONAL_ENV_VARS = [
   { name: 'MILVUS_ADDRESS', default: 'milvus:19530' },
   { name: 'PYTHON_SERVICE_URL', default: 'python-md:3001' },
+  { name: 'GOOGLE_EMBEDDING_MODEL', default: 'gemini-embedding-001' },
   { name: 'PORT', default: '3006' },
   { name: 'NODE_ENV', default: 'development' },
   { name: 'FRONTEND_REDIRECT', default: 'http://localhost:3000/auth/callback' },

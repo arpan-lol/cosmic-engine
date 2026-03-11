@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useSessionAttachments, useDeleteAttachment, useUploadFile, useBM25Progress } from './use-upload';
+import { useSessionAttachments, useDeleteAttachment, useUploadFile } from './use-upload';
 import { useSearchOptions } from './use-search-options';
 import { useFileViewer } from '@/contexts/FileViewerContext';
-import { SSEManager, getAuthToken } from '@/lib/sse-manager';
+import { getAuthToken } from '@/lib/sse-manager';
 import { toast } from 'sonner';
 import type { TemporaryFile, StreamStatus, Attachment } from '@/lib/types';
 
@@ -26,10 +26,11 @@ export function useFileManagement({ sessionId }: UseFileManagementOptions) {
   const { data: sessionAttachments, isLoading: isLoadingAttachments } = useSessionAttachments(sessionId);
   const deleteAttachmentMutation = useDeleteAttachment();
   const uploadFile = useUploadFile();
-  const bm25Progress = useBM25Progress(sessionId, sessionAttachments);
 
   const [uploadedAttachments, setUploadedAttachments] = useState<string[]>([]);
   const [temporaryFiles, setTemporaryFiles] = useState<Map<string, TemporaryFile>>(new Map());
+  const [fileProcessingProgressByAttachment, setFileProcessingProgressByAttachment] = useState<Record<string, StreamStatus>>({});
+  const [bm25Progress, setBm25Progress] = useState<Record<string, StreamStatus>>({});
   const [selectedContextIds, setSelectedContextIds] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(`session-${sessionId}-selected-files`);
@@ -43,7 +44,7 @@ export function useFileManagement({ sessionId }: UseFileManagementOptions) {
   const [flashTrigger, setFlashTrigger] = useState(0);
 
   const activeStreamsRef = useRef<Set<string>>(new Set());
-  const sseManagersRef = useRef<Map<string, SSEManager<StreamStatus>>>(new Map());
+  const eventSourcesRef = useRef<Map<string, EventSource>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -68,7 +69,7 @@ export function useFileManagement({ sessionId }: UseFileManagementOptions) {
   }, [sessionAttachments, temporaryFiles]);
 
   const fileProcessingProgress = useMemo(() => {
-    const progressMap: Record<string, StreamStatus> = {};
+    const progressMap: Record<string, StreamStatus> = { ...fileProcessingProgressByAttachment };
 
     for (const [id, tempFile] of temporaryFiles.entries()) {
       if (tempFile.processingProgress) {
@@ -80,9 +81,18 @@ export function useFileManagement({ sessionId }: UseFileManagementOptions) {
     }
 
     return progressMap;
-  }, [temporaryFiles]);
+  }, [fileProcessingProgressByAttachment, temporaryFiles]);
 
-  const connectToFileProgressStream = useCallback(async (attachmentId: string, filename: string) => {
+  const disconnectAttachmentStream = useCallback((attachmentId: string) => {
+    const eventSource = eventSourcesRef.current.get(attachmentId);
+    if (eventSource) {
+      eventSource.close();
+      eventSourcesRef.current.delete(attachmentId);
+    }
+    activeStreamsRef.current.delete(attachmentId);
+  }, []);
+
+  const connectToAttachmentStream = useCallback(async (attachmentId: string) => {
     if (activeStreamsRef.current.has(attachmentId)) {
       return;
     }
@@ -92,11 +102,28 @@ export function useFileManagement({ sessionId }: UseFileManagementOptions) {
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
     const token = await getAuthToken();
 
-    const sseManager = new SSEManager<StreamStatus>({
-      url: `${API_BASE_URL}/chat/attachments/${attachmentId}/stream`,
-      token,
-      onMessage: (data) => {
+    if (!activeStreamsRef.current.has(attachmentId) || eventSourcesRef.current.has(attachmentId)) {
+      return;
+    }
+
+    const url = new URL(`${API_BASE_URL}/chat/attachments/${attachmentId}/stream`);
+
+    if (token) {
+      url.searchParams.set('token', token);
+    }
+
+    const eventSource = new EventSource(url.toString(), { withCredentials: true });
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data: StreamStatus = JSON.parse(event.data);
+
         if (!data.phase || data.phase === 'file-processing') {
+          setFileProcessingProgressByAttachment(prev => ({
+            ...prev,
+            [attachmentId]: data,
+          }));
+
           setTemporaryFiles(prev => {
             let foundKey: string | null = null;
             let foundFile: TemporaryFile | null = null;
@@ -120,26 +147,42 @@ export function useFileManagement({ sessionId }: UseFileManagementOptions) {
           });
         }
 
+        if (data.phase === 'bm25') {
+          setBm25Progress(prev => ({
+            ...prev,
+            [attachmentId]: data,
+          }));
+        }
+
         if (data.status === 'completed' || data.status === 'error') {
-          sseManager.disconnect();
-          sseManagersRef.current.delete(attachmentId);
-          activeStreamsRef.current.delete(attachmentId);
+          if (data.phase === 'bm25') {
+            setTimeout(() => {
+              setBm25Progress(prev => {
+                const next = { ...prev };
+                delete next[attachmentId];
+                return next;
+              });
+            }, 3500);
+          }
+
           queryClient.invalidateQueries({
             queryKey: ['sessions', sessionId, 'attachments'],
             refetchType: 'active'
           });
-        }
-      },
-      onError: () => {
-        sseManager.disconnect();
-        sseManagersRef.current.delete(attachmentId);
-        activeStreamsRef.current.delete(attachmentId);
-      },
-    });
 
-    sseManagersRef.current.set(attachmentId, sseManager);
-    sseManager.connect();
-  }, [sessionId, queryClient]);
+          disconnectAttachmentStream(attachmentId);
+        }
+      } catch (error) {
+        console.error('[AttachmentProgress] Error parsing SSE data:', error);
+      }
+    };
+
+    eventSource.onerror = () => {
+      disconnectAttachmentStream(attachmentId);
+    };
+
+    eventSourcesRef.current.set(attachmentId, eventSource);
+  }, [disconnectAttachmentStream, queryClient, sessionId]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -206,12 +249,48 @@ export function useFileManagement({ sessionId }: UseFileManagementOptions) {
   }, [sessionAttachments]);
 
   useEffect(() => {
+    const eventSources = eventSourcesRef.current;
+    const activeStreams = activeStreamsRef.current;
+
     return () => {
-      sseManagersRef.current.forEach(manager => manager.disconnect());
-      sseManagersRef.current.clear();
-      activeStreamsRef.current.clear();
+      eventSources.forEach(eventSource => eventSource.close());
+      eventSources.clear();
+      activeStreams.clear();
     };
   }, []);
+
+  useEffect(() => {
+    const attachmentsNeedingStreams = new Set<string>();
+
+    if (sessionAttachments) {
+      for (const attachment of sessionAttachments) {
+        const hasFileProcessing = !attachment.metadata?.processed && !attachment.metadata?.error;
+        const hasBm25Processing = (attachment as any).bm25indexStatus === 'queued' || (attachment as any).bm25indexStatus === 'processing';
+
+        if (hasFileProcessing || hasBm25Processing) {
+          attachmentsNeedingStreams.add(attachment.id);
+        }
+      }
+    }
+
+    for (const tempFile of temporaryFiles.values()) {
+      if (tempFile.realId && tempFile.processingProgress?.status !== 'completed' && tempFile.processingProgress?.status !== 'error') {
+        attachmentsNeedingStreams.add(tempFile.realId);
+      }
+    }
+
+    attachmentsNeedingStreams.forEach((attachmentId) => {
+      if (!activeStreamsRef.current.has(attachmentId)) {
+        connectToAttachmentStream(attachmentId);
+      }
+    });
+
+    Array.from(activeStreamsRef.current).forEach((attachmentId) => {
+      if (!attachmentsNeedingStreams.has(attachmentId)) {
+        disconnectAttachmentStream(attachmentId);
+      }
+    });
+  }, [sessionAttachments, temporaryFiles, connectToAttachmentStream, disconnectAttachmentStream]);
 
   const handleUploadComplete = useCallback((attachmentId: string) => {
     const disabledSearches: string[] = [];
@@ -291,10 +370,6 @@ export function useFileManagement({ sessionId }: UseFileManagementOptions) {
           return newMap;
         });
 
-        setTimeout(() => {
-          connectToFileProgressStream(result.attachmentId, file.name);
-        }, 100);
-
         handleUploadComplete(result.attachmentId);
       } catch (error) {
         setTemporaryFiles(prev => {
@@ -323,7 +398,7 @@ export function useFileManagement({ sessionId }: UseFileManagementOptions) {
         }
       }
     }
-  }, [sessionId, uploadFile, connectToFileProgressStream, handleUploadComplete]);
+  }, [sessionId, uploadFile, handleUploadComplete]);
 
   const handleCitationClick = useCallback((filename: string, page?: number) => {
     const attachment = sessionAttachments?.find((att: Attachment) => att.filename === filename);
@@ -374,7 +449,7 @@ export function useFileManagement({ sessionId }: UseFileManagementOptions) {
 
       queryClient.invalidateQueries({ queryKey: ['sessions', sessionId, 'attachments'] });
       toast.success('File deleted successfully');
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete file. Please try again.');
     } finally {
       setDeleteDialogOpen(false);

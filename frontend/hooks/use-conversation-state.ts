@@ -2,10 +2,10 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConversation } from './use-conversations';
 import { useStreamMessage } from './use-stream-message';
-import { useEngineEvents } from './use-engine-events';
 import { useSearchOptions } from './use-search-options';
 import { toast } from 'sonner';
 import type { Message, EngineEvent, Attachment } from '@/lib/types';
+import { useSessionEvents } from '@/contexts/SessionEventsContext';
 
 interface UseConversationStateOptions {
   sessionId: string;
@@ -20,6 +20,7 @@ export function useConversationState({
 }: UseConversationStateOptions) {
   const queryClient = useQueryClient();
   const { options: searchOptions } = useSearchOptions(sessionId);
+  const { lastEvent } = useSessionEvents();
 
   const { data: conversation, isLoading } = useConversation(sessionId);
   const { sendMessage, isStreaming, isComplete, streamedContent, error, reset } = useStreamMessage();
@@ -81,13 +82,13 @@ export function useConversationState({
     }
   }, [sessionId, queryClient]);
 
-  useEngineEvents({
-    sessionId,
-    onEvent: handleEngineEvent,
-    onError: (error) => {
-      console.error('[EngineEvents] Connection error:', error);
-    },
-  });
+  useEffect(() => {
+    if (!lastEvent) {
+      return;
+    }
+
+    handleEngineEvent(lastEvent);
+  }, [lastEvent, handleEngineEvent]);
 
   useEffect(() => {
     return () => {

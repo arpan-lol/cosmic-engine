@@ -1,36 +1,55 @@
-import { useEffect, useRef, useState } from 'react';
+"use client";
+
+import { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { EngineEvent } from '@/lib/types';
 import { toast } from 'sonner';
 
-interface UseEngineEventsOptions {
-  sessionId: string;
-  onEvent?: (event: EngineEvent) => void;
-  onError?: (error: Error) => void;
+interface SessionEventsContextType {
+  isConnected: boolean;
+  lastEvent: EngineEvent | null;
 }
 
-export function useEngineEvents({ sessionId, onEvent, onError }: UseEngineEventsOptions) {
+const SessionEventsContext = createContext<SessionEventsContextType>({
+  isConnected: false,
+  lastEvent: null,
+});
+
+interface SessionEventsProviderProps {
+  children: ReactNode;
+  sessionId: string | null;
+}
+
+export function SessionEventsProvider({ children, sessionId }: SessionEventsProviderProps) {
   const [isConnected, setIsConnected] = useState(false);
+  const [lastEvent, setLastEvent] = useState<EngineEvent | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const reconnectAttemptsRef = useRef(0);
-  const onEventRef = useRef(onEvent);
-  const onErrorRef = useRef(onError);
 
   useEffect(() => {
-    onEventRef.current = onEvent;
-    onErrorRef.current = onError;
-  }, [onEvent, onError]);
+    if (!sessionId) {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = undefined;
+      }
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      reconnectAttemptsRef.current = 0;
+      setIsConnected(false);
+      setLastEvent(null);
+      return;
+    }
 
-  useEffect(() => {
-    if (!sessionId) return;
-
+    setLastEvent(null);
     let isCleaningUp = false;
 
     const connect = async () => {
       if (isCleaningUp) return;
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.cosmicengine.arpantaneja.dev';
-      
+
       let token: string | null = null;
       try {
         const tokenResponse = await fetch('/api/auth/token');
@@ -42,7 +61,11 @@ export function useEngineEvents({ sessionId, onEvent, onError }: UseEngineEvents
         console.error('[EngineEvents] Failed to get token:', error);
       }
 
-      const url = token 
+      if (isCleaningUp) {
+        return;
+      }
+
+      const url = token
         ? `${apiUrl}/chat/sessions/${sessionId}/events?token=${encodeURIComponent(token)}`
         : `${apiUrl}/chat/sessions/${sessionId}/events`;
 
@@ -58,7 +81,7 @@ export function useEngineEvents({ sessionId, onEvent, onError }: UseEngineEvents
       eventSource.onmessage = (e) => {
         try {
           const event: EngineEvent = JSON.parse(e.data);
-          onEventRef.current?.(event);
+          setLastEvent(event);
         } catch (error) {
           console.error('[EngineEvents] Failed to parse event:', error);
         }
@@ -68,7 +91,7 @@ export function useEngineEvents({ sessionId, onEvent, onError }: UseEngineEvents
         if (process.env.NODE_ENV === 'development') {
           console.error('[EngineEvents] Connection error, readyState:', eventSource.readyState);
         }
-        
+
         setIsConnected(false);
         eventSource.close();
 
@@ -82,13 +105,13 @@ export function useEngineEvents({ sessionId, onEvent, onError }: UseEngineEvents
 
         if (reconnectAttemptsRef.current < maxRetries) {
           const delay = Math.min(baseDelay * Math.pow(2, reconnectAttemptsRef.current), maxDelay);
-          
+
           if (reconnectAttemptsRef.current === 0) {
             toast.error('Connection to server lost. Reconnecting...', {
               duration: 5000,
             });
           }
-          
+
           reconnectTimeoutRef.current = setTimeout(() => {
             if (!isCleaningUp) {
               reconnectAttemptsRef.current++;
@@ -100,7 +123,6 @@ export function useEngineEvents({ sessionId, onEvent, onError }: UseEngineEvents
           toast.error('Failed to connect to server. Please refresh the page.', {
             duration: 5000,
           });
-          onErrorRef.current?.(new Error('Max reconnection attempts reached'));
         }
       };
 
@@ -111,7 +133,7 @@ export function useEngineEvents({ sessionId, onEvent, onError }: UseEngineEvents
 
     return () => {
       isCleaningUp = true;
-      
+
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = undefined;
@@ -120,9 +142,18 @@ export function useEngineEvents({ sessionId, onEvent, onError }: UseEngineEvents
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
+      reconnectAttemptsRef.current = 0;
       setIsConnected(false);
     };
   }, [sessionId]);
 
-  return { isConnected };
+  return (
+    <SessionEventsContext.Provider value={{ isConnected, lastEvent }}>
+      {children}
+    </SessionEventsContext.Provider>
+  );
+}
+
+export function useSessionEvents() {
+  return useContext(SessionEventsContext);
 }
