@@ -37,7 +37,8 @@ export class SearchService {
       const searchResults = await client.search({
         collection_name: collectionName,
         data: [queryVector],
-        limit: attachmentId ? topK * 3 : topK,
+        filter: attachmentId ? `metadata["attachmentId"] == "${attachmentId}"` : undefined,
+        limit: topK,
         output_fields: ['content', 'metadata', 'chunk_index'],
       });
 
@@ -52,9 +53,6 @@ export class SearchService {
       }));
 
       if (attachmentId) {
-        results = results
-          .filter((result) => result.attachmentId === attachmentId)
-          .slice(0, topK);
         console.log(`[Milvus] Found ${results.length} results in attachment ${attachmentId}`);
       } else {
         console.log(`[Milvus] Found ${results.length} results for query in session ${sessionId}`);

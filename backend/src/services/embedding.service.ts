@@ -10,6 +10,8 @@ export interface Embedding {
   metadata?: Record<string, any>;
 }
 
+export const EMBEDDING_DIMENSION = Number(process.env.GOOGLE_EMBEDDING_DIMENSION || '768');
+
 const ai = new GoogleGenAI({
   apiKey: process.env.GOOGLE_GENAI_API_KEY,
 });
@@ -54,7 +56,10 @@ export class EmbeddingService {
       const response = await ai.models.embedContent({
         model: EMBEDDING_MODEL,
         contents: texts,
-        config: { taskType: 'RETRIEVAL_DOCUMENT'},
+        config: {
+          taskType: 'RETRIEVAL_DOCUMENT',
+          outputDimensionality: EMBEDDING_DIMENSION,
+        },
       });
 
       if (!response.embeddings || response.embeddings.length === 0) {
@@ -97,7 +102,10 @@ export class EmbeddingService {
       const response = await ai.models.embedContent({
         model: EMBEDDING_MODEL,
         contents: [queryText],
-        config: { taskType: 'RETRIEVAL_QUERY'},
+        config: {
+          taskType: 'RETRIEVAL_QUERY',
+          outputDimensionality: EMBEDDING_DIMENSION,
+        },
       });
 
       if (!response.embeddings || !response.embeddings[0]?.values) {

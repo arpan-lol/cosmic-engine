@@ -1,7 +1,6 @@
 import { getMilvusClient, ensureConnection } from './client';
 import { DataType } from '@zilliz/milvus2-sdk-node';
-
-const EMBEDDING_DIMENSION = 768;
+import { EMBEDDING_DIMENSION } from '../embedding.service';
 
 export class CollectionService {
   static generateCName(sessionId: string): string {
