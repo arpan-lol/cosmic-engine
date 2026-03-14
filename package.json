@@ -4,7 +4,9 @@
   "description": "Cosmic Engine is An AI agent that can ingest, traverse and play around with any kind of media. URLS, Pdfs, ppts, images, docs, tables, etc. Build as a custom made RAG model, It is able to fetch and traverse files for quick answers. Unlike traditional LLMs it can manipulate large files of any type, and retrieve information - or build on it recursively.",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "concurrently --names \"milvus,ingestion,backend,frontend\" \"npm run dev:milvus\" \"npm run dev:ingestion\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:milvus": "cd milvus-data && docker compose up",
+    "dev:ingestion": "cd backend/src/scripts && .venv\\Scripts\\python.exe api.py",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",
     "build": "npm run build:backend && npm run build:frontend",
