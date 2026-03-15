@@ -23,7 +23,7 @@ export function LoginForm({
 
   return (
     <div className={cn('flex flex-col gap-6', className)} {...props}>
-      <Card>
+      <Card className="shadow-[0_0_50px_-12px] shadow-border/80">
         <CardHeader className="text-center">
           <CardTitle className="text-xl">Welcome to Cosmic Engine</CardTitle>
           <CardDescription>

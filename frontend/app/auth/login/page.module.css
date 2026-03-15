@@ -1,0 +1,49 @@
+.page {
+  position: relative;
+  display: flex;
+  min-height: 100svh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #f5f7f6;
+  padding: 1.5rem;
+  isolation: isolate;
+}
+
+.patternContainer {
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  z-index: -2;
+  opacity: 0.20;
+  /* filter: sepia(1) hue-rotate(335deg) saturate(3) brightness(0.6); */
+}
+
+
+.content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  max-width: 24rem;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .page {
+    padding: 2.5rem;
+  }
+}
+
+:global(.dark) .page {
+  background: #0a0a0a;
+}
+
+:global(.dark) .patternContainer {
+  opacity: 0.12;
+  filter: sepia(1) hue-rotate(345deg) saturate(3) brightness(0.9);
+}
+
+

@@ -1,7 +1,7 @@
 "use client"
 
 import LandingHero from "./LandingHero"
-import LandingProblemSolution from "./LandingProblemSolution"
+import LandingPipelineComparison from "./LandingPipelineComparison"
 import LandingArchitecture from "./LandingArchitecture"
 import LandingFeaturesBento from "./LandingFeaturesBento"
 import LandingFeaturesPipeline from "./LandingFeaturesPipeline"
@@ -20,7 +20,7 @@ export default function LandingPage() {
       }}
     >
       <LandingHero />
-      <LandingProblemSolution />
+      <LandingPipelineComparison />
       <LandingArchitecture />
 
       <div
