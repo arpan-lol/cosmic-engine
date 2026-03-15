@@ -13,7 +13,6 @@ interface StreamingMessageContentProps {
 export function StreamingMessageContent({ 
   content, 
   isStreaming, 
-  isComplete,
   onCitationClick 
 }: StreamingMessageContentProps) {
   const deferredContent = useDeferredValue(content);

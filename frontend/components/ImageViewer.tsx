@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ZoomIn, ZoomOut, RotateCw, Maximize2, Loader2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 
 interface ImageViewerProps {
@@ -17,13 +17,15 @@ export default function ImageViewer({ fileUrl, filename }: ImageViewerProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let objectUrl: string | null = null;
+
     const loadImage = async () => {
       try {
         const response = await fetch(fileUrl, { credentials: 'include' });
         if (!response.ok) throw new Error('Failed to load image');
         const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        setBlobUrl(url);
+        objectUrl = URL.createObjectURL(blob);
+        setBlobUrl(objectUrl);
       } catch (err) {
         console.error('[ImageViewer] Error:', err);
       } finally {
@@ -32,7 +34,7 @@ export default function ImageViewer({ fileUrl, filename }: ImageViewerProps) {
     };
     loadImage();
     return () => {
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [fileUrl]);
 
@@ -64,14 +66,19 @@ export default function ImageViewer({ fileUrl, filename }: ImageViewerProps) {
             <div className="flex-1 overflow-hidden bg-muted/30 rounded-lg flex items-center justify-center">
               <TransformComponent
                 wrapperClass="w-full h-full flex items-center justify-center"
-                contentClass="flex items-center justify-center"
+                contentClass="w-full h-full flex items-center justify-center"
               >
-                <img
-                  src={blobUrl}
-                  alt={filename}
-                  className="max-w-full max-h-full object-contain"
-                  style={{ imageRendering: 'auto' }}
-                />
+                <div className="relative w-full h-full min-h-[320px]">
+                  <Image
+                    src={blobUrl}
+                    alt={filename}
+                    fill
+                    unoptimized
+                    sizes="100vw"
+                    className="object-contain"
+                    priority
+                  />
+                </div>
               </TransformComponent>
             </div>
             <Card className="absolute bottom-4 left-1/2 transform -translate-x-1/2 p-3 flex flex-row items-center gap-2 z-10">

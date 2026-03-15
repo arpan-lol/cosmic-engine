@@ -57,7 +57,7 @@ export default function LandingPipelineComparison() {
               lineHeight: 1.7,
             }}
           >
-            You can't tune what you can't see. Cosmic Engine opens it up.
+            You can&apos;t tune what you can&apos;t see. Cosmic Engine opens it up.
           </p>
         </div>
 

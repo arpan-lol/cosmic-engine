@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
 import { ThemeProvider } from "next-themes";
 import { cn } from '@/lib/utils'
@@ -48,19 +49,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-TNGB8PQ7SV"></script>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-TNGB8PQ7SV');
-            `,
-          }}
-        />
-      </head>
       <body
         className={cn(
           'min-h-screen bg-background text-foreground font-sans antialiased',
@@ -68,6 +56,18 @@ export default function RootLayout({
           geistMono.variable
         )}
       >
+      <Script
+        src="https://www.googletagmanager.com/gtag/js?id=G-TNGB8PQ7SV"
+        strategy="afterInteractive"
+      />
+      <Script id="google-analytics" strategy="afterInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-TNGB8PQ7SV');
+        `}
+      </Script>
       <ThemeProvider attribute="class" defaultTheme="system">
         <FileViewerProvider>
           <div className="relative flex min-h-screen flex-col bg-background">

@@ -4,11 +4,9 @@ import { useState, useEffect, useRef, Fragment } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { EngineEvent } from '@/lib/types';
 import { AlertCircle, CheckCircle2, Info, ExternalLink } from 'lucide-react';
 import ChunkViewer from './ChunkViewer';
-import { ImperativePanelHandle } from 'react-resizable-panels';
 
 interface LogsPanelProps {
   logs: EngineEvent[];
@@ -16,22 +14,10 @@ interface LogsPanelProps {
   sessionId: string;
 }
 
-export default function LogsPanel({ logs, isDocumentOpen, sessionId }: LogsPanelProps) {
-  const [panelSize, setPanelSize] = useState(100);
+export default function LogsPanel({ logs, sessionId }: LogsPanelProps) {
   const logsEndRef = useRef<HTMLDivElement>(null);
-  const logsPanelRef = useRef<ImperativePanelHandle>(null);
   const [chunkViewerOpen, setChunkViewerOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<EngineEvent | null>(null);
-
-  useEffect(() => {
-    if (logsPanelRef.current) {
-      if (isDocumentOpen) {
-        logsPanelRef.current.resize(4);
-      } else {
-        logsPanelRef.current.resize(100);
-      }
-    }
-  }, [isDocumentOpen]);
 
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });

@@ -63,57 +63,6 @@ function GifPlaceholder({
   )
 }
 
-const features = [
-  {
-    id: "bm25",
-    title: "BM25 Search",
-    description: "Keyword-frequency scoring that retrieves beyond semantic similarity",
-    size: "large",
-    accentColor: "#ffd061",
-    stageTag: "Retrieval",
-  },
-  {
-    id: "hybrid",
-    title: "Hybrid Search",
-    description: "Combines dense vectors and sparse BM25 into one retrieval pass",
-    size: "medium",
-    accentColor: "#ffe08a",
-    stageTag: "Retrieval",
-  },
-  {
-    id: "rrf",
-    title: "Reciprocal Rank Fusion",
-    description: "Merges multiple ranked lists into a single authoritative ranking",
-    size: "small",
-    accentColor: "#ffea9f",
-    stageTag: "Ranking",
-  },
-  {
-    id: "qe",
-    title: "Query Expansion",
-    description: "Rewrites vague queries using an LLM to improve recall",
-    size: "wide",
-    accentColor: "#ffd980",
-    stageTag: "Query",
-  },
-  {
-    id: "cache",
-    title: "Query Cache",
-    description: "Exact-match response caching to skip redundant LLM calls",
-    size: "small",
-    accentColor: "#ffe5a0",
-    stageTag: "Performance",
-  },
-  {
-    id: "semantic-cache",
-    title: "Semantic Cache",
-    description: "Similarity-based cache serving results for near-duplicate queries",
-    size: "wide",
-    accentColor: "#ffd061",
-    stageTag: "Performance",
-  },
-]
-
 export default function LandingFeaturesBento() {
   return (
     <section

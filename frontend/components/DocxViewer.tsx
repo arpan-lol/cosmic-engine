@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import mammoth from 'mammoth';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download, Loader2 } from 'lucide-react';

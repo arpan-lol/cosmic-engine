@@ -40,7 +40,7 @@ export default function TextViewer({ fileUrl, filename }: TextViewerProps) {
     try {
       await navigator.clipboard.writeText(content);
       toast.success('Content copied to clipboard');
-    } catch (err) {
+    } catch {
       toast.error('Failed to copy');
     }
   };

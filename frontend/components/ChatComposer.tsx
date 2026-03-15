@@ -19,7 +19,6 @@ export default function ChatComposer({
   disabled = false,
   placeholder = 'Type your message...',
   loading = false,
-  selectedFilesCount = 0,
 }: ChatComposerProps) {
   const [message, setMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
