@@ -1,13 +1,36 @@
-import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
+import { Hero } from '@/components/landing/Hero';
+import { Showcase } from '@/components/landing/Showcase';
+import { Features } from '@/components/landing/Features';
+import { Architecture } from '@/components/landing/Architecture';
+import { Strategies } from '@/components/landing/Strategies';
+import { Journey } from '@/components/landing/Journey';
+import { CTA } from '@/components/landing/CTA';
+import { Lazy } from '@/components/landing/LazySection';
 
-export default async function HomePage() {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('jwt')?.value
-
-  if (token) {
-    redirect('/dashboard')
-  }
-
-  redirect('/auth/login')
+export default function Home() {
+  return (
+    <div className="flex flex-col min-h-screen font-sans bg-white text-[#1a1a1c] selection:bg-primary selection:text-[#1a1a1c]">
+      <Hero />
+      <Lazy>
+        <Showcase />
+      </Lazy>
+      <Lazy>
+        <Strategies />
+      </Lazy>
+      <Lazy>
+        <Architecture />
+      </Lazy>
+      <Lazy>
+        <Features />
+      </Lazy>
+      <div className="py-24 bg-white text-[#1a1a1c] border-t border-gray-200 relative">
+        <Lazy>
+          <Journey />
+        </Lazy>
+      </div>
+      <Lazy>
+        <CTA />
+      </Lazy>
+    </div>
+  );
 }
