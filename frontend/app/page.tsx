@@ -9,28 +9,31 @@ import { Lazy } from '@/components/landing/LazySection';
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen font-sans bg-white text-[#1a1a1c] selection:bg-primary selection:text-[#1a1a1c]">
-      <Hero />
-      <Lazy>
-        <Showcase />
-      </Lazy>
-      <Lazy>
-        <Strategies />
-      </Lazy>
-      <Lazy>
-        <Architecture />
-      </Lazy>
-      <Lazy>
-        <Features />
-      </Lazy>
-      <div className="py-24 bg-white text-[#1a1a1c] border-t border-gray-200 relative">
+    <div className="flex flex-col min-h-screen font-sans bg-white text-[#1a1a1c] selection:bg-primary selection:text-[#1a1a1c] scroll-smooth relative">
+      <div className="fixed inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+      <div className="relative z-10">
+        <Hero />
         <Lazy>
-          <Journey />
+          <Showcase />
+        </Lazy>
+        <Lazy>
+          <Strategies />
+        </Lazy>
+        <Lazy>
+          <Architecture />
+        </Lazy>
+        <Lazy>
+          <Features />
+        </Lazy>
+        <div className="py-24 bg-transparent text-[#1a1a1c] border-t border-gray-200 relative">
+          <Lazy>
+            <Journey />
+          </Lazy>
+        </div>
+        <Lazy>
+          <CTA />
         </Lazy>
       </div>
-      <Lazy>
-        <CTA />
-      </Lazy>
     </div>
   );
 }

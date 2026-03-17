@@ -8,6 +8,7 @@ import { Toaster } from 'sonner'
 import Providers from '@/components/Providers'
 import { GitHubButton } from '@/components/GitHubButton'
 import { FileViewerProvider } from '@/contexts/FileViewerContext'
+import { SmoothScroll } from '@/components/SmoothScroll'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -48,7 +49,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="scroll-smooth" suppressHydrationWarning>
       <body
         className={cn(
           'min-h-screen bg-background text-foreground font-sans antialiased',
@@ -70,13 +71,15 @@ export default function RootLayout({
       </Script>
       <ThemeProvider attribute="class" defaultTheme="system">
         <FileViewerProvider>
-          <div className="relative flex min-h-screen flex-col bg-background">
-            <GitHubButton />
-            <Providers>
-              {children}
-              <Toaster />
-            </Providers>
-          </div>
+          <SmoothScroll>
+            <div className="relative flex min-h-screen flex-col bg-background">
+              <GitHubButton />
+              <Providers>
+                {children}
+                <Toaster />
+              </Providers>
+            </div>
+          </SmoothScroll>
         </FileViewerProvider>
       </ThemeProvider>
       </body>

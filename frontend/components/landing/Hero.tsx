@@ -5,7 +5,7 @@ import Image from 'next/image';
 
 export function Hero() {
   return (
-    <section className="relative w-full min-h-[90vh] flex items-center justify-center bg-white overflow-hidden border-b border-gray-200">
+    <section className="relative w-full min-h-[85vh] flex items-center justify-center bg-white overflow-hidden pb-12">
       <div className="absolute inset-0 z-0">
         <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-primary opacity-10 blur-[150px] rounded-full mix-blend-multiply pointer-events-none" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-primary opacity-10 blur-[150px] rounded-full mix-blend-multiply pointer-events-none" />
