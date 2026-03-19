@@ -102,7 +102,7 @@ function StrategyPreviewSection() {
       align: "right"
     },
     {
-      title: "Keyword Caching",
+      title: "Caching",
       desc: "Instantly serve exact-match queries without re-computing embeddings, drastically slashing latency and cost for repeated questions.",
       icon: <Box className="w-8 h-8" />,
       align: "left"
