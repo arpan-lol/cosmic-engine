@@ -1,3 +1,5 @@
+import { formatDistanceToNow } from 'date-fns';
+
 export function formatMessageTime(date: Date | string): string {
   try {
     const d = typeof date === 'string' ? new Date(date) : date;
@@ -44,6 +46,18 @@ export function getDateTimeAttribute(date: Date | string): string {
     return d.toISOString();
   } catch {
     return '';
+  }
+}
+
+export function formatRelativeDateTime(date: Date | string): string {
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(d.getTime())) {
+      return 'Invalid date';
+    }
+    return formatDistanceToNow(d, { addSuffix: true });
+  } catch {
+    return 'Invalid date';
   }
 }
 

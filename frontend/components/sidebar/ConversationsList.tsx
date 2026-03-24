@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { ConversationItem } from './ConversationItem';
 import {
   SidebarGroup,
@@ -15,6 +15,7 @@ interface ConversationsListProps {
   isLoading: boolean;
   editingConversationId: string | null;
   editingTitle: string;
+  activeConversationId: string | null;
   onCreateConversation: () => void;
   onEditStart: (id: string, title: string, e: React.MouseEvent) => void;
   onEditSave: (id: string, e?: React.MouseEvent) => void;
@@ -30,6 +31,7 @@ export function ConversationsList({
   isLoading,
   editingConversationId,
   editingTitle,
+  activeConversationId,
   onCreateConversation,
   onEditStart,
   onEditSave,
@@ -42,27 +44,32 @@ export function ConversationsList({
   return (
     <SidebarGroup>
       <SidebarGroupLabel className="flex items-center justify-between px-0">
-        <span>Conversations</span>
+        <span>{conversations?.length || 0} conversations</span>
         <Button
-          variant="ghost"
+          variant="secondary"
           size="icon"
-          className="h-5 w-5"
+          className="h-8 w-8 rounded-full border border-border/60 shadow-sm"
           onClick={onCreateConversation}
           disabled={isCreating}
         >
-          <Plus className="h-4 w-4" />
+          {isCreating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Plus className="h-4 w-4" />
+          )}
         </Button>
       </SidebarGroupLabel>
       <SidebarGroupContent>
-        <SidebarMenu>
+        <SidebarMenu className="gap-0 border-t border-border/50">
           {isLoading && (
-            <div className="px-2 py-1 text-sm text-muted-foreground">Loading...</div>
+            <div className="px-2 py-3 text-sm text-muted-foreground">Loading...</div>
           )}
           {conversations?.map((conversation) => (
             <ConversationItem
               key={conversation.id}
               conversation={conversation}
               isEditing={editingConversationId === conversation.id}
+              isActive={activeConversationId === conversation.id}
               editingTitle={editingTitle}
               onEditStart={onEditStart}
               onEditSave={onEditSave}
@@ -73,7 +80,7 @@ export function ConversationsList({
             />
           ))}
           {!isLoading && conversations?.length === 0 && (
-            <div className="px-2 py-1 text-sm text-muted-foreground">
+            <div className="px-2 py-3 text-sm text-muted-foreground">
               No conversations yet
             </div>
           )}

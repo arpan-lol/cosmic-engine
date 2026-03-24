@@ -305,6 +305,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             isLoading={isLoading}
             editingConversationId={editingConversationId}
             editingTitle={editingTitle}
+            activeConversationId={sessionId || null}
             onCreateConversation={handleCreateConversation}
             onEditStart={handleEditTitle}
             onEditSave={handleSaveTitle}
