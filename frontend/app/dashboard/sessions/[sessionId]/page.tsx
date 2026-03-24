@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useFileManagement } from '@/hooks/use-file-management';
 import { useConversationState } from '@/hooks/use-conversation-state';
+import { usePendingSessionUploads } from '@/contexts/PendingSessionUploadsContext';
 import { SessionHeader, MessageList, ChatInputArea } from './components';
 import FilePanel from '@/components/FilePanel';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, PanelRightOpen, PanelRightClose } from 'lucide-react';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { ImperativePanelHandle } from 'react-resizable-panels';
-import { useRef, useCallback } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +28,7 @@ export default function ChatSessionPage() {
   const params = useParams();
   const router = useRouter();
   const sessionId = params.sessionId as string;
+  const { consumePendingUploads } = usePendingSessionUploads();
 
   const { data: authUser } = useAuth();
 
@@ -90,6 +91,14 @@ export default function ChatSessionPage() {
     sessionAttachments,
     selectedContextIds,
   });
+
+  useEffect(() => {
+    const pendingFiles = consumePendingUploads(sessionId);
+
+    if (pendingFiles && pendingFiles.length > 0) {
+      void handleFileUpload(pendingFiles);
+    }
+  }, [consumePendingUploads, handleFileUpload, sessionId]);
 
   if (isLoading) {
     return (

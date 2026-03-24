@@ -29,13 +29,13 @@ export function Strategies() {
     },
     {
       title: "HyDE",
-      desc: "Hypothetical Document Embeddings (HyDE) generate a fake perfect answer to your query first, then use that to find the most relevant real documents.",
+      desc: "Hypothetical Document Embeddings (HyDE) generate a fake perfect answer to your query first, then use that to find the most relevant real documents. Coming Soon!",
       icon: <Cpu className="w-8 h-8" />,
       align: "left"
     },
     {
       title: "Contextual Chunking",
-      desc: "Instead of just cutting text blindly, smart chunking ensures each piece of data retains its surrounding context, preventing the AI from losing track of what it's reading.",
+      desc: "Instead of just cutting text blindly, smart chunking ensures each piece of data retains its surrounding context, preventing the AI from losing track of what it's reading. Coming Soon!",
       icon: <CheckCircle className="w-8 h-8" />,
       align: "right"
     }

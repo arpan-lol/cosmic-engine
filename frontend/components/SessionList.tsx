@@ -22,7 +22,6 @@ import {
 
 export default function SessionList() {
   const router = useRouter();
-  const [newConversationTitle, setNewConversationTitle] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
@@ -34,8 +33,7 @@ export default function SessionList() {
 
   const handleCreateConversation = async () => {
     try {
-      const result = await createConversation.mutateAsync(newConversationTitle || undefined);
-      setNewConversationTitle('');
+      const result = await createConversation.mutateAsync(undefined);
       if (result?.sessionId) {
         router.push(`/dashboard/sessions/${result.sessionId}`);
       } else {
@@ -108,33 +106,27 @@ export default function SessionList() {
 
   return (
     <div className="space-y-4">
-        <Card className='border-none'>
-          <CardHeader>
-            <CardTitle>New Conversation</CardTitle>
-            <CardDescription>Start a new conversation</CardDescription>
-          </CardHeader>
-        <CardContent>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Conversation title (optional)"
-              value={newConversationTitle}
-              onChange={(e) => setNewConversationTitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleCreateConversation()}
-            />
-            <Button onClick={handleCreateConversation} disabled={createConversation.isPending}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create
-            </Button>
+      <Card className="border-none">
+        <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
+          <div className="space-y-1.5">
+            <CardTitle>Your Conversations</CardTitle>
+            <CardDescription>
+              {conversations?.length || 0} conversation{conversations?.length !== 1 ? 's' : ''}
+            </CardDescription>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card className='border-none'>
-        <CardHeader>
-          <CardTitle>Your Conversations</CardTitle>
-          <CardDescription>
-            {conversations?.length || 0} conversation{conversations?.length !== 1 ? 's' : ''}
-          </CardDescription>
+          <Button
+            size="icon"
+            className="h-11 w-11 rounded-2xl border border-primary/15 bg-primary/95 text-primary-foreground shadow-sm"
+            onClick={handleCreateConversation}
+            disabled={createConversation.isPending}
+            aria-label="Create conversation"
+          >
+            {createConversation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="h-5 w-5" />
+            )}
+          </Button>
         </CardHeader>
         <CardContent>
           <ScrollArea className="">

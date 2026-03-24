@@ -4,6 +4,7 @@ import { RefObject, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import ChatComposer from '@/components/ChatComposer';
+import { ACCEPTED_FILE_TYPES } from '@/lib/upload';
 
 interface ChatInputAreaProps {
   error: string | null;
@@ -76,7 +77,7 @@ export function ChatInputArea({
         type="file"
         onChange={handleFileInputChange}
         className="hidden"
-        accept=".png,.jpg,.jpeg,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+        accept={ACCEPTED_FILE_TYPES}
         multiple
       />
 
