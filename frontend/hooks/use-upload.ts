@@ -104,3 +104,25 @@ export const useDeleteAttachment = () => {
     },
   });
 };
+export const useRetryAttachment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (attachmentId: string) => {
+      const response = await api.request(`/chat/attachments/${attachmentId}/retry`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Retry failed' }));
+        throw new Error(errorData.error || `Retry failed with status ${response.status}`);
+      }
+
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+};

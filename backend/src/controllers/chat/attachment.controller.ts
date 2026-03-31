@@ -101,6 +101,72 @@ export class AttachmentController {
     }
   }
 
+  static async retryAttachment(req: AuthRequest, res: Response, next: NextFunction): Promise<Response | void> {
+    const userId = req.user?.userId;
+    if (!userId) throw new UnauthorizedError();
+
+    const { attachmentId } = req.params;
+
+    try {
+      const attachment = await prisma.attachment.findUnique({
+        where: { id: attachmentId },
+      });
+
+      if (!attachment) {
+        throw new NotFoundError('Attachment not found');
+      }
+
+      const session = await prisma.session.findUnique({
+        where: { id: attachment.sessionId, userId },
+      });
+
+      if (!session) {
+        throw new UnauthorizedError('Not authorized');
+      }
+
+      // Check if it's already queued/processing by checking the jobQueue
+      // We can reset the status and processing state if it failed before
+      const metadata = attachment.metadata as any;
+      if (metadata && metadata.processed) {
+        throw new ValidationError('Attachment is already processed');
+      }
+
+      await prisma.attachment.update({
+        where: { id: attachment.id },
+        data: {
+          metadata: {
+            ...metadata,
+            processed: false,
+            error: null,
+            failedAt: null,
+          }
+        }
+      });
+
+      sseService.sendProgress(attachment.id, {
+        status: 'processing',
+        step: 'queued',
+        message: `Retry requested, queuing ${attachment.filename}...`,
+        progress: 0,
+      });
+
+      jobQueue.add('process-file', {
+        attachmentId: attachment.id,
+        userId,
+        sessionId: attachment.sessionId,
+      }).catch((err: Error) => {
+        logger.error('AttachmentController', 'Failed to queue file retry', err, { attachmentId: attachment.id, sessionId: attachment.sessionId });
+      });
+
+      logger.info('AttachmentController', `File retry queued: ${attachment.filename}`, { attachmentId: attachment.id, sessionId: attachment.sessionId });
+      return res.status(200).json({ message: 'Retry queued successfully' });
+    } catch (error) {
+      logger.error('AttachmentController', 'Error retrying attachment', error instanceof Error ? error : undefined, { attachmentId, userId });
+      if (error instanceof NotFoundError || error instanceof ValidationError || error instanceof UnauthorizedError) throw error;
+      next(new ProcessingError('Failed to retry attachment'));
+    }
+  }
+
   static async getSessionAttachments(req: AuthRequest, res: Response, next: NextFunction): Promise<Response | void> {
     const userId = req.user?.userId;
     if (!userId) {

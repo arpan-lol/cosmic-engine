@@ -52,6 +52,7 @@ export default function ChatSessionPage() {
     handleAttachmentClick,
     handleDocumentClick,
     handleDeleteAttachment,
+    handleRetryAttachment,
     confirmDeleteAttachment,
     cancelDeleteAttachment,
     triggerFileInput,
@@ -207,6 +208,7 @@ export default function ChatSessionPage() {
             onClose={() => setSelectedFile(undefined)}
             onDocumentClick={handleDocumentClick}
             onDeleteAttachment={handleDeleteAttachment}
+            onRetryAttachment={handleRetryAttachment}
             bm25Progress={bm25Progress}
             fileProcessingProgress={fileProcessingProgress}
             logs={allLogs}

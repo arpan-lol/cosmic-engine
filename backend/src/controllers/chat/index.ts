@@ -17,6 +17,7 @@ export const ChatController = {
 
   // Attachment methods
   uploadFile: AttachmentController.uploadFile,
+  retryAttachment: AttachmentController.retryAttachment,
   getSessionAttachments: AttachmentController.getSessionAttachments,
   getAttachmentStatus: AttachmentController.getAttachmentStatus,
   streamAttachmentStatus: AttachmentController.streamAttachmentStatus,

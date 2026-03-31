@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useSessionAttachments, useDeleteAttachment, useUploadFile } from './use-upload';
+import { useSessionAttachments, useDeleteAttachment, useUploadFile, useRetryAttachment } from './use-upload';
 import { useSearchOptions } from './use-search-options';
 import { useFileViewer } from '@/contexts/FileViewerContext';
 import { getAuthToken } from '@/lib/sse-manager';
@@ -25,6 +25,7 @@ export function useFileManagement({ sessionId }: UseFileManagementOptions) {
 
   const { data: sessionAttachments, isLoading: isLoadingAttachments } = useSessionAttachments(sessionId);
   const deleteAttachmentMutation = useDeleteAttachment();
+  const retryAttachmentMutation = useRetryAttachment();
   const uploadFile = useUploadFile();
 
   const [uploadedAttachments, setUploadedAttachments] = useState<string[]>([]);
@@ -57,7 +58,7 @@ export function useFileManagement({ sessionId }: UseFileManagementOptions) {
 
     const processedRealIds = new Set(
       real
-        .filter((att: Attachment) => att.metadata?.processed === true)
+        .filter((att: Attachment) => att.metadata?.processed === true || !!att.metadata?.error)
         .map((att: Attachment) => att.id)
     );
     const uniqueTemp = temp.filter(t => !processedRealIds.has(t.realId || t.id));
@@ -236,9 +237,11 @@ export function useFileManagement({ sessionId }: UseFileManagementOptions) {
       for (const [tempId, tempFile] of prev.entries()) {
         const realId = tempFile.realId || tempId;
         const existsInDB = sessionAttachments.some((att: Attachment) => att.id === realId);
-        const isProcessed = sessionAttachments.find((att: Attachment) => att.id === realId)?.metadata?.processed;
+        const realAtt = sessionAttachments.find((att: Attachment) => att.id === realId);
+        const isProcessed = realAtt?.metadata?.processed;
+        const hasError = !!realAtt?.metadata?.error;
 
-        if (existsInDB && isProcessed) {
+        if (existsInDB && (isProcessed || hasError)) {
           newMap.delete(tempId);
           hasChanges = true;
         }
@@ -426,6 +429,23 @@ export function useFileManagement({ sessionId }: UseFileManagementOptions) {
     });
   }, []);
 
+  const handleRetryAttachment = useCallback(async (attachmentId: string) => {
+    try {
+      await retryAttachmentMutation.mutateAsync(attachmentId);
+      toast.success('Retrying file processing', {
+        description: 'The file has been queued for re-processing.',
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['sessions', sessionId, 'attachments'],
+        refetchType: 'active'
+      });
+    } catch (error) {
+      toast.error('Failed to retry processing', {
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+      });
+    }
+  }, [retryAttachmentMutation, sessionId, queryClient]);
+
   const handleDeleteAttachment = useCallback((attachmentId: string) => {
     setAttachmentToDelete(attachmentId);
     setDeleteDialogOpen(true);
@@ -500,6 +520,7 @@ export function useFileManagement({ sessionId }: UseFileManagementOptions) {
     handleAttachmentClick,
     handleDocumentClick,
     handleDeleteAttachment,
+    handleRetryAttachment,
     confirmDeleteAttachment,
     cancelDeleteAttachment,
     triggerFileInput,

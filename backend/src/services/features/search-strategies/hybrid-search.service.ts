@@ -10,11 +10,14 @@ import { PerformanceTracker } from '../../../utils/timer.util';
 interface HybridHit {
   attachmentId: string;
   chunkIndex: number;
+  vectorRank?: number;
+  bm25Rank?: number;
   vectorScore?: number;
   bm25Score?: number;
   content?: string;
   filename?: string;
   pageNumber?: number;
+  rrfScore?: number;
 }
 
 export class HybridSearchService {
@@ -182,44 +185,52 @@ export class HybridSearchService {
       timer?.startTimer('ranking');
       const allHits = Array.from(hybridMap.values());
 
-      const vectorScores = allHits.map((h) => h.vectorScore ?? 0).filter((s) => s > 0);
-      const bm25Scores = allHits.map((h) => h.bm25Score ?? 0).filter((s) => s > 0);
+      const vectorRanks = allHits
+        .filter((hit) => hit.vectorScore !== undefined)
+        .sort((a, b) => (b.vectorScore ?? 0) - (a.vectorScore ?? 0));
 
-      const minVector = vectorScores.length ? Math.min(...vectorScores) : 0;
-      const maxVector = vectorScores.length ? Math.max(...vectorScores) : 1;
+      vectorRanks.forEach((hit, idx) => {
+        const key = `${hit.attachmentId}:${hit.chunkIndex}`;
+        const existing = hybridMap.get(key);
+        if (existing) {
+          existing.vectorRank = idx + 1;
+          hybridMap.set(key, existing);
+        }
+      });
 
-      const minBM25 = bm25Scores.length ? Math.min(...bm25Scores) : 0;
-      const maxBM25 = bm25Scores.length ? Math.max(...bm25Scores) : 1;
+      const bm25Ranks = allHits
+        .filter((hit) => hit.bm25Score !== undefined)
+        .sort((a, b) => (b.bm25Score ?? 0) - (a.bm25Score ?? 0));
 
-      const alpha = 0.7;
-      const beta = 0.3;
+      bm25Ranks.forEach((hit, idx) => {
+        const key = `${hit.attachmentId}:${hit.chunkIndex}`;
+        const existing = hybridMap.get(key);
+        if (existing) {
+          existing.bm25Rank = idx + 1;
+          hybridMap.set(key, existing);
+        }
+      });
 
-      const rankedHits = allHits
-        .map((hit) => {
-          const vectorNorm =
-            hit.vectorScore !== undefined
-              ? (hit.vectorScore - minVector) / (maxVector - minVector || 1)
-              : 0;
-          const bm25Norm =
-            hit.bm25Score !== undefined
-              ? (hit.bm25Score - minBM25) / (maxBM25 - minBM25 || 1)
-              : 0;
-
-          const finalScore = alpha * vectorNorm + beta * bm25Norm;
-
-          return { ...hit, finalScore };
-        })
-        .sort((a, b) => b.finalScore - a.finalScore);
+      const k = 60;
+      const fusedHits = Array.from(hybridMap.values())
+        .map((hit) => ({
+          ...hit,
+          rrfScore:
+            (hit.vectorRank ? 1 / (k + hit.vectorRank) : 0) +
+            (hit.bm25Rank ? 1 / (k + hit.bm25Rank) : 0),
+        }))
+        .sort((a, b) => (b.rrfScore ?? 0) - (a.rrfScore ?? 0));
 
       const FINAL_HYBRID_K = Math.min(12, totalTopK);
-      const topHits = rankedHits.slice(0, FINAL_HYBRID_K);
+      const topHits = fusedHits.slice(0, FINAL_HYBRID_K);
       timer?.endTimer('ranking');
 
       try {
         const rankingBody: string[] = [
-          `Top ${topHits.length} hybrid-ranked chunks (scores: 0.0-1.0):`,
+          `Top ${topHits.length} hybrid-ranked chunks after RRF fusion:`,
           ...topHits.map((h, idx) =>
-            `${idx + 1}. ${h.filename ?? 'file'} - chunk ${h.chunkIndex} - score ${(h.finalScore ?? 0).toFixed(4)}`          )
+            `${idx + 1}. ${h.filename ?? 'file'} - chunk ${h.chunkIndex} - score ${(h.rrfScore ?? 0).toFixed(6)}`
+          )
         ];
 
         await sseService.publishToSession(sessionId, {
@@ -300,7 +311,7 @@ export class HybridSearchService {
             body: [
               `Retrieved ${validContexts.length} context chunks`,
               `Query: ${query}`,
-              `Score range: 0.0-1.0 (70% vector + 30% BM25)`
+              'Fusion: RRF (dense + BM25 ranked lists)'
             ]
           },
           timestamp: new Date().toISOString()

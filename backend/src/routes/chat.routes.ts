@@ -37,6 +37,7 @@ router.post('/sessions/:id/message', asyncHandler(ChatController.message));
 router.post('/indexbm25/:id', asyncHandler(BM25Controller.indexFiles))
 router.post('/upload', corsMiddleware, upload.single('file'), asyncHandler(ChatController.uploadFile));
 router.get('/sessions/:sessionId/attachments', asyncHandler(ChatController.getSessionAttachments));
+router.post('/attachments/:attachmentId/retry', asyncHandler(ChatController.retryAttachment));
 router.get('/attachments/:attachmentId/status', asyncHandler(ChatController.getAttachmentStatus));
 router.get('/attachments/:attachmentId/stream', corsMiddleware, asyncHandler(ChatController.streamAttachmentStatus));
 router.get('/attachments/:attachmentId/file', asyncHandler(ChatController.serveFile));

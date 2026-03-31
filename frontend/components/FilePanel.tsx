@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FileText, X, ArrowLeft, Trash2, ExternalLink, FileImage, FileSpreadsheet, File } from 'lucide-react';
+import { FileText, X, ArrowLeft, Trash2, ExternalLink, FileImage, FileSpreadsheet, File, RefreshCw } from 'lucide-react';
 import { EngineEvent, StreamStatus } from '@/lib/types';
 import LogsPanel from './LogsPanel';
 import ChunkViewer from './ChunkViewer';
@@ -27,9 +27,7 @@ interface Attachment {
   bm25indexStatus?: string;
   isTemporary?: boolean;
   mimeType?: string;
-  metadata?: {
-    processed?: boolean;
-  };
+  metadata?: Record<string, any>;
 }
 
 interface FilePanelProps {
@@ -38,13 +36,14 @@ interface FilePanelProps {
   onClose?: () => void;
   onDocumentClick?: (attachment: Attachment) => void;
   onDeleteAttachment?: (attachmentId: string) => void;
+  onRetryAttachment?: (attachmentId: string) => void;
   bm25Progress?: Record<string, StreamStatus>;
   fileProcessingProgress?: Record<string, StreamStatus>;
   logs?: EngineEvent[];
   sessionId: string;
 }
 
-export default function FilePanel({ attachments, selectedFile, onClose, onDocumentClick, onDeleteAttachment, bm25Progress, fileProcessingProgress, logs = [], sessionId }: FilePanelProps) {
+export default function FilePanel({ attachments, selectedFile, onClose, onDocumentClick, onDeleteAttachment, onRetryAttachment, bm25Progress, fileProcessingProgress, logs = [], sessionId }: FilePanelProps) {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [chunkViewerOpen, setChunkViewerOpen] = useState(false);
   const [selectedAttachment, setSelectedAttachment] = useState<{ id: string; filename: string } | null>(null);
@@ -77,13 +76,7 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
     return <File className="h-4 w-4 text-muted-foreground" />;
   };
 
-  const viewableAttachments = attachments.filter(
-    (att) => {
-      const isProcessed = att.metadata?.processed;
-      const isTemporary = att.isTemporary;
-      return isProcessed || isTemporary;
-    }
-  );
+  const viewableAttachments = attachments;
   
 
   useEffect(() => {
@@ -192,32 +185,57 @@ export default function FilePanel({ attachments, selectedFile, onClose, onDocume
                               {bm25ProgressData?.message || 'Indexing...'}
                             </Badge>
                           )}
+                          {!att.isTemporary && !!att.metadata?.error && (
+                            <Badge variant="destructive" className="text-xs">
+                              Failed
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground">
                           {(att.size / 1024).toFixed(1)} KB
                         </p>
-                        
+
                         {progressValue !== undefined && (
                           <div className="mt-2">
                             <Progress value={progressValue} className="h-1" />
                           </div>
                         )}
+                        {!!att.metadata?.error && (
+                          <p className="text-xs text-destructive mt-1 truncate" title={att.metadata.error}>
+                            {att.metadata.error}
+                          </p>
+                        )}
                       </div>
 
                       {!att.isTemporary && (
                         <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewChunks(att);
-                            }}
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-
+                          {!!att.metadata?.error && onRetryAttachment && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRetryAttachment(att.id);
+                              }}
+                              title="Retry processing"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {!att.metadata?.error && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewChunks(att);
+                              }}
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"

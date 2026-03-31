@@ -118,7 +118,7 @@ export class ReciprocalRankFusionService {
           console.warn('[RRF] SSE publish failed for attachment', attachmentId, err);
         }
 
-        (vecHits || []).forEach((h: any, idx: number) => {
+        (vecHits || []).forEach((h: any) => {
           const key = `${h.attachmentId}:${h.chunkIndex}`;
           let existing = map.get(key) as RRFHit | undefined;
           if (!existing) {
@@ -128,7 +128,6 @@ export class ReciprocalRankFusionService {
               filename: h.filename ?? attachmentFilenameMap.get(h.attachmentId)
             };
           }
-          existing.vectorRank = idx + 1;
           existing.vectorScore = h.score;
           existing.content = existing.content ?? h.content;
           existing.filename = existing.filename ?? h.filename ?? attachmentFilenameMap.get(h.attachmentId);
@@ -170,6 +169,19 @@ export class ReciprocalRankFusionService {
       }
 
       timer?.startTimer('ranking');
+      const vectorRanksArray = Array.from(map.values())
+        .filter((h) => h.vectorScore !== undefined)
+        .sort((a, b) => (b.vectorScore ?? 0) - (a.vectorScore ?? 0));
+
+      vectorRanksArray.forEach((h, idx) => {
+        const key = `${h.attachmentId}:${h.chunkIndex}`;
+        const existing = map.get(key);
+        if (existing) {
+          existing.vectorRank = idx + 1;
+          map.set(key, existing);
+        }
+      });
+
       const bm25RanksArray = Array.from(map.values())
         .filter((h) => h.bm25Score !== undefined)
         .sort((a, b) => (b.bm25Score ?? 0) - (a.bm25Score ?? 0));
@@ -179,19 +191,6 @@ export class ReciprocalRankFusionService {
         const existing = map.get(key);
         if (existing) {
           existing.bm25Rank = idx + 1;
-          map.set(key, existing);
-        }
-      });
-
-      const vectorRanksArray = Array.from(map.values())
-        .filter((h) => h.vectorScore !== undefined)
-        .sort((a, b) => (a.vectorRank ?? Infinity) - (b.vectorRank ?? Infinity));
-
-      vectorRanksArray.forEach((h) => {
-        const key = `${h.attachmentId}:${h.chunkIndex}`;
-        const existing = map.get(key);
-        if (existing && existing.vectorRank === undefined) {
-          existing.vectorRank = vectorRanksArray.indexOf(h) + 1;
           map.set(key, existing);
         }
       });
