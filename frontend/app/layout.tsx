@@ -10,6 +10,8 @@ import { GitHubButton } from '@/components/GitHubButton'
 import { FileViewerProvider } from '@/contexts/FileViewerContext'
 import { SmoothScroll } from '@/components/SmoothScroll'
 
+const metadataBase = new URL(process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000')
+
 const geistSans = Geist({
   variable: '--font-geist-sans',
   subsets: ['latin'], 
@@ -21,6 +23,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase,
   title: 'Cosmic Engine - RAG Experimentation Platform',
   description: 'A experimentation platform for playing around with 10+ RAG retrieval, chunking, generation, and caching strategies!',
   keywords: ['RAG', 'retrieval augmented generation', 'AI', 'chunking strategies', 'vector search', 'semantic search', 'caching', 'LLM', 'machine learning', 'document processing'],

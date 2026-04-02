@@ -244,7 +244,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenu>
             <SidebarMenuItem>
               <div className="flex items-center justify-between w-full px-1.5">
-                <a href="/dashboard" className="flex items-center gap-2">
+                <a href="/" className="flex items-center gap-2">
                   <Image
                     src="/logo.png"
                     alt="Cosmic Engine"
