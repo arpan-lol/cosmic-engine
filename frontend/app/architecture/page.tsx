@@ -26,7 +26,7 @@ export default function ArchitectureDemo() {
   const showPreCacheOnly = strategies.caching && !strategies.queryExpansion;
   const showPreExpansionOnly = strategies.queryExpansion && !strategies.caching;
   const useHybrid = strategies.hybridSearch;
-  const useRrf = strategies.hybridSearch && strategies.rrf;
+  const useRrf = strategies.rrf;
   const useGenerationBranch = strategies.caching;
 
   const getArchitectureTitle = () => {
@@ -34,7 +34,7 @@ export default function ArchitectureDemo() {
     if (strategies.queryExpansion) parts.push('Expanded');
     if (strategies.hybridSearch) parts.push('Hybrid');
     let title = parts.length > 0 ? `${parts.join(' ')} RAG` : 'Baseline RAG';
-    if (strategies.rrf && strategies.hybridSearch) title += ' + RRF';
+    if (strategies.rrf) title += ' + RRF';
     if (strategies.caching) title = `Cached ${title}`;
     return title;
   };
@@ -131,7 +131,7 @@ export default function ArchitectureDemo() {
                 <Line h={34} />
                 <Line h={14} />
                 <PipelineNode title="Vector Search" subtitle="Dense embeddings" icon={Database} borderColor="border-rose-500/50" id="n-vec" />
-                <VerticalDocs count={3} h={58} />
+                <VerticalDocs count={useRrf ? 1 : 3} h={58} />
               </div>
             )}
           </Stage>

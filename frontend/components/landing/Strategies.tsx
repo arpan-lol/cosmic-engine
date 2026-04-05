@@ -42,7 +42,8 @@ export function Strategies() {
   ];
 
   return (
-    <section className="relative bg-[#1a1a1c] w-full py-32 flex flex-col gap-32 overflow-hidden border-b border-gray-800">
+    <section className="relative -mt-12 bg-[#1a1a1c] w-full pt-36 pb-32 flex flex-col gap-32 overflow-hidden border-b border-gray-800">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-[linear-gradient(180deg,rgba(26,26,28,0)_0%,rgba(26,26,28,0.42)_65%,#1a1a1c_100%)]" />
       <div className="max-w-7xl mx-auto w-full px-6 text-center relative">
         <div className="mx-auto max-w-6xl">
           <h2 className="text-3xl md:text-5xl lg:text-6xl font-semibold text-white tracking-[-0.04em] leading-none whitespace-nowrap">

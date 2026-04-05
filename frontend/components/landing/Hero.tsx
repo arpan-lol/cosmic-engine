@@ -5,12 +5,11 @@ import Image from 'next/image';
 
 export function Hero() {
   return (
-    <section className="relative w-full min-h-[85vh] flex items-center justify-center overflow-hidden pb-12 bg-[radial-gradient(circle_at_top_left,rgba(255,208,97,0.22),transparent_30%),linear-gradient(180deg,#ffffff_0%,#fbf8f0_100%)]">
+    <section className="relative w-full min-h-[85vh] flex items-center justify-center overflow-hidden pb-20 bg-[radial-gradient(circle_at_top_left,rgba(255,208,97,0.26),transparent_36%),linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(251,248,240,0.74)_56%,rgba(251,248,240,0)_100%)]">
       <div className="absolute inset-0 z-0">
         <div className="absolute left-[-12%] top-12 h-72 w-72 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-[-8rem] right-[-6rem] h-80 w-80 rounded-full bg-[#1a1a1c]/10 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-[-10rem] left-1/2 h-96 w-[34rem] -translate-x-1/2 rounded-full bg-primary/14 blur-3xl pointer-events-none" />
       </div>
-
       <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-12 flex flex-col items-center text-center space-y-8">
         {/* <div className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-primary/30 text-yellow-600 bg-primary/10 font-semibold text-sm animate-pulse">
           <Zap className="w-4 h-4 fill-primary" />
