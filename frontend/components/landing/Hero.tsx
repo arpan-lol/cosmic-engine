@@ -5,17 +5,17 @@ import Image from 'next/image';
 
 export function Hero() {
   return (
-    <section className="relative w-full min-h-[85vh] flex items-center justify-center bg-white overflow-hidden pb-12">
+    <section className="relative w-full min-h-[85vh] flex items-center justify-center overflow-hidden pb-12 bg-[radial-gradient(circle_at_top_left,rgba(255,208,97,0.22),transparent_30%),linear-gradient(180deg,#ffffff_0%,#fbf8f0_100%)]">
       <div className="absolute inset-0 z-0">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-primary opacity-10 blur-[150px] rounded-full mix-blend-multiply pointer-events-none" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-primary opacity-10 blur-[150px] rounded-full mix-blend-multiply pointer-events-none" />
+        <div className="absolute left-[-12%] top-12 h-72 w-72 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-[-8rem] right-[-6rem] h-80 w-80 rounded-full bg-[#1a1a1c]/10 blur-3xl pointer-events-none" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-12 flex flex-col items-center text-center space-y-8">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-primary/30 text-yellow-600 bg-primary/10 font-semibold text-sm animate-pulse">
+        {/* <div className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-primary/30 text-yellow-600 bg-primary/10 font-semibold text-sm animate-pulse">
           <Zap className="w-4 h-4 fill-primary" />
           The Ultimate RAG Sandbox
-        </div>
+        </div> */}
 
         <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight text-[#1a1a1c] leading-[1.1] flex flex-wrap justify-center items-center gap-4 md:gap-6">
           <Image src="/logo.png" alt="Cosmic Engine Logo" width={96} height={96} className="w-16 h-16 md:w-24 md:h-24 object-contain" />
@@ -25,7 +25,7 @@ export function Hero() {
         </h1>
 
         <p className="max-w-2xl text-lg md:text-xl text-gray-600 font-medium leading-relaxed">
-          Build, test, and understand AI chatbots that talk to your data. Mix and match different techniques to see exactly how your AI finds information and constructs its answers behind the scenes.
+          RAG experimentation platform for comparing 10+ retrieval, chunking, generation, and caching strategies.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 pt-6 w-full max-w-md justify-center">

@@ -37,12 +37,14 @@
   },
   "homepage": "https://github.com/arpan-lol/cosmic-engine#readme",
   "devDependencies": {
+    "@types/node": "^24.1.0",
     "concurrently": "^8.2.2",
     "rimraf": "^5.0.5",
-    "typescript": "^5.8.3",
-    "@types/node": "^24.1.0"
+    "typescript": "^5.8.3"
   },
-  "dependencies": {},
+  "dependencies": {
+    "framer-motion": "^12.38.0"
+  },
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"

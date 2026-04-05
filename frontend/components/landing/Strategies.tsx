@@ -42,7 +42,21 @@ export function Strategies() {
   ];
 
   return (
-    <section className="bg-[#1a1a1c] w-full py-32 flex flex-col gap-32 overflow-hidden border-b border-gray-800">
+    <section className="relative bg-[#1a1a1c] w-full py-32 flex flex-col gap-32 overflow-hidden border-b border-gray-800">
+      <div className="max-w-7xl mx-auto w-full px-6 text-center relative">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="text-3xl md:text-5xl lg:text-6xl font-semibold text-white tracking-[-0.04em] leading-none whitespace-nowrap">
+            <span>Where </span>
+            <span className="text-primary [text-shadow:0_0_32px_rgba(255,208,97,0.22)]">enterprise RAG</span>
+            <span> begins!</span>
+          </h2>
+          {/* <div className="mt-8 flex items-center justify-center gap-3">
+            <div className="h-1 w-20 rounded-full bg-primary" />
+            <div className="h-1 w-8 rounded-full bg-white/20" />
+          </div> */}
+        </div>
+      </div>
+      
       {strategies.map((strategy, i) => (
         <div key={i} className={`flex flex-col ${strategy.align === "left" ? "lg:flex-row" : "lg:flex-row-reverse"} items-center justify-between max-w-7xl mx-auto w-full px-6 gap-16`}>
 
