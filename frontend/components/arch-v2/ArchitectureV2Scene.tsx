@@ -8,7 +8,7 @@ import {
   Database,
   FileText,
   GitMerge,
-  Layers,
+  PenLine,
   Search,
   Sparkles,
 } from 'lucide-react';
@@ -29,7 +29,6 @@ type NodeId =
   | 'cacheLookup'
   | 'vector'
   | 'bm25'
-  | 'merge'
   | 'ranker'
   | 'llm'
   | 'cacheStore'
@@ -39,6 +38,7 @@ type AnchorSide = 'left' | 'right' | 'top' | 'bottom';
 type EdgeStyle = 'curve' | 'elbow' | 'vertical';
 type EdgeTone = 'base' | 'hybrid' | 'rrf' | 'cache' | 'hit' | 'query';
 type NodeTone = 'base' | 'hybrid' | 'rrf' | 'cache' | 'query' | 'llm' | 'output';
+type EdgePayload = 'doc' | 'rewrite' | 'cache';
 
 type Point = {
   x: number;
@@ -69,6 +69,9 @@ type EdgeSpec = {
   toSide?: AnchorSide;
   labelDx?: number;
   labelDy?: number;
+  payload?: EdgePayload;
+  payloadDx?: number;
+  payloadDy?: number;
 };
 
 type RenderedEdge = {
@@ -79,11 +82,14 @@ type RenderedEdge = {
   label?: string;
   labelX: number;
   labelY: number;
+  payload?: EdgePayload;
+  payloadX: number;
+  payloadY: number;
 };
 
 const CANVAS = {
-  width: 1520,
-  height: 860,
+  width: 1720,
+  height: 900,
 } as const;
 
 const NODES: Record<NodeId, NodeSpec> = {
@@ -94,9 +100,9 @@ const NODES: Record<NodeId, NodeSpec> = {
     icon: Search,
     tone: 'base',
     x: 120,
-    y: 330,
-    w: 190,
-    h: 130,
+    y: 350,
+    w: 220,
+    h: 150,
   },
   queryExpansion: {
     id: 'queryExpansion',
@@ -104,10 +110,10 @@ const NODES: Record<NodeId, NodeSpec> = {
     subtitle: 'Single rewritten query',
     icon: Sparkles,
     tone: 'query',
-    x: 390,
-    y: 330,
-    w: 220,
-    h: 130,
+    x: 430,
+    y: 350,
+    w: 280,
+    h: 150,
   },
   cacheLookup: {
     id: 'cacheLookup',
@@ -115,10 +121,10 @@ const NODES: Record<NodeId, NodeSpec> = {
     subtitle: 'Hit or miss',
     icon: Database,
     tone: 'cache',
-    x: 390,
-    y: 140,
-    w: 220,
-    h: 96,
+    x: 430,
+    y: 130,
+    w: 280,
+    h: 110,
   },
   vector: {
     id: 'vector',
@@ -126,10 +132,10 @@ const NODES: Record<NodeId, NodeSpec> = {
     subtitle: 'Relevant chunks',
     icon: Cpu,
     tone: 'base',
-    x: 680,
+    x: 790,
     y: 250,
-    w: 260,
-    h: 120,
+    w: 280,
+    h: 130,
   },
   bm25: {
     id: 'bm25',
@@ -137,21 +143,10 @@ const NODES: Record<NodeId, NodeSpec> = {
     subtitle: 'Keyword chunks',
     icon: FileText,
     tone: 'hybrid',
-    x: 680,
-    y: 430,
-    w: 260,
-    h: 120,
-  },
-  merge: {
-    id: 'merge',
-    title: 'Fusion Gate',
-    subtitle: 'Combined context',
-    icon: Layers,
-    tone: 'hybrid',
-    x: 980,
-    y: 350,
-    w: 130,
-    h: 100,
+    x: 790,
+    y: 470,
+    w: 280,
+    h: 130,
   },
   ranker: {
     id: 'ranker',
@@ -159,18 +154,18 @@ const NODES: Record<NodeId, NodeSpec> = {
     subtitle: 'Reciprocal fusion',
     icon: GitMerge,
     tone: 'rrf',
-    x: 970,
-    y: 280,
-    w: 200,
+    x: 1130,
+    y: 320,
+    w: 250,
     h: 220,
   },
   llm: {
     id: 'llm',
     title: 'LLM',
-    subtitle: 'Response synthesis',
+    subtitle: 'Generation',
     icon: Bot,
     tone: 'llm',
-    x: 1210,
+    x: 1410,
     y: 340,
     w: 220,
     h: 160,
@@ -181,10 +176,10 @@ const NODES: Record<NodeId, NodeSpec> = {
     subtitle: 'Store response',
     icon: Database,
     tone: 'cache',
-    x: 1210,
-    y: 610,
+    x: 1410,
+    y: 650,
     w: 220,
-    h: 110,
+    h: 120,
   },
   output: {
     id: 'output',
@@ -192,20 +187,20 @@ const NODES: Record<NodeId, NodeSpec> = {
     subtitle: 'Final answer',
     icon: ArrowRight,
     tone: 'output',
-    x: 1440,
-    y: 375,
-    w: 70,
-    h: 90,
+    x: 1650,
+    y: 390,
+    w: 58,
+    h: 102,
   },
 };
 
 const EDGE_COLORS: Record<EdgeTone, string> = {
-  base: '#697079',
-  hybrid: '#e0a321',
-  rrf: '#b98511',
-  cache: '#2f87b7',
-  hit: '#1f9d5b',
-  query: '#cb7a35',
+  base: '#9aa1ab',
+  hybrid: '#e5ab2a',
+  rrf: '#cc8f1d',
+  cache: '#3aa9e3',
+  hit: '#31d184',
+  query: '#e38c35',
 };
 
 function toPct(value: number, total: number) {
@@ -257,8 +252,7 @@ function composeGraph(state: StrategyState) {
 
   if (state.queryExpansion) visibleNodes.add('queryExpansion');
   if (state.hybrid) visibleNodes.add('bm25');
-  if (state.hybrid && !state.rrf) visibleNodes.add('merge');
-  if (state.rrf) visibleNodes.add('ranker');
+  if (state.hybrid && state.rrf) visibleNodes.add('ranker');
   if (state.caching) {
     visibleNodes.add('cacheLookup');
     visibleNodes.add('cacheStore');
@@ -272,7 +266,9 @@ function composeGraph(state: StrategyState) {
       tone: 'cache',
       label: 'lookup',
       style: 'curve',
-      labelDy: -18,
+      labelDy: -12,
+      payload: 'cache',
+      payloadDy: -34,
     });
     edges.push({
       id: 'cache-hit-to-output',
@@ -282,7 +278,12 @@ function composeGraph(state: StrategyState) {
       label: 'hit',
       dashed: true,
       style: 'elbow',
-      labelDy: -14,
+      labelDy: -22,
+      fromSide: 'right',
+      toSide: 'top',
+      payload: 'doc',
+      payloadDx: -16,
+      payloadDy: -44,
     });
   }
 
@@ -298,7 +299,9 @@ function composeGraph(state: StrategyState) {
       label: state.caching ? 'miss' : 'rewrite',
       dashed: state.caching,
       style: 'curve',
-      labelDy: -14,
+      labelDy: -10,
+      payload: 'rewrite',
+      payloadDy: -30,
     });
     retrievalSource = 'queryExpansion';
   } else if (state.caching) {
@@ -313,7 +316,9 @@ function composeGraph(state: StrategyState) {
       tone: 'hybrid',
       label: 'dense',
       style: 'curve',
-      labelDy: -16,
+      labelDy: -12,
+      payload: 'doc',
+      payloadDy: -36,
     });
     edges.push({
       id: 'entry-to-bm25',
@@ -323,6 +328,8 @@ function composeGraph(state: StrategyState) {
       label: 'keyword',
       style: 'curve',
       labelDy: 18,
+      payload: 'doc',
+      payloadDy: 40,
     });
 
     if (state.rrf) {
@@ -333,7 +340,11 @@ function composeGraph(state: StrategyState) {
         tone: 'rrf',
         label: 'ranked list',
         style: 'elbow',
+        fromSide: 'right',
+        toSide: 'left',
         labelDy: -12,
+        payload: 'doc',
+        payloadDy: -34,
       });
       edges.push({
         id: 'bm25-to-ranker',
@@ -342,7 +353,11 @@ function composeGraph(state: StrategyState) {
         tone: 'rrf',
         label: 'ranked list',
         style: 'elbow',
+        fromSide: 'right',
+        toSide: 'left',
         labelDy: 12,
+        payload: 'doc',
+        payloadDy: 34,
       });
       edges.push({
         id: 'ranker-to-llm',
@@ -350,36 +365,39 @@ function composeGraph(state: StrategyState) {
         to: 'llm',
         tone: 'rrf',
         label: 'fused context',
-        style: 'curve',
-        labelDy: -16,
+        style: 'elbow',
+        fromSide: 'right',
+        toSide: 'left',
+        labelDy: -14,
+        payload: 'doc',
+        payloadDy: -36,
       });
     } else {
       edges.push({
-        id: 'vector-to-merge',
+        id: 'vector-to-llm-hybrid',
         from: 'vector',
-        to: 'merge',
-        tone: 'hybrid',
-        style: 'curve',
-        label: 'context',
-        labelDy: -10,
-      });
-      edges.push({
-        id: 'bm25-to-merge',
-        from: 'bm25',
-        to: 'merge',
-        tone: 'hybrid',
-        style: 'curve',
-        label: 'context',
-        labelDy: 10,
-      });
-      edges.push({
-        id: 'merge-to-llm',
-        from: 'merge',
         to: 'llm',
         tone: 'hybrid',
-        style: 'curve',
-        label: 'merged context',
-        labelDy: -14,
+        style: 'elbow',
+        fromSide: 'right',
+        toSide: 'left',
+        label: 'dense context',
+        labelDy: -24,
+        payload: 'doc',
+        payloadDy: -42,
+      });
+      edges.push({
+        id: 'bm25-to-llm-hybrid',
+        from: 'bm25',
+        to: 'llm',
+        tone: 'hybrid',
+        style: 'elbow',
+        fromSide: 'right',
+        toSide: 'left',
+        label: 'keyword context',
+        labelDy: 22,
+        payload: 'doc',
+        payloadDy: 44,
       });
     }
   } else {
@@ -391,6 +409,8 @@ function composeGraph(state: StrategyState) {
       label: 'vector search',
       style: 'curve',
       labelDy: -12,
+      payload: 'doc',
+      payloadDy: -36,
     });
     edges.push({
       id: 'vector-to-llm',
@@ -398,8 +418,12 @@ function composeGraph(state: StrategyState) {
       to: 'llm',
       tone: 'base',
       label: 'retrieved chunks',
-      style: 'curve',
+      style: 'elbow',
+      fromSide: 'right',
+      toSide: 'left',
       labelDy: -12,
+      payload: 'doc',
+      payloadDy: -36,
     });
   }
 
@@ -409,7 +433,9 @@ function composeGraph(state: StrategyState) {
     to: 'output',
     tone: 'base',
     label: 'answer',
-    style: 'curve',
+    style: 'elbow',
+    fromSide: 'right',
+    toSide: 'left',
     labelDy: -10,
   });
 
@@ -426,6 +452,9 @@ function composeGraph(state: StrategyState) {
       toSide: 'top',
       labelDx: 24,
       labelDy: 8,
+      payload: 'doc',
+      payloadDx: 34,
+      payloadDy: 34,
     });
   }
 
@@ -439,6 +468,9 @@ function composeGraph(state: StrategyState) {
       label: edge.label,
       labelX: pathData.labelX + (edge.labelDx ?? 0),
       labelY: pathData.labelY + (edge.labelDy ?? 0),
+      payload: edge.payload,
+      payloadX: pathData.labelX + (edge.payloadDx ?? edge.labelDx ?? 0),
+      payloadY: pathData.labelY + (edge.payloadDy ?? edge.labelDy ?? 0),
     };
   });
 
@@ -460,22 +492,42 @@ function StrategyToggle({
   disabled?: boolean;
   onCheckedChange: (next: boolean) => void;
 }) {
+  const toggle = () => {
+    if (!disabled) onCheckedChange(!checked);
+  };
+
   return (
     <div
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      onClick={toggle}
+      onKeyDown={(event) => {
+        if (disabled) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onCheckedChange(!checked);
+        }
+      }}
       className={cn(
-        'rounded-lg border bg-card/60 px-4 py-3 transition-all',
-        checked ? 'border-primary/60 ring-1 ring-primary/30' : 'border-border',
+        'strategy-pill arch-v2-toggle rounded-md border px-4 py-3 transition-all',
+        checked ? 'arch-v2-toggle-active border-primary/50' : 'border-gray-700',
         disabled ? 'opacity-55' : ''
       )}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
-          <Label htmlFor={id} className="cursor-pointer text-sm font-semibold">
+          <Label htmlFor={id} className="cursor-pointer text-sm font-semibold text-white">
             {label}
           </Label>
-          <p className="text-xs text-muted-foreground">{description}</p>
+          <p className="text-xs text-gray-400">{description}</p>
         </div>
-        <Switch id={id} checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
+        <Switch
+          id={id}
+          checked={checked}
+          disabled={disabled}
+          onCheckedChange={onCheckedChange}
+          onClick={(event) => event.stopPropagation()}
+        />
       </div>
     </div>
   );
@@ -483,7 +535,7 @@ function StrategyToggle({
 
 function sectionStyle(visible: boolean) {
   return cn(
-    'absolute rounded-3xl border transition-all duration-300',
+    'arch-v2-region absolute rounded-[30px] border transition-all duration-300',
     visible ? 'opacity-100 scale-100' : 'pointer-events-none opacity-0 scale-[0.985]'
   );
 }
@@ -498,13 +550,13 @@ function PipelineNode({
   const Icon = node.icon;
 
   const toneClass: Record<NodeTone, string> = {
-    base: 'border-zinc-400/60 bg-white/80 text-zinc-800',
-    hybrid: 'border-amber-400/60 bg-amber-100/70 text-amber-900',
-    rrf: 'border-yellow-500/60 bg-yellow-100/70 text-yellow-900',
-    cache: 'border-sky-400/60 bg-sky-100/75 text-sky-900',
-    query: 'border-orange-400/60 bg-orange-100/75 text-orange-900',
-    llm: 'border-cyan-400/70 bg-cyan-100/80 text-cyan-900',
-    output: 'border-zinc-400/60 bg-white/85 text-zinc-800',
+    base: 'arch-v2-node-base',
+    hybrid: 'arch-v2-node-hybrid',
+    rrf: 'arch-v2-node-rrf',
+    cache: 'arch-v2-node-cache',
+    query: 'arch-v2-node-query',
+    llm: 'arch-v2-node-llm',
+    output: 'arch-v2-node-output',
   };
 
   return (
@@ -520,18 +572,31 @@ function PipelineNode({
         height: toPct(node.h, CANVAS.height),
       }}
     >
+      {node.id === 'output' ? (
+        <div
+          className={cn(
+            'arch-v2-node landing-card-hover flex h-full w-full flex-col items-center justify-center rounded-2xl border p-2 text-center shadow-[0_12px_28px_rgba(0,0,0,0.22)]',
+            toneClass[node.tone]
+          )}
+        >
+          <Icon className="h-4 w-4" />
+          <p className="mt-1 text-[12px] font-bold uppercase tracking-[0.08em]">{node.title}</p>
+          <p className="arch-v2-node-subtitle mt-1 text-[11px] font-semibold leading-tight">{node.subtitle}</p>
+        </div>
+      ) : (
       <div
         className={cn(
-          'flex h-full w-full flex-col items-start justify-between rounded-2xl border p-3 shadow-[0_8px_28px_rgba(0,0,0,0.08)] backdrop-blur-[2px]',
+          'arch-v2-node landing-card-hover flex h-full w-full flex-col items-start justify-between rounded-2xl border p-3 shadow-[0_12px_28px_rgba(0,0,0,0.22)]',
           toneClass[node.tone]
         )}
       >
-        <div className="inline-flex items-center gap-2 rounded-md border border-black/10 bg-white/60 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em]">
+        <div className="arch-v2-node-chip inline-flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.08em]">
           <Icon className="h-3.5 w-3.5" />
           <span>{node.title}</span>
         </div>
-        <p className="text-[11px] font-medium opacity-85">{node.subtitle}</p>
+        <p className="arch-v2-node-subtitle text-[12px] font-semibold">{node.subtitle}</p>
       </div>
+      )}
     </div>
   );
 }
@@ -561,18 +626,43 @@ export function ArchitectureV2Scene() {
     }));
   };
 
+  const stateTitle = useMemo(() => {
+    const active: string[] = [];
+    if (state.queryExpansion) active.push('Query Expansion');
+    if (state.hybrid) active.push('Hybrid Search');
+    if (state.rrf) active.push('Reciprocal Rank Fusion');
+    if (state.caching) active.push('Cache');
+    if (active.length === 0) return 'Baseline RAG';
+    return active.join(' + ');
+  }, [state]);
+
+  const payloadIcon: Record<EdgePayload, React.ComponentType<{ className?: string }>> = {
+    doc: FileText,
+    rewrite: PenLine,
+    cache: Database,
+  };
+
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#ffffff_0%,#f9f8f4_100%)] text-foreground">
-      <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-4 py-8 md:px-8 md:py-10">
-        <section className="rounded-2xl border border-border bg-card/70 p-6 shadow-sm">
+    <div className="arch-v2-page min-h-screen text-foreground">
+      <main className="mx-auto flex w-full max-w-[1760px] flex-col gap-6 px-4 py-8 md:px-8 md:py-10">
+        <section className="arch-v2-panel rounded-md border p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
           <div className="flex flex-col gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-4xl">
+            <h1 className="text-2xl font-bold tracking-tight text-white md:text-4xl">
               Architecture v2
             </h1>
-            <p className="max-w-4xl text-sm text-muted-foreground md:text-base">
+            <p className="max-w-4xl text-sm text-gray-400 md:text-base">
               Baseline starts with all toggles off. Each strategy adds only its own section to the
               same architecture so combinations stay consistent.
             </p>
+          </div>
+
+          <div className="mt-4 flex items-center gap-2 text-xs">
+            <span className="rounded-sm border border-primary/35 bg-primary/15 px-2 py-1 font-semibold uppercase tracking-[0.08em] text-primary">
+              Current State
+            </span>
+            <span className="arch-v2-state-title rounded-sm border border-gray-700/80 px-2 py-1 font-semibold uppercase tracking-[0.08em] text-gray-200">
+              {stateTitle}
+            </span>
           </div>
 
           <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -593,7 +683,7 @@ export function ArchitectureV2Scene() {
             />
             <StrategyToggle
               id="cache-toggle"
-              label="Keyword Caching"
+              label="Cache"
               description="Cache lookup before retrieval and write-back after generation."
               checked={state.caching}
               onCheckedChange={(next) => setState((prev) => ({ ...prev, caching: next }))}
@@ -608,55 +698,48 @@ export function ArchitectureV2Scene() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-border bg-card/70 p-3 shadow-sm md:p-5">
-          <div className="relative mx-auto aspect-[1520/860] w-full max-w-[1520px] overflow-hidden rounded-xl border border-border bg-[radial-gradient(circle_at_top_right,rgba(255,208,97,0.10),transparent_52%),radial-gradient(circle_at_bottom_left,rgba(47,135,183,0.10),transparent_50%),#fff]">
+        <section className="arch-v2-panel rounded-md border p-3 md:p-5">
+          <div className="mx-auto flex h-[clamp(360px,66vh,860px)] w-full max-w-[1720px] items-center justify-center">
+            <div className="arch-v2-board relative aspect-[1720/900] h-full w-auto max-w-full overflow-hidden rounded-md border border-gray-700">
+              <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
             <div
-              className={sectionStyle(true)}
+              className={cn(sectionStyle(true), 'arch-v2-region-retrieval')}
               style={{
-                left: toPct(60, CANVAS.width),
-                top: toPct(200, CANVAS.height),
-                width: toPct(930, CANVAS.width),
-                height: toPct(420, CANVAS.height),
-                background:
-                  'repeating-linear-gradient(45deg, rgba(225, 128, 145, 0.10) 0px, rgba(225, 128, 145, 0.10) 2px, transparent 2px, transparent 16px), repeating-linear-gradient(-45deg, rgba(225, 128, 145, 0.10) 0px, rgba(225, 128, 145, 0.10) 2px, transparent 2px, transparent 16px)',
-                borderColor: 'rgba(225, 128, 145, 0.5)',
+                left: toPct(50, CANVAS.width),
+                top: toPct(220, CANVAS.height),
+                width: toPct(1080, CANVAS.width),
+                height: toPct(500, CANVAS.height),
               }}
             >
-              <div className="absolute left-4 top-3 rounded-md border border-black/10 bg-white/75 px-2 py-1 text-[11px] font-semibold tracking-wide text-zinc-700">
+              <div className="arch-v2-region-label absolute left-4 top-3 rounded-md border px-2 py-1 text-[11px] font-semibold tracking-wide">
                 Retrieval
               </div>
             </div>
 
             <div
-              className={sectionStyle(state.rrf)}
+              className={cn(sectionStyle(state.rrf), 'arch-v2-region-ranking')}
               style={{
-                left: toPct(960, CANVAS.width),
-                top: toPct(240, CANVAS.height),
-                width: toPct(250, CANVAS.width),
-                height: toPct(320, CANVAS.height),
-                background:
-                  'repeating-linear-gradient(45deg, rgba(224, 163, 33, 0.11) 0px, rgba(224, 163, 33, 0.11) 2px, transparent 2px, transparent 16px), repeating-linear-gradient(-45deg, rgba(224, 163, 33, 0.11) 0px, rgba(224, 163, 33, 0.11) 2px, transparent 2px, transparent 16px)',
-                borderColor: 'rgba(224, 163, 33, 0.55)',
+                left: toPct(1110, CANVAS.width),
+                top: toPct(260, CANVAS.height),
+                width: toPct(290, CANVAS.width),
+                height: toPct(340, CANVAS.height),
               }}
             >
-              <div className="absolute left-4 top-3 rounded-md border border-black/10 bg-white/75 px-2 py-1 text-[11px] font-semibold tracking-wide text-zinc-700">
+              <div className="arch-v2-region-label absolute left-4 top-3 rounded-md border px-2 py-1 text-[11px] font-semibold tracking-wide">
                 Ranking
               </div>
             </div>
 
             <div
-              className={sectionStyle(true)}
+              className={cn(sectionStyle(true), 'arch-v2-region-generation')}
               style={{
-                left: toPct(1180, CANVAS.width),
-                top: toPct(240, CANVAS.height),
-                width: toPct(280, CANVAS.width),
-                height: toPct(370, CANVAS.height),
-                background:
-                  'repeating-linear-gradient(45deg, rgba(47, 135, 183, 0.10) 0px, rgba(47, 135, 183, 0.10) 2px, transparent 2px, transparent 16px), repeating-linear-gradient(-45deg, rgba(47, 135, 183, 0.10) 0px, rgba(47, 135, 183, 0.10) 2px, transparent 2px, transparent 16px)',
-                borderColor: 'rgba(47, 135, 183, 0.5)',
+                left: toPct(1390, CANVAS.width),
+                top: toPct(260, CANVAS.height),
+                width: toPct(260, CANVAS.width),
+                height: toPct(430, CANVAS.height),
               }}
             >
-              <div className="absolute left-4 top-3 rounded-md border border-black/10 bg-white/75 px-2 py-1 text-[11px] font-semibold tracking-wide text-zinc-700">
+              <div className="arch-v2-region-label absolute left-4 top-3 rounded-md border px-2 py-1 text-[11px] font-semibold tracking-wide">
                 Generation
               </div>
             </div>
@@ -687,10 +770,10 @@ export function ArchitectureV2Scene() {
                     d={edge.path}
                     fill="none"
                     stroke={EDGE_COLORS[edge.tone]}
-                    strokeWidth={2.35}
+                    strokeWidth={2.5}
                     strokeDasharray={edge.dashed ? '9 7' : undefined}
                     markerEnd={`url(#arrow-${edge.tone})`}
-                    className="arch-v2-edge"
+                    className={cn('arch-v2-edge', edge.dashed ? 'arch-v2-edge-dashed' : '')}
                   />
                   {edge.label ? (
                     <text
@@ -712,6 +795,24 @@ export function ArchitectureV2Scene() {
             {(Object.keys(NODES) as NodeId[]).map((nodeId) => (
               <PipelineNode key={nodeId} node={NODES[nodeId]} visible={graph.visibleNodes.has(nodeId)} />
             ))}
+
+            {graph.edges.map((edge) => {
+              if (!edge.payload) return null;
+              const Icon = payloadIcon[edge.payload];
+              return (
+                <div
+                  key={`${edge.id}-payload`}
+                  className="arch-v2-cargo absolute"
+                  style={{
+                    left: toPct(edge.payloadX, CANVAS.width),
+                    top: toPct(edge.payloadY, CANVAS.height),
+                  }}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </div>
+              );
+            })}
+            </div>
           </div>
         </section>
       </main>
