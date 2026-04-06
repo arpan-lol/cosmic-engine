@@ -34,9 +34,9 @@ export function Hero() {
             </span>
           </Link>
 
-          <Link href="#architecture" className="flex h-14 w-full items-center justify-center border border-gray-300 rounded-md text-[#1a1a1c] font-semibold text-lg hover:border-gray-400 hover:bg-gray-50 transition-colors duration-300 shadow-sm">
+          <a href="#architecture" className="flex h-14 w-full items-center justify-center border border-gray-300 rounded-md text-[#1a1a1c] font-semibold text-lg hover:border-gray-400 hover:bg-gray-50 transition-colors duration-300 shadow-sm">
             View Architecture
-          </Link>
+          </a>
         </div>
       </div>
     </section>

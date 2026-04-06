@@ -41,7 +41,7 @@ export function Architecture() {
 
   return (
     <section
-      id="architecture"
+      id="architecture-section"
       className="relative overflow-hidden border-b border-gray-200 bg-[linear-gradient(180deg,#ffffff_0%,#fbf8f0_100%)] py-24"
     >
       <div className="relative mx-auto max-w-7xl px-6">
@@ -195,7 +195,7 @@ export function Architecture() {
                 </Stage>
 
                 <Line h={40} />
-                <TerminalNode label="OUTPUT" />
+                <TerminalNode label="RESPONSE" />
               </div>
             </div>
           </div>
