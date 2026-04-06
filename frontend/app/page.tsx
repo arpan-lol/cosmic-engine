@@ -6,6 +6,7 @@ import { Strategies } from '@/components/landing/Strategies';
 import { Journey } from '@/components/landing/Journey';
 import { CTA } from '@/components/landing/CTA';
 import { Lazy } from '@/components/landing/LazySection';
+import { Footer } from '@/components/landing/Footer';
 
 export default function Home() {
   return (
@@ -19,9 +20,11 @@ export default function Home() {
         <Lazy>
           <Strategies />
         </Lazy>
-        <Lazy>
-          <Architecture />
-        </Lazy>
+        <div id="architecture" className="scroll-mt-8">
+          <Lazy>
+            <Architecture />
+          </Lazy>
+        </div>
         <Lazy>
           <Features />
         </Lazy>
@@ -33,6 +36,7 @@ export default function Home() {
         <Lazy>
           <CTA />
         </Lazy>
+        <Footer />
       </div>
     </div>
   );
