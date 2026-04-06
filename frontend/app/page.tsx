@@ -10,7 +10,7 @@ import { Footer } from '@/components/landing/Footer';
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen font-sans bg-transparent text-[#1a1a1c] selection:bg-primary selection:text-[#1a1a1c] scroll-smooth relative">
+    <div className="force-light flex flex-col min-h-screen font-sans bg-background text-foreground selection:bg-primary selection:text-[#1a1a1c] scroll-smooth relative">
       <div className="fixed inset-0 z-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
       <div className="relative z-10">
         <Hero />

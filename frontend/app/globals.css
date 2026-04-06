@@ -118,6 +118,51 @@
   --card-mint: #ffd980;
 }
 
+.force-light {
+  /* Copy of :root variables to force light mode */
+  --foreground: #1a1a1c !important;
+  --background: white !important;
+  --card: oklch(0.992 0.003 41.4) !important;
+  --card-foreground: #1a1a1c !important;
+  --popover: oklch(0.992 0.003 41.4) !important;
+  --popover-foreground: #1a1a1c !important;
+  --primary: #ffd061 !important;
+  --primary-foreground: #1a1a1c !important;
+  --secondary: oklch(0.945 0.015 57.73) !important;
+  --secondary-foreground: #1a1a1c !important;
+  --muted: oklch(0.965 0.008 41.4) !important;
+  --muted-foreground: #5a5a5c !important;
+  --accent: #ffd061 !important;
+  --accent-foreground: #1a1a1c !important;
+  --destructive: oklch(0.567 0.18 27.33) !important;
+  --destructive-foreground: #ffffff !important;
+  --border: #c8cad0 !important;
+  --input: #c8cad0 !important;
+  --ring: #ffd061 !important;
+  --sidebar: oklch(0.992 0.003 41.4) !important;
+  --sidebar-foreground: #1a1a1c !important;
+  --sidebar-primary: #ffd061 !important;
+  --sidebar-primary-foreground: #1a1a1c !important;
+  --sidebar-accent: oklch(0.925 0.012 57.73) !important;
+  --sidebar-accent-foreground: #1a1a1c !important;
+  --sidebar-border: #c8cad0 !important;
+  --sidebar-ring: #ffd061 !important;
+  --card-bg-subtle: oklch(0.975 0.008 40.02) !important;
+  --card-bg-vibrant: oklch(0.968 0.018 40.85) !important;
+  --icon-bg-warm: #ffd061 !important;
+  --icon-bg-vibrant: #ffd061 !important;
+  --button-primary-hover: #e6ba4f !important;
+  --button-secondary-hover: #e6ba4f !important;
+  --accent-rose: oklch(0.918 0.025 14.57) !important;
+  --warm-brown: #ffd061 !important;
+  --card-golden: #ffd061 !important;
+  --card-teal: #ffd061 !important;
+  --card-peach: #ffe08a !important;
+  --card-coral: #ffe5a0 !important;
+  --card-lavender: #ffea9f !important;
+  --card-mint: #ffd980 !important;
+}
+
 .dark {
   --foreground: oklch(0.98 0 0);
   

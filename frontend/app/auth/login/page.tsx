@@ -26,7 +26,7 @@ export default function LoginPage() {
         </svg>
       </div>
       <div className={styles.content}>
-        <a href="#" className="flex items-center gap-2 self-center font-medium">
+        <a href="/" className="flex items-center gap-2 self-center font-medium">
           <Image src="/logo.png" alt="Cosmic Engine" width={24} height={24} className="size-6" />
           Cosmic Engine
         </a>
