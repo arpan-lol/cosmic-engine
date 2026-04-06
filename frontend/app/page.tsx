@@ -2,7 +2,7 @@ import { Hero } from '@/components/landing/Hero';
 import { Showcase } from '@/components/landing/Showcase';
 import { Features } from '@/components/landing/Features';
 import { Architecture } from '@/components/landing/Architecture';
-import { Strategies } from '@/components/landing/Strategies';
+import { StrategiesComponent } from '@/components/landing/strategies/Strategies';
 import { Journey } from '@/components/landing/Journey';
 import { CTA } from '@/components/landing/CTA';
 import { Lazy } from '@/components/landing/LazySection';
@@ -18,7 +18,7 @@ export default function Home() {
           <Showcase />
         </Lazy>
         <Lazy>
-          <Strategies />
+          <StrategiesComponent />
         </Lazy>
         <div id="architecture" className="scroll-mt-8">
           <Lazy>

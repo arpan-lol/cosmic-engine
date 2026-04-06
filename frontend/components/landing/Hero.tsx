@@ -16,7 +16,7 @@ export function Hero() {
           The Ultimate RAG Sandbox
         </div> */}
 
-        <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight text-[#1a1a1c] leading-[1.1] flex flex-wrap justify-center items-center gap-4 md:gap-6">
+        <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight text-[#1a1a1c] leading-[1.1] flex flex-col md:flex-row flex-wrap justify-center items-center gap-4 md:gap-6">
           <Image src="/logo.png" alt="Cosmic Engine Logo" width={96} height={96} className="w-16 h-16 md:w-24 md:h-24 object-contain" />
           <span className="flex flex-col md:flex-row items-center">
             Cosmic <span className="text-[#1a1a1c] bg-primary transition-colors duration-500 inline-block px-4 py-1 rounded-md mt-2 md:mt-0 md:ml-4">Engine</span>

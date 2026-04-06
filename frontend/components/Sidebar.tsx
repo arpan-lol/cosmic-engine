@@ -280,7 +280,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <div className="px-2">
                     <SearchToggle
                       id="keyword-caching"
-                      label="Keyword caching"
+                      label="Caching"
                       helpText={HELP_TEXTS.KEYWORD_CACHING}
                       checked={options.caching}
                       onCheckedChange={toggleKeywordCaching}
