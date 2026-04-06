@@ -44,6 +44,9 @@ export const metadata: Metadata = {
     description: 'A experimentation platform for playing around with 10+ RAG retrieval, chunking, generation, and caching strategies!',
     images: ['/logo.png'],
   },
+  alternates: {
+    canonical: '/',
+  },
 }
 
 export default function RootLayout({
