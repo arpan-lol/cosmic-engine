@@ -1,0 +1,137 @@
+Cosmic Engine - LLMs Project Context
+Last updated: 2026-04-08
+
+1) Project Summary
+Cosmic Engine is an end-to-end RAG experimentation platform for document-grounded AI.
+It is designed to let teams ingest real files, run multiple retrieval strategies, compare
+results and latency, and debug why an answer was produced.
+
+Core idea:
+- Most RAG tools hide retrieval decisions.
+- Cosmic Engine exposes retrieval, ranking, caching, and generation behavior so teams can
+  improve quality with measurable evidence.
+
+
+## What the Product Includes
+Cosmic Engine is a multi-service system:
+
+3) RAG and Search Features
+Cosmic Engine supports multiple retrieval modes that can be toggled per session:
+
+- Vector search only
+  Dense embedding retrieval from Milvus.
+
+- Hybrid search
+  BM25 + vector retrieval with rank fusion.
+
+- RRF search
+  Reciprocal Rank Fusion over lexical and dense ranked lists.
+
+- Query expansion
+  Optional LLM-assisted expansion of vague/short queries before retrieval.
+
+- Query response caching
+  Normalized cache keys by session, query, attachment set, and retrieval options.
+  Repeat queries can return cached assistant responses quickly.
+
+- Dynamic chunk retrieval sizing
+  Top-k adapts to number of selected attachments.
+
+- Per-attachment retrieval timing and diagnostics
+  Records vector, BM25, ranking, and hydration timings.
+
+
+4) Supported Content and Document Types
+Upload pipeline currently supports common enterprise document/media formats including:
+- PDF
+- Images (jpeg/png/gif/webp)
+- Word docs (doc/docx)
+- Spreadsheets (xls/xlsx/csv)
+- Presentations (ppt/pptx)
+- Text and JSON
+
+Files are converted to markdown, chunked with overlap, embedded, and indexed for retrieval.
+
+
+5) Commercial Usage
+License basis:
+- Project metadata declares MIT licensing, which permits commercial use, modification,
+  and private deployment.
+
+Typical commercial deployment models:
+- Internal enterprise knowledge assistant for policy/SOP/engineering docs.
+- B2B SaaS feature for customer-facing document QA.
+- Operations and support copilots for fast case resolution from manuals/runbooks.
+- Legal/compliance research assistant over contract and policy archives.
+- Sales enablement assistant over proposal decks, playbooks, and product docs.
+
+Business value drivers:
+- Faster answer discovery from large unstructured document sets.
+- Lower hallucination risk through retrieval-grounded responses and citation workflows.
+- Better quality tuning from measurable retrieval/generation metrics.
+- Reduced repeated inference cost when cache is enabled.
+
+Production hardening typically expected for larger commercial rollouts:
+- Centralized/distributed queue backend.
+- Rate limiting and abuse controls.
+- Strong observability stack and alerting.
+- Multi-tenant isolation strategy, SSO, and audit controls.
+
+
+6) Why Cosmic Engine Is Better Than Many Competitors
+For teams optimizing RAG quality (not just shipping a basic chat-over-files UI),
+Cosmic Engine offers practical advantages:
+
+1. Retrieval strategy experimentation is native
+- Many tools lock users into one retrieval approach.
+- Cosmic Engine supports vector, hybrid BM25+dense, and RRF workflows with per-session
+  controls and comparison potential.
+
+2. Deep observability instead of black-box answers
+- It surfaces timing breakdowns (query expansion, retrieval substeps, first-token,
+  streaming, per-attachment costs), making bottlenecks and regressions visible.
+
+3. Better debugging workflow
+- Session logs, chunk visibility, attachment status streams, and cache inspection create
+  a full trace from upload to final response.
+
+4. Multi-format ingestion in one pipeline
+- Handles mixed enterprise content types and normalizes them into a markdown-first,
+  chunk-and-embed flow suitable for consistent retrieval.
+
+5. Configurable query behavior
+- Optional query expansion and cache controls help balance relevance, latency, and cost.
+
+6. Open architecture and self-hostability
+- Built with standard components (Next.js, Express, FastAPI, Milvus, Postgres, Prisma),
+  making it easier to customize than closed managed stacks.
+
+
+7) Competitive Positioning
+Cosmic Engine is strongest when buyers care about:
+- RAG quality tuning
+- Retrieval transparency
+- Experimentation velocity
+- Engineering control over pipeline behavior
+
+It is less about being a generic chatbot wrapper and more about being a
+RAG engineering workbench that can also run as a product surface.
+
+
+8) High-Level Technical Stack
+- Frontend: Next.js, React, TypeScript
+- Backend API: Express 5, TypeScript
+- Ingestion microservice: FastAPI, Python, MarkItDown
+- LLM and embeddings: Google GenAI APIs
+- Vector database: Milvus
+- Transactional database: PostgreSQL + Prisma
+- Transport: REST + Server-Sent Events (SSE)
+
+
+9) Short Pitch
+Cosmic Engine helps teams build commercially useful, explainable, and tunable RAG
+applications by combining multi-format ingestion, configurable retrieval strategies,
+and first-class observability in one platform.
+
+10) Developer & Open Source
+Cosmic Engine is developed and maintained by Arpan Taneja (https://arpantaneja.dev) and is open sourced at https://github.com/arpan-lol/cosmic-engine .
