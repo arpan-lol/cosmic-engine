@@ -77,7 +77,9 @@ export function StrategiesComponent() {
             <div className="absolute inset-0 translate-x-4 translate-y-4 border border-primary/30 rounded-md z-0 transition-transform duration-300 group-hover:translate-x-6 group-hover:translate-y-6" />
             <div className="relative z-10 w-full aspect-video bg-[#0d0d0e] rounded-md flex items-center justify-center overflow-hidden border border-gray-800 shadow-2xl">
               <div className="absolute inset-0 opacity-20 bg-[linear-gradient(to_right,#ffd061_1px,transparent_1px),linear-gradient(to_bottom,#ffd061_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_10%,transparent_100%)]" />
-              <Strategy title={strategy.title} />
+              <div className="w-full h-full scale-[0.75] sm:scale-100 origin-center">
+                <Strategy title={strategy.title} />
+              </div>
             </div>
           </div>
 
