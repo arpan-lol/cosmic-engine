@@ -9,12 +9,116 @@ export interface Chunk {
   metadata?: Record<string, any>;
 }
 
+export interface TextSegment {
+  content: string;
+  pageNumber?: number;
+  metadata?: Record<string, any>;
+  strategy?: string;
+  unitType?: string;
+  unitIndex?: number;
+}
+
 interface PagePosition {
   position: number;
   pageNumber: number;
 }
 
 export class ChunkingService {
+  static async *chunkSegmentStream(
+    segmentStream: AsyncGenerator<TextSegment>,
+    options: ChunkOptions = {}
+  ): AsyncGenerator<Chunk> {
+    const { chunkSize = 1000, overlap = 200 } = options;
+
+    if (chunkSize <= overlap) {
+      throw new Error('chunkSize must be greater than chunkOverlap');
+    }
+
+    const separators = ['\n\n', '\n', '. ', ' '];
+    const pagePositions: PagePosition[] = [];
+    let buffer = '';
+    let chunkIndex = 0;
+    let globalWritePosition = 0;
+    let chunkStartPosition = 0;
+    let lastPageNumber: number | null = null;
+
+    const flushChunks = async function* (force: boolean): AsyncGenerator<Chunk> {
+      while (buffer.length >= chunkSize || (force && buffer.trim().length > 0)) {
+        const endIndex = Math.min(chunkSize, buffer.length);
+        let chunkText = buffer.slice(0, endIndex);
+
+        if (endIndex === chunkSize && buffer.length > chunkSize) {
+          let bestSplit = chunkText.length;
+          for (const sep of separators) {
+            const lastIndex = chunkText.lastIndexOf(sep);
+            if (lastIndex > chunkSize * 0.5) {
+              bestSplit = lastIndex + sep.length;
+              break;
+            }
+          }
+          chunkText = chunkText.slice(0, bestSplit);
+        }
+
+        const trimmedChunk = chunkText.trim();
+        if (trimmedChunk.length > 0) {
+          const pageNumber = ChunkingService.determineChunkPageNumber(chunkStartPosition, pagePositions);
+          yield {
+            content: trimmedChunk,
+            index: chunkIndex++,
+            metadata: {
+              startChar: chunkStartPosition,
+              endChar: chunkStartPosition + trimmedChunk.length,
+              length: trimmedChunk.length,
+              pageNumber,
+            },
+          };
+        }
+
+        const actualLength = chunkText.length;
+        const slideAmount = Math.max(actualLength - overlap, 0);
+        if (slideAmount === 0 || (force && actualLength >= buffer.length)) {
+          buffer = force ? '' : buffer;
+          break;
+        }
+
+        buffer = buffer.slice(slideAmount);
+        chunkStartPosition += slideAmount;
+
+        if (!force && buffer.length < chunkSize) {
+          break;
+        }
+      }
+    };
+
+    for await (const segment of segmentStream) {
+      if (!segment.content || segment.content.trim().length === 0) {
+        continue;
+      }
+
+      if (segment.pageNumber != null && segment.pageNumber !== lastPageNumber) {
+        pagePositions.push({
+          position: globalWritePosition,
+          pageNumber: segment.pageNumber,
+        });
+        lastPageNumber = segment.pageNumber;
+      }
+
+      const content = `${segment.content.trim()}\n\n`;
+      buffer += content;
+      globalWritePosition += content.length;
+
+      for await (const chunk of flushChunks(false)) {
+        yield chunk;
+      }
+    }
+
+    for await (const chunk of flushChunks(true)) {
+      yield chunk;
+    }
+
+    console.log(`[Chunking] Segment stream complete: Generated ${chunkIndex} chunks total`);
+  }
+
   static async *chunkContentStream(
     markdown: string,
     options: ChunkOptions = {}

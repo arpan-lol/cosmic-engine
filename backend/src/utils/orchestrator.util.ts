@@ -82,7 +82,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     const collectionName = CollectionService.generateCName(sessionId);
     await CollectionService.initializeCollection(collectionName);
 
-    logger.info('Orchestrator', 'Step 1: Converting to markdown', { attachmentId, sessionId });
+    logger.info('Orchestrator', 'Step 1: Streaming document extraction', { attachmentId, sessionId });
     sseService.sendProgress(attachmentId, {
       status: 'processing',
       step: 'ingestion',
@@ -91,14 +91,22 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       phase: 'file-processing'
     });
 
-    const markdown = await IngestionService.convertToMarkdown(attachment.url);
+    let extractedLength = 0;
+    let segmentCount = 0;
+    const segmentStream = (async function* () {
+      for await (const segment of IngestionService.streamMarkdown(attachment.url)) {
+        extractedLength += segment.content.length;
+        segmentCount++;
+        yield segment;
+      }
+    })();
 
-    logger.info('Orchestrator', 'Steps 2-4: Stream processing chunks', { attachmentId, sessionId, markdownLength: markdown.length });
+    logger.info('Orchestrator', 'Steps 2-4: Stream processing extraction, chunks and vectors', { attachmentId, sessionId });
 
     sseService.sendProgress(attachmentId, {
       status: 'processing',
       step: 'chunking',
-      message: `Chunking ${markdown.length} characters`,
+      message: 'Chunking extracted text',
       progress: 40,
       phase: 'file-processing'
     });
@@ -106,12 +114,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     const chunkSize = 1000;
     const overlap = 200;
 
-    const estimatedTotalChunks = Math.max(
-      1,
-      Math.ceil((markdown.length - overlap) / (chunkSize - overlap))
-    );
-
-    const chunkStream = ChunkingService.chunkContentStream(markdown, {
+    const chunkStream = ChunkingService.chunkSegmentStream(segmentStream, {
       chunkSize,
       overlap
     });
@@ -122,15 +125,14 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
     let totalChunks = 0;
     let lastProgress = 40;
     let lastReportedCount = 0;
+    let lastMilestone = 0;
 
     for await (const storedCount of storageStream) {
       totalChunks = storedCount;
 
-      const embeddingProgress = storedCount / estimatedTotalChunks;
-
       const newProgress = Math.min(
         80,
-        40 + Math.floor(embeddingProgress * 40)
+        40 + Math.floor(storedCount / 25)
       );
 
       if (newProgress > lastProgress || storedCount - lastReportedCount >= 50) {
@@ -146,13 +148,12 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
         });
       }
 
-      let lastMilestone = 0;
       const milestone = Math.floor(storedCount / 100);
 
       if (milestone > lastMilestone) {
         lastMilestone = milestone;
 
-        let estimatedPercent = Math.round(embeddingProgress * 100);
+        let estimatedPercent = Math.min(99, Math.floor(40 + storedCount / 25));
         if (estimatedPercent >= 100) estimatedPercent = 99;
 
         await sseService.publishToSession(sessionId, {
@@ -171,7 +172,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
       }
     }
 
-    logger.info('Orchestrator', `Stream processing completed: ${totalChunks} chunks`, { attachmentId, sessionId, totalChunks });
+    logger.info('Orchestrator', `Stream processing completed: ${totalChunks} chunks`, { attachmentId, sessionId, totalChunks, extractedLength, segmentCount });
 
     logger.info('Orchestrator', 'Step 5: Building index and loading collection', { attachmentId, sessionId });
 
@@ -194,7 +195,8 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
           processedAt: new Date().toISOString(),
           chunkCount: totalChunks,
           embeddingCount: totalChunks,
-          markdownLength: markdown.length,
+          markdownLength: extractedLength,
+          segmentCount,
           sessionId
         }
       }

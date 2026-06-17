@@ -3,6 +3,8 @@ import { DataType } from '@zilliz/milvus2-sdk-node';
 import { EMBEDDING_DIMENSION } from '../embedding.service';
 
 export class CollectionService {
+  private static indexLocks: Map<string, Promise<void>> = new Map();
+
   static generateCName(sessionId: string): string {
     return `session_${sessionId.replace(/-/g, '_')}`;
   }
@@ -111,6 +113,21 @@ export class CollectionService {
   }
 
   static async buildIndexAndLoad(collectionName: string): Promise<void> {
+    const activeLock = this.indexLocks.get(collectionName);
+    if (activeLock) {
+      await activeLock;
+      return;
+    }
+
+    const lock = this.buildIndexAndLoadInternal(collectionName).finally(() => {
+      this.indexLocks.delete(collectionName);
+    });
+
+    this.indexLocks.set(collectionName, lock);
+    await lock;
+  }
+
+  private static async buildIndexAndLoadInternal(collectionName: string): Promise<void> {
     const client = getMilvusClient();
 
     console.log(`[Milvus] Building index for ${collectionName}...`);
@@ -146,5 +163,4 @@ export class CollectionService {
       }
     }
   }
-
 }

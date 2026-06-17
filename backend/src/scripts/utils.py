@@ -10,6 +10,9 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 import PyPDF2
 import re
+import csv
+import zipfile
+import xml.etree.ElementTree as ET
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import google.generativeai as genai
 
@@ -84,6 +87,8 @@ else:
 # Cache directory
 CACHE_DIR = Path("url_cache")
 CACHE_DIR.mkdir(exist_ok=True)
+EXTRACTION_CACHE_DIR = Path("extraction_cache")
+EXTRACTION_CACHE_DIR.mkdir(exist_ok=True)
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB in bytes
 
 
@@ -145,6 +150,265 @@ def get_pdf_page_count(file_path: str) -> Optional[int]:
     except Exception as e:
         print(f"Could not determine PDF page count: {e}")
         return None
+
+
+def get_file_cache_key(file_path: str) -> str:
+    stat = os.stat(file_path)
+    digest = hashlib.sha256()
+    digest.update(str(stat.st_size).encode())
+    with open(file_path, "rb") as file:
+        for block in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def normalize_segment_text(text: Optional[str]) -> str:
+    if not text:
+        return ""
+    return text.replace("\x00", "").strip()
+
+
+def make_text_segment(content: str, strategy: str, unit_type: str, unit_index: int, page_number: Optional[int] = None, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    segment = {
+        "type": "text",
+        "content": content,
+        "strategy": strategy,
+        "unitType": unit_type,
+        "unitIndex": unit_index,
+    }
+    if page_number is not None:
+        segment["pageNumber"] = page_number
+    if metadata:
+        segment["metadata"] = metadata
+    return segment
+
+
+def extract_pdf_segments(file_path: str):
+    try:
+        import fitz
+
+        doc = fitz.open(file_path)
+        try:
+            for page_index, page in enumerate(doc):
+                text = normalize_segment_text(page.get_text("text"))
+                if text:
+                    yield make_text_segment(text, "pymupdf_pdf", "page", page_index, page_index + 1)
+        finally:
+            doc.close()
+        return
+    except Exception as e:
+        print(f"PyMuPDF extraction unavailable, falling back to PyPDF2: {e}")
+
+    with open(file_path, "rb") as file:
+        reader = PyPDF2.PdfReader(file)
+        for page_index, page in enumerate(reader.pages):
+            text = normalize_segment_text(page.extract_text())
+            if text:
+                yield make_text_segment(text, "pypdf2_pdf", "page", page_index, page_index + 1)
+
+
+def extract_docx_segments(file_path: str):
+    namespaces = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+    with zipfile.ZipFile(file_path) as archive:
+        xml_bytes = archive.read("word/document.xml")
+    root = ET.fromstring(xml_bytes)
+    unit_index = 0
+    for paragraph in root.findall(".//w:p", namespaces):
+        parts = []
+        for node in paragraph.iter():
+            if node.tag == f"{{{namespaces['w']}}}t" and node.text:
+                parts.append(node.text)
+            elif node.tag == f"{{{namespaces['w']}}}tab":
+                parts.append("\t")
+            elif node.tag == f"{{{namespaces['w']}}}br":
+                parts.append("\n")
+        text = normalize_segment_text("".join(parts))
+        if text:
+            yield make_text_segment(text, "docx_xml", "paragraph", unit_index)
+            unit_index += 1
+
+
+def extract_pptx_segments(file_path: str):
+    from pptx import Presentation
+
+    presentation = Presentation(file_path)
+    for slide_index, slide in enumerate(presentation.slides):
+        parts = []
+        for shape in slide.shapes:
+            if hasattr(shape, "text"):
+                text = normalize_segment_text(shape.text)
+                if text:
+                    parts.append(text)
+        content = normalize_segment_text("\n\n".join(parts))
+        if content:
+            yield make_text_segment(content, "python_pptx", "slide", slide_index, slide_index + 1)
+
+
+def extract_xlsx_segments(file_path: str):
+    from openpyxl import load_workbook
+
+    workbook = load_workbook(file_path, read_only=True, data_only=True)
+    try:
+        unit_index = 0
+        for sheet_index, sheet in enumerate(workbook.worksheets):
+            batch = [f"# Sheet {sheet_index + 1}: {sheet.title}"]
+            batch_size = 0
+            for row in sheet.iter_rows(values_only=True):
+                values = ["" if value is None else str(value) for value in row]
+                if any(value.strip() for value in values):
+                    batch.append("\t".join(values).rstrip())
+                    batch_size += 1
+                if batch_size >= 200:
+                    content = normalize_segment_text("\n".join(batch))
+                    if content:
+                        yield make_text_segment(content, "openpyxl_xlsx", "sheet_rows", unit_index, sheet_index + 1, {"sheet": sheet.title})
+                        unit_index += 1
+                    batch = []
+                    batch_size = 0
+            content = normalize_segment_text("\n".join(batch))
+            if content:
+                yield make_text_segment(content, "openpyxl_xlsx", "sheet_rows", unit_index, sheet_index + 1, {"sheet": sheet.title})
+                unit_index += 1
+    finally:
+        workbook.close()
+
+
+def extract_text_segments(file_path: str, strategy: str):
+    unit_index = 0
+    with open(file_path, "r", encoding="utf-8", errors="replace", newline="") as file:
+        while True:
+            content = file.read(64 * 1024)
+            if not content:
+                break
+            text = normalize_segment_text(content)
+            if text:
+                yield make_text_segment(text, strategy, "text_block", unit_index)
+                unit_index += 1
+
+
+def extract_csv_segments(file_path: str):
+    unit_index = 0
+    with open(file_path, "r", encoding="utf-8", errors="replace", newline="") as file:
+        reader = csv.reader(file)
+        batch = []
+        for row in reader:
+            batch.append("\t".join(row))
+            if len(batch) >= 500:
+                content = normalize_segment_text("\n".join(batch))
+                if content:
+                    yield make_text_segment(content, "csv_reader", "rows", unit_index)
+                    unit_index += 1
+                batch = []
+        content = normalize_segment_text("\n".join(batch))
+        if content:
+            yield make_text_segment(content, "csv_reader", "rows", unit_index)
+
+
+def extract_with_markitdown_segment(file_path: str):
+    result = md.convert(file_path)
+    markdown_content = result.text_content
+    if file_path.lower().endswith(".pdf"):
+        page_count = get_pdf_page_count(file_path)
+        if page_count and page_count > 0:
+            markdown_content = inject_page_markers_into_markdown(markdown_content, file_path, page_count)
+    text = normalize_segment_text(markdown_content)
+    if text:
+        yield make_text_segment(text, "markitdown_fallback", "document", 0)
+
+
+def extract_file_segments(file_path: str):
+    extension = Path(file_path).suffix.lower()
+    try:
+        if extension == ".pdf":
+            yield from extract_pdf_segments(file_path)
+        elif extension == ".docx":
+            yield from extract_docx_segments(file_path)
+        elif extension == ".pptx":
+            yield from extract_pptx_segments(file_path)
+        elif extension in [".xlsx", ".xlsm"]:
+            yield from extract_xlsx_segments(file_path)
+        elif extension == ".csv":
+            yield from extract_csv_segments(file_path)
+        elif extension in [".txt", ".json", ".md"]:
+            yield from extract_text_segments(file_path, f"{extension[1:]}_stream")
+        else:
+            yield from extract_with_markitdown_segment(file_path)
+    except Exception as e:
+        print(f"Fast extraction failed, falling back to MarkItDown: {e}")
+        yield from extract_with_markitdown_segment(file_path)
+
+
+def stream_cached_or_extract_segments(file_path: str):
+    cache_key = get_file_cache_key(file_path)
+    cache_file = EXTRACTION_CACHE_DIR / f"{cache_key}.jsonl"
+
+    if cache_file.exists():
+        with open(cache_file, "r", encoding="utf-8") as file:
+            for line in file:
+                line = line.strip()
+                if line:
+                    event = json.loads(line)
+                    if event.get("type") == "meta":
+                        event["cached"] = True
+                    yield event
+        return
+
+    temp_cache_file = cache_file.with_suffix(".jsonl.tmp")
+    total_length = 0
+    segment_count = 0
+    strategy = None
+
+    try:
+        with open(temp_cache_file, "w", encoding="utf-8") as cache:
+            meta = {
+                "type": "meta",
+                "cached": False,
+                "fileSize": os.path.getsize(file_path),
+            }
+            cache.write(json.dumps(meta, ensure_ascii=False) + "\n")
+            yield meta
+
+            for event in extract_file_segments(file_path):
+                if event.get("type") == "text":
+                    content = event.get("content") or ""
+                    if not content:
+                        continue
+                    total_length += len(content)
+                    segment_count += 1
+                    strategy = event.get("strategy") or strategy
+                cache.write(json.dumps(event, ensure_ascii=False) + "\n")
+                yield event
+
+            if segment_count == 0:
+                for event in extract_with_markitdown_segment(file_path):
+                    if event.get("type") == "text":
+                        content = event.get("content") or ""
+                        if not content:
+                            continue
+                        total_length += len(content)
+                        segment_count += 1
+                        strategy = event.get("strategy") or strategy
+                    cache.write(json.dumps(event, ensure_ascii=False) + "\n")
+                    yield event
+
+            if segment_count == 0:
+                raise Exception("No text content extracted from file")
+
+            done = {
+                "type": "done",
+                "success": True,
+                "contentLength": total_length,
+                "segmentCount": segment_count,
+                "strategy": strategy,
+            }
+            cache.write(json.dumps(done, ensure_ascii=False) + "\n")
+            yield done
+
+        os.replace(temp_cache_file, cache_file)
+    except Exception:
+        if temp_cache_file.exists():
+            temp_cache_file.unlink()
+        raise
 
 
 def determine_processing_strategy(url: str, temp_file_path: str, headers: dict) -> str:

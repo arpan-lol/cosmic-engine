@@ -1,10 +1,12 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, HttpUrl
 from typing import Optional, List, Dict, Any
 import time
 import os
+import json
 from pathlib import Path
-from utils import process_url_with_markitdown, GeminiClientWrapper, inject_page_markers_into_markdown, get_pdf_page_count
+from utils import process_url_with_markitdown, GeminiClientWrapper, inject_page_markers_into_markdown, get_pdf_page_count, stream_cached_or_extract_segments
 from markitdown import MarkItDown
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -299,6 +301,49 @@ async def process_file_endpoint(request: FilePathRequest):
             cached=False,
             processing_strategy=None,
         )
+
+
+@app.post("/process-file-stream")
+async def process_file_stream_endpoint(request: FilePathRequest):
+    file_path = request.file_path
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+
+    file_size = os.path.getsize(file_path)
+    MAX_FILE_SIZE = 100 * 1024 * 1024
+    if file_size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large: {file_size / (1024*1024):.2f}MB exceeds 100MB limit",
+        )
+
+    def event_stream():
+        start_time = time.time()
+        try:
+            for event in stream_cached_or_extract_segments(file_path):
+                if event.get("type") == "done":
+                    event["processingTime"] = time.time() - start_time
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+        except Exception as e:
+            error_str = str(e)
+            if "GEMINI_RATE_LIMIT" in error_str:
+                error_message = "Google Gemini API RateLimit Hit"
+            elif "GEMINI_INTERNAL_ERROR" in error_str:
+                error_message = "Google Gemini API Internal Server Error"
+            elif "GEMINI_OVERLOADED" in error_str:
+                error_message = "Google Gemini API Internal Server Overloaded"
+            else:
+                error_message = "Processing failed! The server might be overloaded, please try again later."
+            yield json.dumps({
+                "type": "error",
+                "success": False,
+                "errorMessage": error_message,
+                "detail": error_str,
+                "processingTime": time.time() - start_time,
+            }, ensure_ascii=False) + "\n"
+
+    return StreamingResponse(event_stream(), media_type="application/x-ndjson")
 
 
 @app.get("/cache-stats")

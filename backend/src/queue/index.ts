@@ -17,6 +17,8 @@ class Queue {
   private jobs: Map<string, Job> = new Map();
   private handlers: Map<string, JobHandler> = new Map();
   private processing: boolean = false;
+  private activeJobs: number = 0;
+  private maxConcurrent: number = Math.max(1, Number(process.env.JOB_QUEUE_CONCURRENCY || '2'));
 
   registerHandler<T = any>(type: string, handler: JobHandler<T>): void {
     this.handlers.set(type, handler);
@@ -39,62 +41,62 @@ class Queue {
     this.jobs.set(jobId, job);
     console.log(`[Queue] Job added: ${jobId} (${type})`);
 
-    if (!this.processing) {
-      this.processNext();
-    }
+    this.processNext();
 
     return jobId;
   }
 
 
-  private async processNext(): Promise<void> {
-    this.processing = true;
+  private processNext(): void {
+    this.processing = this.activeJobs > 0;
 
-    // find next pending job
-    const pendingJob = Array.from(this.jobs.values()).find(
-      (job) => job.status === 'pending'
-    );
+    while (this.activeJobs < this.maxConcurrent) {
+      const pendingJob = Array.from(this.jobs.values()).find(
+        (job) => job.status === 'pending'
+      );
 
-    if (!pendingJob) {
-      this.processing = false;
-      return;
-    }
-
-    const handler = this.handlers.get(pendingJob.type);
-    if (!handler) {
-      console.error(`[Queue] No handler registered for: ${pendingJob.type}`);
-      pendingJob.status = 'failed';
-      pendingJob.error = 'No handler registered';
-      this.processNext(); // Continue to next job
-      return;
-    }
-
-    // Mark as processing
-    pendingJob.status = 'processing';
-    pendingJob.attempts++;
-    console.log(`[Queue] Processing job: ${pendingJob.id} (attempt ${pendingJob.attempts})`);
-
-    try {
-      await handler(pendingJob.data);
-      pendingJob.status = 'completed';
-      pendingJob.processedAt = new Date();
-      console.log(`[Queue] Job completed: ${pendingJob.id}`);
-    } catch (error) {
-      console.error(`[Queue] Job failed: ${pendingJob.id}`, error);
-      pendingJob.error = error instanceof Error ? error.message : 'Unknown error';
-
-      // Retry if attempts remaining
-      if (pendingJob.attempts < pendingJob.maxAttempts) {
-        pendingJob.status = 'pending';
-        console.log(`[Queue] Job will retry: ${pendingJob.id}`);
-      } else {
-        pendingJob.status = 'failed';
-        console.log(`[Queue] Job failed permanently: ${pendingJob.id}`);
+      if (!pendingJob) {
+        this.processing = this.activeJobs > 0;
+        return;
       }
-    }
 
-    // Process next job
-    setImmediate(() => this.processNext());
+      const handler = this.handlers.get(pendingJob.type);
+      if (!handler) {
+        console.error(`[Queue] No handler registered for: ${pendingJob.type}`);
+        pendingJob.status = 'failed';
+        pendingJob.error = 'No handler registered';
+        continue;
+      }
+
+      pendingJob.status = 'processing';
+      pendingJob.attempts++;
+      this.activeJobs++;
+      this.processing = true;
+      console.log(`[Queue] Processing job: ${pendingJob.id} (attempt ${pendingJob.attempts}, active ${this.activeJobs}/${this.maxConcurrent})`);
+
+      void (async () => {
+        try {
+          await handler(pendingJob.data);
+          pendingJob.status = 'completed';
+          pendingJob.processedAt = new Date();
+          console.log(`[Queue] Job completed: ${pendingJob.id}`);
+        } catch (error) {
+          console.error(`[Queue] Job failed: ${pendingJob.id}`, error);
+          pendingJob.error = error instanceof Error ? error.message : 'Unknown error';
+
+          if (pendingJob.attempts < pendingJob.maxAttempts) {
+            pendingJob.status = 'pending';
+            console.log(`[Queue] Job will retry: ${pendingJob.id}`);
+          } else {
+            pendingJob.status = 'failed';
+            console.log(`[Queue] Job failed permanently: ${pendingJob.id}`);
+          }
+        } finally {
+          this.activeJobs = Math.max(0, this.activeJobs - 1);
+          setImmediate(() => this.processNext());
+        }
+      })();
+    }
   }
 
 
