@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Content, Part } from '@google/genai';
+import { Type, Content, Part } from '@google/genai';
 import { RetrievalService } from './retrieval.service';
 import { buildPrompt } from './prompts/system.prompt';
 import { estimatePromptTokens } from '../../utils/token-estimator.util';
@@ -7,10 +7,7 @@ import { isGeminiError, parseGeminiError, ProcessingError } from '../../types/er
 import { RetrievalOptions } from '../../types/chat.types';
 import { sseService } from '../sse.service';
 import { PerformanceTracker } from '../../utils/timer.util';
-
-const ai = new GoogleGenAI({
-  apiKey: process.env.GOOGLE_GENAI_API_KEY,
-});
+import { getGeminiClient } from './gemini-key-ring';
 
 const MODEL = 'gemini-2.5-flash';
 
@@ -77,7 +74,7 @@ async function* streamWithToolSupport(
   contents: Content[],
   sessionId: string
 ): AsyncGenerator<{ type: 'token' | 'functionCall'; data: any }> {
-  const stream = await ai.models.generateContentStream({
+  const stream = await getGeminiClient().models.generateContentStream({
     model: MODEL,
     contents,
     config: {
@@ -332,7 +329,7 @@ export class GenerationService {
         parts: [{ text: userPrompt }],
       })
 
-      const result = await ai.models.generateContent({
+      const result = await getGeminiClient().models.generateContent({
         model: MODEL,
         contents,
         config: {

@@ -3,6 +3,36 @@ import multer from 'multer';
 import { AppError } from '../types/errors';
 import { logger } from '../utils/logger.util';
 
+const SENSITIVE_KEYS = new Set([
+  'apikey',
+  'api_key',
+  'authorization',
+  'key',
+  'password',
+  'secret',
+  'token',
+]);
+
+function redactSensitive(value: any): any {
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(redactSensitive);
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => {
+      const normalizedKey = key.toLowerCase().replace(/[-\s]/g, '');
+      if (SENSITIVE_KEYS.has(normalizedKey)) {
+        return [key, '[REDACTED]'];
+      }
+      return [key, redactSensitive(entry)];
+    })
+  );
+}
+
 export const globalErrorHandler: ErrorRequestHandler = (
   error: any,
   req: Request,
@@ -13,7 +43,7 @@ export const globalErrorHandler: ErrorRequestHandler = (
     url: req.url,
     method: req.method,
     userId: (req as any).user?.userId,
-    body: req.body,
+    body: redactSensitive(req.body),
   });
 
   const origin = process.env.FRONTEND_ORIGIN || 'https://cosmicengine.arpantaneja.dev';

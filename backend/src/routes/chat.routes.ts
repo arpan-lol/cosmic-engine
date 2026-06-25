@@ -34,6 +34,10 @@ router.delete('/sessions/:id', asyncHandler(ChatController.deleteSession));
 router.get('/sessions/:id/events', corsMiddleware, asyncHandler(EventsController.streamSessionEvents));
 
 router.post('/sessions/:id/message', asyncHandler(ChatController.message));
+router.get('/providers/models', asyncHandler(ChatController.getProviderModels));
+router.get('/provider-credentials', asyncHandler(ChatController.getProviderCredentials));
+router.post('/provider-credentials', asyncHandler(ChatController.saveProviderCredential));
+router.delete('/provider-credentials/:provider', asyncHandler(ChatController.deleteProviderCredential));
 router.post('/indexbm25/:id', asyncHandler(BM25Controller.indexFiles))
 router.post('/upload', corsMiddleware, upload.single('file'), asyncHandler(ChatController.uploadFile));
 router.get('/sessions/:sessionId/attachments', asyncHandler(ChatController.getSessionAttachments));
