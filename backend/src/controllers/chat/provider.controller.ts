@@ -88,6 +88,59 @@ export class ProviderController {
     return res.status(200).json({ models: LLM_MODELS });
   }
 
+  static async getSettings(req: AuthRequest, res: Response, next: NextFunction): Promise<Response | void> {
+    const userId = requireUser(req);
+
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { selectedModel: true },
+      });
+
+      if (!user) {
+        throw new UnauthorizedError();
+      }
+
+      return res.status(200).json({
+        settings: {
+          selectedModel: user.selectedModel,
+        },
+      });
+    } catch (error) {
+      if (error instanceof UnauthorizedError) {
+        throw error;
+      }
+      next(new ProcessingError('Failed to fetch model settings'));
+    }
+  }
+
+  static async updateSettings(req: AuthRequest, res: Response, next: NextFunction): Promise<Response | void> {
+    const userId = requireUser(req);
+    blockGuest(req);
+
+    const { selectedModel } = req.body;
+
+    if (!isLLMModel(selectedModel)) {
+      throw new ValidationError('Selected model is not supported');
+    }
+
+    try {
+      const user = await prisma.user.update({
+        where: { id: userId },
+        data: { selectedModel },
+        select: { selectedModel: true },
+      });
+
+      return res.status(200).json({
+        settings: {
+          selectedModel: user.selectedModel,
+        },
+      });
+    } catch (error) {
+      next(new ProcessingError('Failed to update model settings'));
+    }
+  }
+
   static async getCredentials(req: AuthRequest, res: Response, next: NextFunction): Promise<Response | void> {
     const userId = requireUser(req);
 

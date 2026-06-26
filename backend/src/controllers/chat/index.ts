@@ -32,6 +32,8 @@ export const ChatController = {
   getCache: CacheController.getCache,
 
   getProviderModels: ProviderController.getModels,
+  getProviderSettings: ProviderController.getSettings,
+  updateProviderSettings: ProviderController.updateSettings,
   getProviderCredentials: ProviderController.getCredentials,
   saveProviderCredential: ProviderController.saveCredential,
   deleteProviderCredential: ProviderController.deleteCredential,

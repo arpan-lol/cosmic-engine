@@ -35,6 +35,8 @@ router.get('/sessions/:id/events', corsMiddleware, asyncHandler(EventsController
 
 router.post('/sessions/:id/message', asyncHandler(ChatController.message));
 router.get('/providers/models', asyncHandler(ChatController.getProviderModels));
+router.get('/provider-settings', asyncHandler(ChatController.getProviderSettings));
+router.patch('/provider-settings', asyncHandler(ChatController.updateProviderSettings));
 router.get('/provider-credentials', asyncHandler(ChatController.getProviderCredentials));
 router.post('/provider-credentials', asyncHandler(ChatController.saveProviderCredential));
 router.delete('/provider-credentials/:provider', asyncHandler(ChatController.deleteProviderCredential));

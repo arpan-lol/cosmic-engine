@@ -1,0 +1,1 @@
+ALTER TABLE "User" ADD COLUMN "selectedModel" TEXT NOT NULL DEFAULT 'google:gemini-2.5-flash';

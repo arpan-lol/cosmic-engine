@@ -27,6 +27,7 @@ model User {
   name         String
   picture      String?
   refreshToken String?
+  selectedModel String @default("google:gemini-2.5-flash")
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   sessions     Session[]

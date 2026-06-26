@@ -21,16 +21,21 @@
   },
   "homepage": "https://github.com/arpan-lol/cosmic-engine#readme",
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.0",
+    "@ai-sdk/google": "^4.0.0",
+    "@ai-sdk/openai": "^4.0.0",
     "@google/genai": "^1.28.0",
     "@prisma/client": "^6.17.0",
     "@zilliz/milvus2-sdk-node": "^2.6.3",
+    "ai": "^7.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "google-auth-library": "^10.4.0",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
