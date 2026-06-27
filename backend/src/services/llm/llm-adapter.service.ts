@@ -24,6 +24,14 @@ interface LLMStreamParams extends LLMConfig {
   messages: ModelMessage[];
   temperature?: number;
   maxTokens?: number;
+  onToolResult?: (event: LLMToolEvent) => void | Promise<void>;
+}
+
+export interface LLMToolEvent {
+  toolName: string;
+  input: unknown;
+  output: unknown;
+  isError: boolean;
 }
 
 function getProviderModelId(provider: LLMProvider, modelId: string) {
@@ -109,6 +117,21 @@ export class LLMAdapter {
       stopWhen: isStepCount(10),
       temperature: params.temperature ?? 0.7,
       maxOutputTokens: params.maxTokens ?? 2048,
+      onStepEnd: async ({ toolResults }) => {
+        if (!params.onToolResult) {
+          return;
+        }
+
+        for (const result of toolResults) {
+          const toolResult = result as any;
+          await params.onToolResult({
+            toolName: String(toolResult.toolName ?? 'tool'),
+            input: toolResult.input,
+            output: toolResult.output ?? toolResult.error,
+            isError: toolResult.type === 'tool-error',
+          });
+        }
+      },
     });
 
     for await (const textPart of result.textStream) {

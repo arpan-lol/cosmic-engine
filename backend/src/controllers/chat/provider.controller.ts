@@ -4,6 +4,7 @@ import prisma from '../../prisma/client';
 import { encrypt } from '../../utils/encryption.util';
 import { ProcessingError, UnauthorizedError, ValidationError } from '../../types/errors';
 import {
+  getLLMModel,
   getProviderModels,
   isLLMModel,
   isLLMProvider,
@@ -75,8 +76,8 @@ function resolveSelectedModel(provider: LLMProvider, selectedModel?: unknown) {
     throw new ValidationError('Selected model is not supported');
   }
 
-  const model = LLM_MODELS.find(item => item.id === selectedModel);
-  if (!model || model.provider !== provider) {
+  const model = getLLMModel(selectedModel);
+  if (!model || model.provider !== provider || model.source !== 'user') {
     throw new ValidationError('Selected model does not match provider');
   }
 

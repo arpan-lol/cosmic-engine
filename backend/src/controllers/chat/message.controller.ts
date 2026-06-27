@@ -217,6 +217,7 @@ export class MessageController {
 
         timer.startTimer('streaming');
         const stream = GenerationService.streamResponse(
+          userId,
           sessionId,
           retrievalQuery,
           conversationHistory,

@@ -1,13 +1,16 @@
-import { Type, Content, Part } from '@google/genai';
+import { Content } from '@google/genai';
+import type { ModelMessage } from 'ai';
 import { RetrievalService } from './retrieval.service';
 import { buildPrompt } from './prompts/system.prompt';
 import { estimatePromptTokens } from '../../utils/token-estimator.util';
 import { logger } from '../../utils/logger.util';
-import { isGeminiError, parseGeminiError, ProcessingError } from '../../types/errors';
+import { AppError, isGeminiError, parseGeminiError, ProcessingError, ValidationError } from '../../types/errors';
 import { RetrievalOptions } from '../../types/chat.types';
 import { sseService } from '../sse.service';
 import { PerformanceTracker } from '../../utils/timer.util';
 import { getGeminiClient } from './gemini-key-ring';
+import { LLMAdapter } from './llm-adapter.service';
+import { LLMResolver, LLMRuntime } from './llm-resolver.service';
 
 const MODEL = 'gemini-2.5-flash';
 
@@ -16,113 +19,23 @@ interface ChatMessage {
   content: string;
 }
 
-interface ToolAwareResult {
-  finalText: string;
-  contents: Content[];
+function isQuotaLikeError(error: any): boolean {
+  const message = String(error?.message ?? error ?? '').toLowerCase();
+
+  return (
+    message.includes('rate limit') ||
+    message.includes('quota') ||
+    message.includes('resource_exhausted') ||
+    message.includes('too many requests') ||
+    message.includes('429') ||
+    message.includes('overloaded') ||
+    message.includes('503')
+  );
 }
-
-async function callEndpoint(url: string): Promise<string> {
-  try {
-    const res = await fetch(url);
-    if (res.ok) {
-      const responseText = await res.text();
-      logger.info('Generation-Tool', `Fetched endpoint: ${url}`, { length: responseText.length });
-      return responseText;
-    } else {
-      return `endpoint fetch failed with status: ${res.status} ${res.statusText}`;
-    }
-  } catch (err) {
-    logger.error('Generation-Tool', 'Error fetching endpoint', err instanceof Error ? err : undefined, { url });
-    return `endpoint fetch failed with error: ${err instanceof Error ? err.message : 'Unknown error'}`;
-  }
-}
-
-const toolFunctions: { [key: string]: (url: string) => Promise<string> } = {
-  Call_an_endpoint: callEndpoint,
-};
-
-const callEndpointDeclaration = {
-  functionDeclarations: [
-    {
-      name: 'Call_an_endpoint',
-      description:
-        'Sends and receives response from an HTTP Request to an API Endpoint on the internet',
-      parameters: {
-        type: Type.OBJECT,
-        properties: {
-          url: {
-            type: Type.STRING,
-            description: 'The URL endpoint to visit',
-          },
-        },
-        required: ['url'],
-      },
-    },
-  ],
-};
-
-function formatHistory(
-  conversationHistory: ChatMessage[]
-): Content[] {
-  return conversationHistory.map((msg) => ({
-    role: msg.role === 'assistant' ? ('model' as const) : ('user' as const),
-    parts: [{ text: msg.content }],
-  }));
-}
-
-async function* streamWithToolSupport(
-  contents: Content[],
-  sessionId: string
-): AsyncGenerator<{ type: 'token' | 'functionCall'; data: any }> {
-  const stream = await getGeminiClient().models.generateContentStream({
-    model: MODEL,
-    contents,
-    config: {
-      tools: [callEndpointDeclaration],
-      temperature: 0.7,
-      maxOutputTokens: 2048,
-    },
-  });
-
-  let detectedFunctionCall: any | undefined;
-  let modelPartsForFunctionCall: Part[] | undefined;
-
-  for await (const chunk of stream) {
-    const candidates = chunk.candidates ?? [];
-
-    if (candidates.length === 0) {
-      logger.warn('Generation', 'Received chunk with no candidates', { sessionId });
-    }
-
-    for (const candidate of candidates) {
-      if (candidate.finishReason) {
-        logger.info('Generation', `Stream finished with reason: ${candidate.finishReason}`, { sessionId });
-      }
-
-      const parts: Part[] = candidate.content?.parts ?? [];
-
-      for (const part of parts) {
-        if (part.text) {
-          yield { type: 'token', data: part.text };
-        }
-
-        if (part.functionCall) {
-          detectedFunctionCall = part.functionCall;
-          modelPartsForFunctionCall = parts;
-          yield {
-            type: 'functionCall',
-            data: { functionCall: detectedFunctionCall, modelParts: modelPartsForFunctionCall },
-          };
-          return;
-        }
-      }
-    }
-  }
-}
-
 
 export class GenerationService {
   static async *streamResponse(
+    userId: number,
     sessionId: string,
     query: string,
     conversationHistory: ChatMessage[] = [],
@@ -130,6 +43,8 @@ export class GenerationService {
     options?: RetrievalOptions,
     timer?: PerformanceTracker
   ): AsyncGenerator<string> {
+    let runtime: LLMRuntime | null = null;
+
     try {
       timer?.startTimer('retrieval');
       const enhancedContexts = await RetrievalService.getContext(sessionId, query, attachmentIds, options, timer);
@@ -143,8 +58,7 @@ export class GenerationService {
           data: {
             title: 'Retrieved context',
             body: enhancedContexts.map(ctx =>
-              // `${ctx.filename} • chunk ${ctx.chunkIndex + 1} • page ${ctx.pageNumber ?? '-'}`
-              `${ctx.filename} • chunk ${ctx.chunkIndex}`
+              `${ctx.filename} - chunk ${ctx.chunkIndex}`
             )
           },
           timestamp: new Date().toISOString()
@@ -152,10 +66,10 @@ export class GenerationService {
       }
 
       timer?.startTimer('promptBuilding');
-      const systemPromptWithContext = buildPrompt('', enhancedContexts, []);
+      const prompt = buildPrompt(query, enhancedContexts, conversationHistory);
       const contextStrings = enhancedContexts.map((ctx) => ctx.content);
       const estimatedTokens = estimatePromptTokens(
-        systemPromptWithContext.substring(0, 1000),
+        prompt.substring(0, 1000),
         contextStrings,
         conversationHistory,
         query
@@ -163,21 +77,8 @@ export class GenerationService {
       timer?.endTimer('promptBuilding');
       logger.info('Generation', 'Stream prompt token estimate', { estimatedTokens, sessionId });
 
-      // initial contents: system (as user instruction), history, and the user query
-      let contents: Content[] = [
-        {
-          role: 'user' as const,
-          parts: [{ text: systemPromptWithContext }],
-        },
-        ...formatHistory(conversationHistory),
-        {
-          role: 'user' as const,
-          parts: [{ text: query }],
-        },
-      ];
-
-      const maxIterations = 10;
-      let iterationCount = 0;
+      runtime = await LLMResolver.resolve(userId);
+      const messages: ModelMessage[] = [{ role: 'user', content: prompt }];
 
       await sseService.publishToSession(sessionId, {
         type: 'notification',
@@ -185,7 +86,11 @@ export class GenerationService {
         message: 'generation-started',
         data: {
           title: 'Started generating response',
-          body: [`Query: ${query}`]
+          body: [
+            `Model: ${runtime.modelName}`,
+            `Source: ${runtime.keyLabel}`,
+            `Query: ${query}`,
+          ]
         },
         timestamp: new Date().toISOString()
       });
@@ -193,105 +98,63 @@ export class GenerationService {
       timer?.startTimer('totalGeneration');
       timer?.startTimer('firstToken');
       let firstTokenReceived = false;
+      let accumulatedText = '';
 
-      while (iterationCount < maxIterations) {
-        iterationCount++;
-        logger.debug('Generation', `Streaming iteration ${iterationCount}`, { sessionId });
-
-        let accumulatedText = '';
-        let functionCallDetected = false;
-        let functionCallData: any = null;
-
-        for await (const item of streamWithToolSupport(contents, sessionId)) {
-          if (item.type === 'token') {
-            if (!firstTokenReceived) {
-              timer?.endTimer('firstToken');
-              firstTokenReceived = true;
-            }
-            accumulatedText += item.data;
-            yield item.data;
-          } else if (item.type === 'functionCall') {
-            functionCallDetected = true;
-            functionCallData = item.data;
-            break;
-          }
-        }
-
-        if (functionCallDetected && functionCallData) {
-          const { functionCall, modelParts } = functionCallData;
-          const { name, args } = functionCall;
-
-          logger.info('Generation', `Function call detected during stream: ${name}`, { sessionId });
-
-          if (!name || !toolFunctions[name]) {
-            logger.error('Generation', `Unknown function call: ${name}`, undefined, { sessionId, functionCall });
-            throw new ProcessingError(`Unknown function call: ${name}`);
-          }
-
-          if (!args || !args.url || typeof args.url !== 'string') {
-            logger.error('Generation', `Missing or invalid 'url' arg for function: ${name}`, undefined, { sessionId, args });
-            throw new ProcessingError(`Missing or invalid 'url' arg for function: ${name}`);
-          }
-
-          contents.push({
-            role: 'model' as const,
-            parts: modelParts ?? [{ functionCall }],
-          });
-
-          logger.info('Generation', `Executing tool: ${name}`, { url: args.url, sessionId });
-          const toolResponse = await toolFunctions[name](args.url as string);
+      for await (const chunk of LLMAdapter.stream({
+        provider: runtime.provider,
+        modelId: runtime.modelId,
+        apiKey: runtime.apiKey,
+        messages,
+        onToolResult: async (event) => {
           await sseService.publishToSession(sessionId, {
             type: 'notification',
             scope: 'session',
             message: 'tool-response',
             data: {
-              title: `Tool executed: ${name}`,
-              body: [`Response length: ${toolResponse.length}`]
+              title: `Tool executed: ${event.toolName}`,
+              body: [
+                `Input: ${JSON.stringify(event.input ?? {})}`,
+                `Response length: ${String(event.output ?? '').length}`,
+              ]
             },
             timestamp: new Date().toISOString()
           });
-
-          contents.push({
-            role: 'user' as const,
-            parts: [
-              {
-                functionResponse: {
-                  name,
-                  response: {
-                    result: toolResponse,
-                  },
-                },
-              } as any,
-            ],
-          });
-
-          continue;
+        },
+      })) {
+        if (!firstTokenReceived) {
+          timer?.endTimer('firstToken');
+          firstTokenReceived = true;
         }
-
-        contents.push({
-          role: 'model' as const,
-          parts: [{ text: accumulatedText }],
-        });
-
-        await sseService.publishToSession(sessionId, {
-          type: 'notification',
-          scope: 'session',
-          message: 'generation-complete',
-          data: {
-            title: 'Response complete',
-            body: [`Length: ${accumulatedText.length} chars`]
-          },
-          timestamp: new Date().toISOString()
-        });
-
-        timer?.endTimer('totalGeneration');
-        return;
+        accumulatedText += chunk;
+        yield chunk;
       }
 
-      logger.warn('Generation', `Reached maximum streaming iterations (${maxIterations})`, { sessionId });
-      yield 'Maximum processing iterations reached. Please try rephrasing your question.';
+      await sseService.publishToSession(sessionId, {
+        type: 'notification',
+        scope: 'session',
+        message: 'generation-complete',
+        data: {
+          title: 'Response complete',
+          body: [`Length: ${accumulatedText.length} chars`]
+        },
+        timestamp: new Date().toISOString()
+      });
+
+      timer?.endTimer('totalGeneration');
     } catch (error) {
       logger.error('Generation', 'Error streaming response', error instanceof Error ? error : undefined, { sessionId });
+
+      if (runtime?.keySource === 'platform' && isQuotaLikeError(error)) {
+        throw new ValidationError(
+          runtime.isGuest
+            ? 'Cosmic Engine free Gemini access is busy. Log in to add your own model API key and keep going.'
+            : 'Cosmic Engine free Gemini access is busy. Add your own model API key to keep going.'
+        );
+      }
+
+      if (error instanceof AppError) {
+        throw error;
+      }
 
       if (isGeminiError(error)) {
         throw parseGeminiError(error);

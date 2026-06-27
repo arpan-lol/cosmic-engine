@@ -30,7 +30,7 @@ export function getGeminiKeyNames(): string[] {
   return getKeyEntries().map(entry => entry.name);
 }
 
-export function getGeminiClient(): GoogleGenAI {
+export function getGeminiKey(): KeyEntry {
   const entries = getKeyEntries();
 
   if (entries.length === 0) {
@@ -39,6 +39,11 @@ export function getGeminiClient(): GoogleGenAI {
 
   const entry = entries[keyIndex % entries.length];
   keyIndex = (keyIndex + 1) % entries.length;
+  return entry;
+}
+
+export function getGeminiClient(): GoogleGenAI {
+  const entry = getGeminiKey();
 
   const cachedClient = clientCache.get(entry.name);
   if (cachedClient) {
