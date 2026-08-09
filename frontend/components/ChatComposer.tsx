@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, KeyboardEvent, useRef, useEffect } from 'react';
+import { useState, KeyboardEvent, ClipboardEvent, useRef, useEffect } from 'react';
 import { Send, Paperclip, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getAcceptedClipboardFiles } from '@/lib/upload';
 
 interface ChatComposerProps {
   onSend: (content: string) => void;
   onAttachmentClick?: () => void;
+  onPasteFiles?: (files: File[]) => void;
   disabled?: boolean;
   placeholder?: string;
   loading?: boolean;
@@ -16,6 +18,7 @@ interface ChatComposerProps {
 export default function ChatComposer({
   onSend,
   onAttachmentClick,
+  onPasteFiles,
   disabled = false,
   placeholder = 'Type your message...',
   loading = false,
@@ -43,6 +46,21 @@ export default function ChatComposer({
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handlePaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
+    if (!onPasteFiles || disabled) {
+      return;
+    }
+
+    const files = getAcceptedClipboardFiles(e.clipboardData);
+
+    if (files.length === 0) {
+      return;
+    }
+
+    e.preventDefault();
+    onPasteFiles(files);
   };
 
   if (loading) {
@@ -93,6 +111,7 @@ export default function ChatComposer({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder={placeholder}
             disabled={disabled}
             rows={1}

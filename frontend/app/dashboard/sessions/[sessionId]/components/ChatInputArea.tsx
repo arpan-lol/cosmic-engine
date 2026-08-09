@@ -84,6 +84,7 @@ export function ChatInputArea({
       <ChatComposer
         onSend={onSendMessage}
         onAttachmentClick={onAttachmentClick}
+        onPasteFiles={onFileChange}
         disabled={disabled}
         loading={loading}
         selectedFilesCount={selectedFilesCount}
