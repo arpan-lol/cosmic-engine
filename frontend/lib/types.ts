@@ -5,6 +5,26 @@ export interface User {
   picture?: string;
 }
 
+export type LLMProvider = 'gemini' | 'openai' | 'anthropic';
+export type LLMSource = 'platform' | 'user';
+
+export interface LLMModel {
+  id: string;
+  provider: LLMProvider;
+  source: LLMSource;
+  providerModelId: string;
+  name: string;
+}
+
+export interface ProviderCredential {
+  id: string;
+  provider: LLMProvider;
+  keyPreview: string;
+  selectedModel: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Conversation {
   id: string;
   userId: number;

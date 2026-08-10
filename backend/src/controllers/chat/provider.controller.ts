@@ -177,25 +177,34 @@ export class ProviderController {
     const model = resolveSelectedModel(provider, selectedModel);
 
     try {
-      const credential = await prisma.providerCredential.upsert({
-        where: {
-          userId_provider: {
+      const credential = await prisma.$transaction(async (transaction) => {
+        const savedCredential = await transaction.providerCredential.upsert({
+          where: {
+            userId_provider: {
+              userId,
+              provider: providerToDb[provider],
+            },
+          },
+          update: {
+            encryptedKey: encrypt(trimmedKey),
+            keyPreview: keyPreview(trimmedKey),
+            selectedModel: model,
+          },
+          create: {
             userId,
             provider: providerToDb[provider],
+            encryptedKey: encrypt(trimmedKey),
+            keyPreview: keyPreview(trimmedKey),
+            selectedModel: model,
           },
-        },
-        update: {
-          encryptedKey: encrypt(trimmedKey),
-          keyPreview: keyPreview(trimmedKey),
-          selectedModel: model,
-        },
-        create: {
-          userId,
-          provider: providerToDb[provider],
-          encryptedKey: encrypt(trimmedKey),
-          keyPreview: keyPreview(trimmedKey),
-          selectedModel: model,
-        },
+        });
+
+        await transaction.user.update({
+          where: { id: userId },
+          data: { selectedModel: model },
+        });
+
+        return savedCredential;
       });
 
       return res.status(200).json({

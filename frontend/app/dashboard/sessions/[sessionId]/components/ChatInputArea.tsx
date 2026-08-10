@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import ChatComposer from '@/components/ChatComposer';
 import { ACCEPTED_FILE_TYPES } from '@/lib/upload';
+import { X } from 'lucide-react';
 
 interface ChatInputAreaProps {
   error: string | null;
@@ -46,7 +47,7 @@ export function ChatInputArea({
       {error && (
         <Card className="border-destructive">
           <CardContent className="p-3 text-sm text-destructive flex items-start justify-between gap-2">
-            <span>Error! The server might be overloaded. Please try again.</span>
+            <span>{error}</span>
             <Button
               variant="ghost"
               size="icon"
@@ -54,19 +55,7 @@ export function ChatInputArea({
               onClick={onDismissError}
             >
               <span className="sr-only">Dismiss error</span>
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <X className="h-4 w-4" />
             </Button>
           </CardContent>
         </Card>

@@ -74,6 +74,12 @@ export function useConversationState({
 
     if (event.scope === 'session') {
       setAllLogs(prev => [...prev, event]);
+      if (event.message === 'generation-started') {
+        toast(event.data?.title || 'Started generating response', {
+          description: event.data?.body?.slice(0, 2).join(' | '),
+          duration: 5000,
+        });
+      }
     } else if (event.scope === 'user') {
       toast(event.message, {
         description: event.data?.title,

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
 import AttachmentSelector from '@/components/AttachmentSelector';
+import { ActiveModelBadge } from '@/components/ActiveModelBadge';
 import type { Attachment, Conversation } from '@/lib/types';
 import type { ReactNode } from 'react';
 
@@ -70,6 +71,7 @@ export function SessionHeader({
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <ActiveModelBadge />
             <AttachmentSelector
               sessionId={sessionId}
               attachments={attachments}

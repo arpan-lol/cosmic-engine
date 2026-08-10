@@ -1,4 +1,4 @@
-Cosmic Engine - LLMs Project Context
+# Cosmic Engine - LLMs Project Context
 Last updated: 2026-04-08
 
 1) Project Summary
@@ -134,4 +134,4 @@ applications by combining multi-format ingestion, configurable retrieval strateg
 and first-class observability in one platform.
 
 10) Developer & Open Source
-Cosmic Engine is developed and maintained by Arpan Taneja (https://arpantaneja.dev) and is open sourced at https://github.com/arpan-lol/cosmic-engine .
+Cosmic Engine is developed and maintained by Arpan Taneja ([arpantaneja.dev](https://arpantaneja.dev)) and is open sourced at [github.com/arpan-lol/cosmic-engine](https://github.com/arpan-lol/cosmic-engine).

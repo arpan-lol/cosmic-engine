@@ -98,7 +98,12 @@ export const useStreamMessage = () => {
         )
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+          let message = `HTTP error! status: ${response.status}`
+          try {
+            const data = await response.json()
+            message = data.error || message
+          } catch {}
+          throw new Error(message)
         }
 
         const reader = response.body?.getReader()
@@ -133,6 +138,7 @@ export const useStreamMessage = () => {
                 options?.onComplete?.(message.messageId)
               } else if (message.type === 'error' && message.error) {
                 setError(message.error)
+                setIsStreaming(false)
                 options?.onError?.(message.error)
               }
             } catch (e) {
