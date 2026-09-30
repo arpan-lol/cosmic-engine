@@ -16,6 +16,18 @@ export function Showcase() {
           />
 
         </div>
+        <a
+          href="https://peerlist.io/arpanlol/project/cosmic-engine"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-8 flex w-fit mx-auto transition-transform duration-300 hover:scale-[1.03]"
+        >
+          <img
+            src="https://peerlist.io/api/v1/projects/embed/PRJHR8DEQQPKB6RNQ1MO99AA7NGPB8?showUpvote=false&theme=light"
+            alt="Cosmic Engine"
+            style={{ width: 'auto', height: '72px' }}
+          />
+        </a>
       </div>
     </section>
   );
