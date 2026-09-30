@@ -3,6 +3,19 @@ import { Embedding } from '../embedding.service';
 import { CollectionService } from './collection.service';
 
 export class StorageService {
+  static async clearVectorsForAttachment(sessionId: string, attachmentId: string): Promise<void> {
+    await ensureConnection();
+    const client = getMilvusClient();
+    const collectionName = CollectionService.generateCName(sessionId);
+    const exists = await client.hasCollection({ collection_name: collectionName });
+    if (!exists.value) return;
+
+    await client.delete({
+      collection_name: collectionName,
+      filter: `metadata["attachmentId"] == "${attachmentId}"`,
+    });
+  }
+
   static async *storeVectorsStream(
     sessionId: string,
     attachmentId: string,

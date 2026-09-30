@@ -81,6 +81,7 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
 
     const collectionName = CollectionService.generateCName(sessionId);
     await CollectionService.initializeCollection(collectionName);
+    await StorageService.clearVectorsForAttachment(sessionId, attachmentId);
 
     logger.info('Orchestrator', 'Step 1: Streaming document extraction', { attachmentId, sessionId });
     sseService.sendProgress(attachmentId, {
@@ -192,6 +193,8 @@ async function processFile(attachmentId: string, userId: number, sessionId: stri
         metadata: {
           ...(attachment.metadata as object),
           processed: true,
+          error: null,
+          failedAt: null,
           processedAt: new Date().toISOString(),
           chunkCount: totalChunks,
           embeddingCount: totalChunks,

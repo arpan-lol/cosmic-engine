@@ -6,7 +6,7 @@ import time
 import os
 import json
 from pathlib import Path
-from utils import process_url_with_markitdown, GeminiClientWrapper, inject_page_markers_into_markdown, get_pdf_page_count, stream_cached_or_extract_segments
+from utils import process_url_with_markitdown, GeminiClientWrapper, inject_page_markers_into_markdown, get_pdf_page_count, ocr_pdf, stream_cached_or_extract_segments
 from markitdown import MarkItDown
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -243,7 +243,7 @@ async def process_file_endpoint(request: FilePathRequest):
         # Process file with MarkItDown
         print(f"🔄 Processing file: {file_path}")
         result = md.convert(file_path)
-        markdown_content = result.text_content
+        markdown_content = result.text_content or ""
         
         is_pdf = file_path.lower().endswith('.pdf')
         page_count = None
@@ -251,8 +251,14 @@ async def process_file_endpoint(request: FilePathRequest):
         if is_pdf:
             page_count = get_pdf_page_count(file_path)
             print(f"📄 PDF detected: {page_count} pages")
+
+            ocr_used = False
+            if page_count and not markdown_content.strip():
+                print(f"📄 Running OCR for {page_count}-page PDF")
+                markdown_content = ocr_pdf(file_path, page_count)
+                ocr_used = True
             
-            if page_count and page_count > 0:
+            if page_count and page_count > 0 and not ocr_used:
                 before_length = len(markdown_content)
                 markdown_content = inject_page_markers_into_markdown(markdown_content, file_path, page_count)
                 after_length = len(markdown_content)
@@ -260,6 +266,9 @@ async def process_file_endpoint(request: FilePathRequest):
                 print(f"✓ Page marker injection: {before_length} → {after_length} chars, {marker_count} markers added")
             else:
                 print(f"⚠️ Could not get page count, skipping page markers")
+
+        if not markdown_content.strip():
+            raise ValueError("No extractable text found in file")
         
         processing_time = time.time() - start_time
         content_length = len(markdown_content)

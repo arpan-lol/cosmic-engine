@@ -6,6 +6,8 @@ import hashlib
 import json
 import requests
 import tempfile
+import subprocess
+from PIL import Image
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 import PyPDF2
@@ -92,6 +94,69 @@ EXTRACTION_CACHE_DIR.mkdir(exist_ok=True)
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB in bytes
 
 
+def ocr_pdf(file_path: str, page_count: int) -> str:
+    if not gemini_api_key:
+        raise ValueError("Gemini API key is required for scanned PDF transcription")
+
+    pages = []
+    digest = hashlib.sha256()
+    with open(file_path, "rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    cache_directory = Path(file_path).parent / ".vision_ocr_cache" / digest.hexdigest()
+    cache_directory.mkdir(parents=True, exist_ok=True)
+    model = genai.GenerativeModel("gemini-2.5-flash-lite")
+    with tempfile.TemporaryDirectory() as directory:
+        for batch_start in range(1, page_count + 1, 4):
+            batch_numbers = list(range(batch_start, min(batch_start + 4, page_count + 1)))
+            missing = [number for number in batch_numbers if not (cache_directory / f"page_{number}.txt").exists()]
+            images = []
+            for page_number in missing:
+                image_prefix = os.path.join(directory, f"page_{page_number}")
+                subprocess.run(
+                    ["pdftoppm", "-f", str(page_number), "-l", str(page_number), "-r", "200", "-singlefile", "-png", file_path, image_prefix],
+                    check=True,
+                    capture_output=True,
+                    timeout=60,
+                )
+                images.append(Image.open(f"{image_prefix}.png"))
+
+            for attempt in range(5):
+                if not missing:
+                    break
+                try:
+                    keys = ", ".join(f'"{number}"' for number in missing)
+                    prompt = f"Read these {len(missing)} handwritten study pages in image order. Return only a JSON object with keys {keys}. Each value should be the visible useful text for search from its page, including headings, terms, and code. Do not add explanations. Use [illegible] for unclear words."
+                    response = model.generate_content([prompt, *images], generation_config={"response_mime_type": "application/json"})
+                    result = json.loads(response.text)
+                    if any(not isinstance(result.get(str(number)), str) or not result[str(number)].strip() for number in missing):
+                        raise ValueError(f"Incomplete transcription for pages {missing}")
+                    for page_number in missing:
+                        cache_file = cache_directory / f"page_{page_number}.txt"
+                        temp_file = cache_file.with_suffix(".tmp")
+                        temp_file.write_text(result[str(page_number)].strip(), encoding="utf-8")
+                        os.replace(temp_file, cache_file)
+                    break
+                except Exception as error:
+                    message = str(error)
+                    retryable = any(code in message.lower() for code in ("429", "503", "resource_exhausted", "overload")) and "PerDay" not in message
+                    if not retryable or attempt == 4:
+                        raise
+                    retry_match = re.search(r'"retryDelay":"(\d+)s"|Please retry in (\d+(?:\.\d+)?)s', message)
+                    delay = float(next(group for group in retry_match.groups() if group)) + 1 if retry_match else 60
+                    print(f"Vision OCR rate limited on pages {missing}; retrying in {delay} seconds", flush=True)
+                    time.sleep(delay)
+            for image in images:
+                image.close()
+            for page_number in missing:
+                os.remove(os.path.join(directory, f"page_{page_number}.png"))
+            for page_number in batch_numbers:
+                page_text = (cache_directory / f"page_{page_number}.txt").read_text(encoding="utf-8")
+                pages.append(f"<!-- Page {page_number} -->\n{page_text}")
+                print(f"Vision OCR page {page_number}/{page_count}: {len(page_text)} characters", flush=True)
+    return "\n\n".join(pages)
+
+
 
 
 
@@ -118,6 +183,8 @@ def inject_page_markers_into_markdown(markdown_content: str, file_path: str, pag
         return f"<!-- Page 1 -->\n{markdown_content}"
     
     content_length = len(markdown_content)
+    if content_length == 0:
+        return markdown_content
     chars_per_page = content_length / page_count
     
     page_markers = []
@@ -306,10 +373,14 @@ def extract_csv_segments(file_path: str):
 
 def extract_with_markitdown_segment(file_path: str):
     result = md.convert(file_path)
-    markdown_content = result.text_content
+    markdown_content = result.text_content or ""
     if file_path.lower().endswith(".pdf"):
         page_count = get_pdf_page_count(file_path)
-        if page_count and page_count > 0:
+        ocr_used = False
+        if page_count and not markdown_content.strip():
+            markdown_content = ocr_pdf(file_path, page_count)
+            ocr_used = True
+        if page_count and page_count > 0 and not ocr_used:
             markdown_content = inject_page_markers_into_markdown(markdown_content, file_path, page_count)
     text = normalize_segment_text(markdown_content)
     if text:

@@ -52,49 +52,63 @@ export class EmbeddingService {
 
     const texts = chunks.map((chunk) => chunk.content);
 
-    try {
-      const response = await ai.models.embedContent({
-        model: EMBEDDING_MODEL,
-        contents: texts,
-        config: {
-          taskType: 'RETRIEVAL_DOCUMENT',
-          outputDimensionality: EMBEDDING_DIMENSION,
-        },
-      });
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const response = await ai.models.embedContent({
+          model: EMBEDDING_MODEL,
+          contents: texts,
+          config: {
+            taskType: 'RETRIEVAL_DOCUMENT',
+            outputDimensionality: EMBEDDING_DIMENSION,
+          },
+        });
 
-      if (!response.embeddings || response.embeddings.length === 0) {
-        logger.error('Embedding', 'No embeddings returned from API', undefined, { chunkCount: chunks.length });
-        throw new ProcessingError('No embeddings returned from API');
-      }
-
-      const embeddings: Embedding[] = chunks.map((chunk, index) => {
-        const values = response.embeddings![index].values;
-        if (!values) {
-          logger.error('Embedding', `No embedding values for chunk ${index}`, undefined, { chunkIndex: chunk.index });
-          throw new ProcessingError(`No embedding values for chunk ${index}`);
+        if (!response.embeddings || response.embeddings.length === 0) {
+          logger.error('Embedding', 'No embeddings returned from API', undefined, { chunkCount: chunks.length });
+          throw new ProcessingError('No embeddings returned from API');
         }
-        return {
-          chunkIndex: chunk.index,
-          vector: values,
-          content: chunk.content,
-          metadata: chunk.metadata || {},
-        };
-      });
 
-      return embeddings;
-    } catch (error) {
-      logger.error('Embedding', 'Error generating embeddings', error instanceof Error ? error : undefined, { chunkCount: chunks.length });
-      
-      if (isGeminiError(error)) {
-        throw parseGeminiError(error);
+        const embeddings: Embedding[] = chunks.map((chunk, index) => {
+          const values = response.embeddings![index].values;
+          if (!values) {
+            logger.error('Embedding', `No embedding values for chunk ${index}`, undefined, { chunkIndex: chunk.index });
+            throw new ProcessingError(`No embedding values for chunk ${index}`);
+          }
+          return {
+            chunkIndex: chunk.index,
+            vector: values,
+            content: chunk.content,
+            metadata: chunk.metadata || {},
+          };
+        });
+
+        return embeddings;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const rateLimited = message.includes('RESOURCE_EXHAUSTED') || message.includes('429') || message.includes('quota exceeded');
+        if (rateLimited && attempt < 4) {
+          const retryAfter = message.match(/"retryDelay":"(\d+)s"/) || message.match(/Please retry in (\d+(?:\.\d+)?)s/);
+          const delayMs = retryAfter ? Math.ceil(Number(retryAfter[1]) * 1000) + 1000 : 60000;
+          logger.warn('Embedding', 'Rate limited, waiting before retry', { chunkCount: chunks.length, attempt: attempt + 1, delayMs });
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          continue;
+        }
+
+        logger.error('Embedding', 'Error generating embeddings', error instanceof Error ? error : undefined, { chunkCount: chunks.length });
+
+        if (isGeminiError(error)) {
+          throw parseGeminiError(error);
+        }
+
+        if (error instanceof ProcessingError) {
+          throw error;
+        }
+
+        throw new ProcessingError(`Failed to generate embeddings: ${message}`);
       }
-      
-      if (error instanceof ProcessingError) {
-        throw error;
-      }
-      
-      throw new ProcessingError(`Failed to generate embeddings: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+
+    throw new ProcessingError('Embedding retries exhausted');
   }
 
   static async generateQueryEmbedding(queryText: string): Promise<number[]> {

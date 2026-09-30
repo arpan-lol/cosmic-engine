@@ -18,6 +18,7 @@ RUN npm ci
 COPY . .
 COPY tsconfig.json ./
 
+RUN npx prisma generate --schema=src/prisma/schema.prisma
 RUN npm run build
 
 FROM base AS runner

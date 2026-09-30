@@ -163,17 +163,12 @@ export class SessionController {
         throw new NotFoundError('Session not found');
       }
 
+      await CollectionService.deleteCollection(CollectionService.generateCName(id));
+      logger.info('SessionController', `Deleted vectors for session: ${id}`);
+
       await prisma.session.delete({
         where: { id },
       });
-
-      CollectionService.deleteCollection(id)
-        .then(() => {
-          logger.info('SessionController', `Deleted vectors for session: ${id}`);
-        })
-        .catch((error: Error) => {
-          logger.warn('SessionController', `Failed to delete vectors for session ${id}`, { error: error.message });
-        });
 
       return res.status(200).json({ message: 'Session deleted successfully' });
     } catch (error) {
