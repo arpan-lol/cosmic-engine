@@ -12,7 +12,7 @@ export function Showcase() {
             muted
             playsInline
             className="w-full h-full object-cover"
-            src="https://github.com/user-attachments/assets/7102e201-af3e-4a65-afe8-06c677866127"
+            src="https://res.cloudinary.com/djqkhf152/video/upload/v1791017917/demo_video_od40tj.mp4"
           />
 
         </div>
